@@ -73,13 +73,34 @@ npm run dev
 Open http://localhost:5173 — pick a category, browse the marketplace, sign
 up, and list an item.
 
+## Deploying (Vercel)
+
+Both halves of the app deploy to Vercel, as two separate projects pointed at
+this same GitHub repo:
+
+1. **Backend** — new Vercel project, Root Directory = `backend`. It deploys
+   as a serverless function (`backend/api/index.js` wraps the same Express
+   app used locally; `backend/vercel.json` routes all paths to it). Add the
+   same env vars as `backend/.env` (`SUPABASE_URL`,
+   `SUPABASE_SERVICE_ROLE_KEY`, and `CLIENT_ORIGIN` set to your frontend's
+   Vercel URL).
+2. **Frontend** — new Vercel project, Root Directory = `frontend`. Framework
+   preset "Vite". Add the same env vars as `frontend/.env`
+   (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_API_URL` set to
+   your backend project's Vercel URL + `/api`).
+
+Every `git push` to `main` auto-redeploys both.
+
 ## Project structure
 
 ```
 backend/
-  server.js              Express app entry point
+  server.js              Local dev entry point (imports src/app.js, calls listen())
+  vercel.json             Routes all paths to the serverless function below
+  api/index.js            Vercel serverless entry point (same Express app, no listen())
   schema.sql             Run this in Supabase's SQL editor
   src/
+    app.js                  The Express app itself (routes, middleware, cors)
     lib/supabaseClient.js  Server-side Supabase client (service role key)
     middleware/auth.js     Verifies Supabase JWT from the frontend
     routes/                categories, listings, rentals, profiles
