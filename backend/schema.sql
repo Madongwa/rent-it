@@ -48,7 +48,10 @@ create table if not exists public.categories (
 insert into public.categories (slug, name, description, icon) values
   ('farming', 'Farming Tools', 'Tractors, tillers, irrigation gear and more', '🌾'),
   ('construction', 'Construction Tools', 'Power tools, scaffolding, heavy equipment', '🏗️'),
-  ('diy', 'Household & DIY', 'Drills, ladders, and everyday tools', '🛠️')
+  ('diy', 'Household & DIY', 'Drills, ladders, and everyday tools', '🛠️'),
+  ('events', 'Events', 'Tents, sound systems, tables and lighting for any event', '🎪'),
+  ('moving', 'Moving', 'Dollies, trailers, and everything for moving day', '📦'),
+  ('medical', 'Medical', 'Mobility aids and home-care equipment', '🩺')
 on conflict (slug) do nothing;
 
 -- ---------------------------------------------------------------------------

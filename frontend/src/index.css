@@ -2,10 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Home page's accent only - see tailwind.config.js `homeAccent`. Change
+     this one line to re-theme the Home page (e.g. to a green). */
+  --home-accent: #6e60ee;
+}
+
 html {
   scroll-behavior: smooth;
 }
 
 body {
-  @apply bg-stone-50 text-stone-900;
+  @apply bg-canvas text-text-primary;
 }

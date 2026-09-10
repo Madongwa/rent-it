@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
@@ -8,8 +8,13 @@ import ListItem from './pages/ListItem';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import ComingSoon from './pages/ComingSoon';
 
 export default function App() {
+  // The Home page uses its own dark editorial theme; the footer needs to
+  // match it there instead of the site's default light theme.
+  const isHome = useLocation().pathname === '/';
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -36,10 +41,18 @@ export default function App() {
           />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/how-it-works" element={<ComingSoon title="How It Works" />} />
+          <Route path="/why-it-matters" element={<ComingSoon title="Why It Matters" />} />
+          <Route path="/help" element={<ComingSoon title="Help / FAQ" />} />
+          <Route path="/about" element={<ComingSoon title="About Us" />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      <footer className="border-t border-stone-200 py-6 text-center text-sm text-stone-400">
+      <footer
+        className={`border-t py-6 text-center text-caption ${
+          isHome ? 'border-night-border/15 bg-night-bg text-night-muted' : 'border-line text-text-muted'
+        }`}
+      >
         © {new Date().getFullYear()} Rent It. Rent smarter, not harder.
       </footer>
     </div>
@@ -49,7 +62,7 @@ export default function App() {
 function NotFound() {
   return (
     <div className="py-24 text-center">
-      <h1 className="text-2xl font-bold text-stone-900">Page not found</h1>
+      <h1 className="text-heading-sm text-text-primary">Page not found</h1>
     </div>
   );
 }
