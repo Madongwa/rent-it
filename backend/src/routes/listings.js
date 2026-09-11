@@ -7,9 +7,21 @@ const router = Router();
 const LISTING_SELECT =
   '*, category:categories(id, slug, name, icon), owner:profiles(id, full_name, avatar_url)';
 
-// GET /api/listings?category=farming&q=drill&minPrice=&maxPrice=&sort=newest|price_asc|price_desc
+// Query params that accept a comma-separated list for "any of these" (OR
+// within the field, AND across different fields) - e.g. condition=Good,Fair.
+const MULTI_VALUE_FILTERS = {
+  condition: 'condition',
+  powerSource: 'power_source',
+  delivery: 'delivery_option',
+  cancellation: 'cancellation_policy',
+  ownerType: 'owner_type',
+};
+
+// GET /api/listings?category=farming&q=drill&minPrice=&maxPrice=&sort=...
+//   &condition=Good,Fair&powerSource=electric,battery&delivery=either
+//   &deposit=true|false&ownerType=individual,business&accessories=true|false
 router.get('/', async (req, res) => {
-  const { category, q, minPrice, maxPrice, sort } = req.query;
+  const { category, q, minPrice, maxPrice, sort, deposit, accessories } = req.query;
 
   let query = supabase.from('listings').select(LISTING_SELECT).eq('status', 'available');
 
@@ -30,9 +42,17 @@ router.get('/', async (req, res) => {
   if (minPrice) query = query.gte('price_per_day', Number(minPrice));
   if (maxPrice) query = query.lte('price_per_day', Number(maxPrice));
 
+  for (const [param, column] of Object.entries(MULTI_VALUE_FILTERS)) {
+    const raw = req.query[param];
+    if (raw) query = query.in(column, raw.split(','));
+  }
+
+  if (deposit) query = query.eq('deposit_required', deposit === 'true');
+  if (accessories) query = query.eq('accessories_included', accessories === 'true');
+
   if (sort === 'price_asc') query = query.order('price_per_day', { ascending: true });
   else if (sort === 'price_desc') query = query.order('price_per_day', { ascending: false });
-  else query = query.order('created_at', { ascending: false });
+  else query = query.order('created_at', { ascending: false }); // 'relevance'/'newest' default
 
   const { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });

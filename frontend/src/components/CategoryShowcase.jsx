@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
@@ -41,7 +41,7 @@ const CATEGORIES = [
 ];
 
 const AUTOPLAY_MS = 2800;
-const LETTER_STAGGER = 0.03;
+const LETTER_STAGGER = 0.028;
 const EASE = [0.22, 1, 0.36, 1];
 
 function ArrowUpRightIcon() {
@@ -61,6 +61,67 @@ export default function CategoryShowcase() {
   const [hoverIndex, setHoverIndex] = useState(null);
   const displayedIndex = hoverIndex ?? activeIndex;
   const active = CATEGORIES[displayedIndex];
+
+  // Sweeping the cursor across the thumbnail row fires a mouseenter on
+  // every thumbnail it passes over; committing each one instantly used to
+  // queue up several overlapping headline transitions that never fully
+  // resolved. Debouncing the "enter" side (not "leave") means only the
+  // thumbnail the cursor actually settles on triggers a transition.
+  const hoverTimeout = useRef(null);
+
+  function handleThumbEnter(i) {
+    clearTimeout(hoverTimeout.current);
+    hoverTimeout.current = setTimeout(() => setHoverIndex(i), 80);
+  }
+
+  function handleThumbLeave() {
+    clearTimeout(hoverTimeout.current);
+    setHoverIndex(null);
+  }
+
+  useEffect(() => () => clearTimeout(hoverTimeout.current), []);
+
+  // Headline word swap - deliberately NOT built on AnimatePresence's
+  // exit-tracking. With this component's nested letter-spans,
+  // AnimatePresence was never reporting the exit as complete: DOM
+  // inspection showed every category name that had ever been shown
+  // (all 6) permanently stuck in the tree, simultaneously visible and
+  // overlapping - which is what produced the illegible, seemingly
+  // "wrong letters" garble. Only ONE word is ever rendered at a time
+  // here; a plain `animate` prop change (not `exit`) slides its letters
+  // up and out, and a setTimeout matched to that animation's real
+  // duration swaps in the next word once it's actually finished.
+  const [displayedCategory, setDisplayedCategory] = useState(CATEGORIES[0]);
+  const [wordPhase, setWordPhase] = useState('resting'); // 'resting' | 'exiting'
+  const displayedColorIndex = CATEGORIES.findIndex((c) => c.slug === displayedCategory.slug);
+  const swapTimeout = useRef(null);
+
+  // Every word swap gives its letters a fresh React key (see the `key`
+  // below), which counts as a new mount as far as Framer Motion is
+  // concerned - so `initial` normally fires on every single transition,
+  // not just page load. We only want to skip it once, for the very first
+  // paint, so this stays `true` through that first render and flips to
+  // `false` before anything else re-renders.
+  const isFirstMount = useRef(true);
+  useEffect(() => {
+    isFirstMount.current = false;
+  }, []);
+
+  useEffect(() => {
+    if (active.slug === displayedCategory.slug) return;
+    if (reduceMotion) {
+      setDisplayedCategory(active);
+      return;
+    }
+    setWordPhase('exiting');
+    const exitMs = (displayedCategory.name.length - 1) * LETTER_STAGGER * 1000 + 550;
+    clearTimeout(swapTimeout.current);
+    swapTimeout.current = setTimeout(() => {
+      setDisplayedCategory(active);
+      setWordPhase('resting');
+    }, exitMs);
+    return () => clearTimeout(swapTimeout.current);
+  }, [active, displayedCategory, reduceMotion]);
 
   // Autoplay advances the committed selection; pauses while a thumbnail is
   // hovered or focused (hoverIndex not null re-triggers this effect, which
@@ -94,8 +155,8 @@ export default function CategoryShowcase() {
               role="tab"
               aria-selected={isDisplayed}
               aria-label={`View ${cat.name} equipment`}
-              onMouseEnter={() => setHoverIndex(i)}
-              onMouseLeave={() => setHoverIndex(null)}
+              onMouseEnter={() => handleThumbEnter(i)}
+              onMouseLeave={handleThumbLeave}
               onFocus={() => setHoverIndex(i)}
               onBlur={() => setHoverIndex(null)}
               onClick={() => handleSelect(i)}
@@ -142,44 +203,40 @@ export default function CategoryShowcase() {
         <p className="text-sm text-night-muted">Browse by category</p>
 
         <div
-          className="relative mx-auto mt-4 flex h-[1.1em] items-center justify-center whitespace-nowrap text-5xl font-extrabold tracking-tight sm:text-7xl lg:text-8xl"
+          className="relative mx-auto mt-4 flex h-[1.3em] items-center justify-center whitespace-nowrap text-[clamp(40px,9vw,112px)] font-extrabold leading-[1.15]"
           aria-live="polite"
         >
-          <AnimatePresence mode="popLayout" initial={false}>
-            {reduceMotion ? (
-              <motion.span
-                key={active.name}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-                className={displayedIndex % 2 === 0 ? 'text-night-text' : 'text-homeAccent'}
-              >
-                {active.name}
-              </motion.span>
-            ) : (
-              <motion.span
-                key={active.name}
-                className={`absolute inset-0 flex items-center justify-center ${
-                  displayedIndex % 2 === 0 ? 'text-night-text' : 'text-homeAccent'
-                }`}
-              >
-                {[...active.name].map((ch, i) => (
-                  <span key={i} className="inline-block h-[1em] overflow-hidden leading-[1]">
-                    <motion.span
-                      initial={{ y: '100%' }}
-                      animate={{ y: '0%' }}
-                      exit={{ y: '-100%' }}
-                      transition={{ duration: 0.5, ease: EASE, delay: i * LETTER_STAGGER }}
-                      className="inline-block"
-                    >
-                      {ch === ' ' ? ' ' : ch}
-                    </motion.span>
-                  </span>
-                ))}
-              </motion.span>
-            )}
-          </AnimatePresence>
+          {reduceMotion ? (
+            <span
+              className={`transition-opacity duration-200 ${
+                wordPhase === 'exiting' ? 'opacity-0' : 'opacity-100'
+              } ${displayedColorIndex % 2 === 0 ? 'text-night-text' : 'text-homeAccent'}`}
+            >
+              {displayedCategory.name}
+            </span>
+          ) : (
+            <span
+              className={`flex items-center justify-center ${
+                displayedColorIndex % 2 === 0 ? 'text-night-text' : 'text-homeAccent'
+              }`}
+            >
+              {[...displayedCategory.name].map((ch, i) => (
+                <span
+                  key={`${displayedCategory.slug}-${i}`}
+                  className="inline-block h-[1.15em] overflow-hidden leading-[1.15]"
+                >
+                  <motion.span
+                    initial={isFirstMount.current ? false : { y: '115%' }}
+                    animate={{ y: wordPhase === 'exiting' ? '-115%' : '0%' }}
+                    transition={{ duration: 0.55, ease: EASE, delay: i * LETTER_STAGGER }}
+                    className="inline-block"
+                  >
+                    {ch === ' ' ? ' ' : ch}
+                  </motion.span>
+                </span>
+              ))}
+            </span>
+          )}
         </div>
 
         <p className="mx-auto mt-6 max-w-md text-base text-night-muted">

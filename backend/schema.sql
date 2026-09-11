@@ -77,6 +77,25 @@ create index if not exists listings_owner_idx on public.listings (owner_id);
 create index if not exists listings_status_idx on public.listings (status);
 
 -- ---------------------------------------------------------------------------
+-- Marketplace filter fields - added for the sidebar filter rebuild. Safe to
+-- re-run: `add column if not exists` is a no-op if already applied.
+-- ---------------------------------------------------------------------------
+alter table public.listings
+  add column if not exists power_source text
+    check (power_source in ('electric', 'petrol', 'diesel', 'manual', 'battery')),
+  add column if not exists delivery_option text not null default 'pickup_only'
+    check (delivery_option in ('owner_delivers', 'pickup_only', 'either')),
+  add column if not exists deposit_required boolean not null default false,
+  add column if not exists cancellation_policy text not null default 'flexible'
+    check (cancellation_policy in ('free', 'flexible', 'strict')),
+  add column if not exists owner_type text not null default 'individual'
+    check (owner_type in ('individual', 'business')),
+  add column if not exists accessories_included boolean not null default false;
+
+create index if not exists listings_power_source_idx on public.listings (power_source);
+create index if not exists listings_delivery_idx on public.listings (delivery_option);
+
+-- ---------------------------------------------------------------------------
 -- rentals: requests to rent a listing for a date range
 -- ---------------------------------------------------------------------------
 create table if not exists public.rentals (
