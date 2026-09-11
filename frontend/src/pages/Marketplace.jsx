@@ -347,8 +347,16 @@ export default function Marketplace() {
       </button>
 
       <div className="lg:grid lg:grid-cols-[260px_1fr] lg:items-start lg:gap-10">
-        {/* LEFT SIDEBAR - desktop */}
-        <aside className="hidden lg:block">
+        {/* LEFT SIDEBAR - desktop. Sticky below the navbar (top-16 matches
+            its h-16 height) and independently scrollable if the filter
+            list itself is taller than the viewport - the grid's default
+            stretch alignment means this column's containing block spans
+            the full row height (matching the listings column), so the
+            sticky element travels the whole page and only stops once it
+            hits the bottom of that row, before the footer. Only active at
+            lg+, where the sidebar renders alongside the grid instead of
+            in the mobile drawer. */}
+        <aside className="hidden lg:sticky lg:top-16 lg:block lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto">
           <FilterSidebar {...sidebarProps} />
         </aside>
 
