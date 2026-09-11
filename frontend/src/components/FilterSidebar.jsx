@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react';
 // Option data for filters that ARE backed by real listing fields.
 // ---------------------------------------------------------------------------
 export const PRICE_BUCKETS = [
-  { id: 'u25', label: 'Under $25', min: '', max: '25' },
-  { id: '25-75', label: '$25 – $75', min: '25', max: '75' },
-  { id: '75-150', label: '$75 – $150', min: '75', max: '150' },
-  { id: '150-300', label: '$150 – $300', min: '150', max: '300' },
-  { id: 'o300', label: 'Over $300', min: '300', max: '' },
+  { id: 'u200', label: 'Under ₹200', min: '', max: '200' },
+  { id: '200-500', label: '₹200 – ₹500', min: '200', max: '500' },
+  { id: '500-1000', label: '₹500 – ₹1,000', min: '500', max: '1000' },
+  { id: '1000-2000', label: '₹1,000 – ₹2,000', min: '1000', max: '2000' },
+  { id: 'o2000', label: 'Over ₹2,000', min: '2000', max: '' },
 ];
 
 const SORT_OPTIONS = [

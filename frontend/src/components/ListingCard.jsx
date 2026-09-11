@@ -41,7 +41,7 @@ export default function ListingCard({ listing }) {
 
         <div className="mt-auto flex items-end justify-between pt-2">
           <span className="text-heading-sm text-text-primary">
-            ${Number(listing.price_per_day).toFixed(2)}
+            ₹{Number(listing.price_per_day).toLocaleString('en-IN')}
             <span className="ml-1 text-body font-normal text-text-muted">/day</span>
           </span>
           {listing.status !== 'available' && (

@@ -96,7 +96,7 @@ export default function Dashboard() {
                   {l.title}
                 </Link>
                 <p className="text-sm text-stone-500">
-                  {l.category?.icon} {l.category?.name} · ${Number(l.price_per_day).toFixed(2)}/day ·{' '}
+                  {l.category?.icon} {l.category?.name} · ₹{Number(l.price_per_day).toLocaleString('en-IN')}/day ·{' '}
                   <span className="capitalize">{l.status}</span>
                 </p>
               </div>

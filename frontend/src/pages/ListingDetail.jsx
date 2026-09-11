@@ -81,7 +81,7 @@ export default function ListingDetail() {
           </div>
           <h1 className="mt-1 text-3xl font-bold text-stone-900">{listing.title}</h1>
           <p className="mt-2 text-2xl font-bold text-stone-900">
-            ${Number(listing.price_per_day).toFixed(2)}
+            ₹{Number(listing.price_per_day).toLocaleString('en-IN')}
             <span className="text-base font-normal text-stone-500"> /day</span>
           </p>
 

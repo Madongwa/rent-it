@@ -180,9 +180,9 @@ export default function Marketplace() {
     setSearchParams(next);
   }
 
-  function toggleUnder50() {
-    const isActive = maxPrice === '50' && !filters.customMin && !filters.priceBucket;
-    isActive ? applyCustomPrice('', '') : applyCustomPrice('', '50');
+  function toggleUnder300() {
+    const isActive = maxPrice === '300' && !filters.customMin && !filters.priceBucket;
+    isActive ? applyCustomPrice('', '') : applyCustomPrice('', '300');
   }
 
   function toggleNewest() {
@@ -235,7 +235,7 @@ export default function Marketplace() {
     pillRef.current?.scrollBy({ left: dir * 260, behavior: 'smooth' });
   }
 
-  const under50Active = maxPrice === '50' && !filters.customMin && !filters.priceBucket;
+  const under300Active = maxPrice === '300' && !filters.customMin && !filters.priceBucket;
   const freeDeliveryActive = filters.delivery.includes('owner_delivers') && filters.delivery.includes('either');
 
   const sidebarProps = {
@@ -309,8 +309,8 @@ export default function Marketplace() {
           <Pill disabled title="Every listing shown is already available">
             Available Now
           </Pill>
-          <Pill active={under50Active} onClick={toggleUnder50}>
-            Under $50/day
+          <Pill active={under300Active} onClick={toggleUnder300}>
+            Under ₹300/day
           </Pill>
           <Pill disabled title="Coming soon - ratings aren't built yet">
             Top Rated
