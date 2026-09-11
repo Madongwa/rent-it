@@ -11,9 +11,10 @@ import Signup from './pages/Signup';
 import ComingSoon from './pages/ComingSoon';
 
 export default function App() {
-  // The Home page uses its own dark editorial theme; the footer needs to
-  // match it there instead of the site's default light theme.
-  const isHome = useLocation().pathname === '/';
+  // Home, Login, and Signup use the dark editorial theme; the footer needs
+  // to match it there instead of the site's default light theme.
+  const pathname = useLocation().pathname;
+  const isDarkPage = pathname === '/' || pathname === '/login' || pathname === '/signup';
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -50,7 +51,7 @@ export default function App() {
       </main>
       <footer
         className={`border-t py-6 text-center text-caption ${
-          isHome ? 'border-night-border/15 bg-night-bg text-night-muted' : 'border-line text-text-muted'
+          isDarkPage ? 'border-night-border/15 bg-night-bg text-night-muted' : 'border-line text-text-muted'
         }`}
       >
         © {new Date().getFullYear()} Rent It. Rent smarter, not harder.
