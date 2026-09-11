@@ -129,7 +129,7 @@ export default function ListItem() {
               step="1"
               value={form.price_per_day}
               onChange={(e) => update('price_per_day', e.target.value)}
-              placeholder="1500"
+              placeholder="750"
               className="w-full rounded-md border border-stone-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400"
               required
             />
