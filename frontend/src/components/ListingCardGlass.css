@@ -1,0 +1,141 @@
+/*
+ * Glassmorphism listing card.
+ * Adapted from a Uiverse.io credit-card design (by joe-watson-sbf) for
+ * equipment listings. Scoped under .listing-card / .listing-card-inner so
+ * it can't collide with any Tailwind utility or other component class.
+ *
+ * IMPORTANT: this only reads as "glass" over a dark/richly-colored
+ * background - the translucent fill + backdrop-blur need something behind
+ * them to blur. Only use this card on a dark section (see Marketplace.jsx,
+ * which wraps the grid in bg-night-bg for this reason).
+ */
+
+.listing-card {
+  position: relative;
+  color: #fff;
+  display: block;
+}
+
+/* Decorative glow blob - brand accent green at low opacity, standing in for
+   the original design's warm-orange circle. */
+.listing-card::before {
+  content: '';
+  position: absolute;
+  top: 6%;
+  right: 7%;
+  width: 6rem;
+  height: 6rem;
+  border-radius: 50%;
+  background-color: #2e7d324c;
+  filter: blur(2px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.listing-card-inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.074);
+  border: 1px solid rgba(255, 255, 255, 0.222);
+  border-radius: 0.9rem;
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  transition: box-shadow ease 0.3s, border-color ease 0.3s, transform ease 0.3s;
+}
+
+.listing-card:hover .listing-card-inner {
+  box-shadow: 0 0 20px 1px #2e7d323f;
+  border-color: rgba(255, 255, 255, 0.454);
+}
+
+.listing-card-image {
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.listing-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.listing-card:hover .listing-card-image img {
+  transform: scale(1.03);
+}
+
+.listing-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 1.1rem;
+}
+
+.listing-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.listing-card-tag {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.222);
+  background-color: rgba(255, 255, 255, 0.08);
+  padding: 0.2rem 0.65rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.listing-card-tag--condition {
+  border-color: #2e7d324c;
+  background-color: #2e7d3226;
+}
+
+.listing-card-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.listing-card-location {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listing-card-price {
+  margin-top: auto;
+  padding-top: 0.4rem;
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.listing-card-price span {
+  margin-left: 0.2rem;
+  font-size: 0.8rem;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.7);
+}

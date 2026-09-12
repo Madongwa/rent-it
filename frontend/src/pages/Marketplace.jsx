@@ -376,14 +376,19 @@ export default function Marketplace() {
           </div>
         )}
 
-        <div>
-          {loading && <div className="py-16 text-center text-text-muted">Loading listings…</div>}
-          {error && <div className="py-16 text-center text-red-500">{error}</div>}
+        {/* Dark section behind the grid - the glass cards' translucent fill
+            + backdrop-blur only reads correctly with something visible
+            behind them to blur, so this reuses the site's existing dark
+            tone from the Home hero rather than sitting on the light
+            canvas background. */}
+        <div className="rounded-card bg-night-bg p-5 sm:p-8">
+          {loading && <div className="py-16 text-center text-night-muted">Loading listings…</div>}
+          {error && <div className="py-16 text-center text-red-400">{error}</div>}
 
           {!loading && !error && listings.length === 0 && (
-            <div className="py-16 text-center text-text-muted">
+            <div className="py-16 text-center text-night-muted">
               No listings found. Try a different search or{' '}
-              <a href="/list-item" className="font-medium text-accent">
+              <a href="/list-item" className="font-medium text-white underline">
                 be the first to list an item
               </a>
               .
