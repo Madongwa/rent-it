@@ -384,8 +384,11 @@ export default function Marketplace() {
               sticky element travels the whole page and only stops once it
               hits the bottom of that row, before the footer. Only active at
               lg+, where the sidebar renders alongside the grid instead of
-              in the mobile drawer. */}
-          <aside className="hidden lg:sticky lg:top-16 lg:block lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto">
+              in the mobile drawer. Scrollbar hidden (same [scrollbar-width]/
+              [&::-webkit-scrollbar] pattern as the pill bar above) - stays
+              scrollable by wheel/trackpad/touch, just without the visible
+              track/thumb down the right edge. */}
+          <aside className="hidden lg:sticky lg:top-16 lg:block lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <FilterSidebar {...sidebarProps} />
           </aside>
 
