@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring } from 'framer-motion';
 
 // Real equipment photography, one per category. "Household" maps to the
 // `diy` slug so it actually filters the Marketplace correctly; Events,
@@ -41,8 +41,11 @@ const CATEGORIES = [
 ];
 
 const AUTOPLAY_MS = 2800;
-const LETTER_STAGGER = 0.028;
 const EASE = [0.22, 1, 0.36, 1];
+// Back-out cubic-bezier (y briefly exceeds 1) for the headline crossfade -
+// gives the word a slight organic overshoot as it settles instead of a
+// mechanical linear/easeOut stop, closer to Skiper6's reveal feel.
+const TEXT_EASE = [0.34, 1.56, 0.64, 1];
 
 function ArrowUpRightIcon() {
   return (
@@ -81,47 +84,27 @@ export default function CategoryShowcase() {
 
   useEffect(() => () => clearTimeout(hoverTimeout.current), []);
 
-  // Headline word swap - deliberately NOT built on AnimatePresence's
-  // exit-tracking. With this component's nested letter-spans,
-  // AnimatePresence was never reporting the exit as complete: DOM
-  // inspection showed every category name that had ever been shown
-  // (all 6) permanently stuck in the tree, simultaneously visible and
-  // overlapping - which is what produced the illegible, seemingly
-  // "wrong letters" garble. Only ONE word is ever rendered at a time
-  // here; a plain `animate` prop change (not `exit`) slides its letters
-  // up and out, and a setTimeout matched to that animation's real
-  // duration swaps in the next word once it's actually finished.
-  const [displayedCategory, setDisplayedCategory] = useState(CATEGORIES[0]);
-  const [wordPhase, setWordPhase] = useState('resting'); // 'resting' | 'exiting'
-  const displayedColorIndex = CATEGORIES.findIndex((c) => c.slug === displayedCategory.slug);
-  const swapTimeout = useRef(null);
+  // Headline word swap - a single motion.span per word (no nested
+  // per-letter spans), so AnimatePresence's exit-tracking works the way
+  // it's meant to: exactly one element enters, exactly one exits, no
+  // overlapping stragglers stuck in the tree. That's what let this drop
+  // the old manual setTimeout choreography entirely.
 
-  // Every word swap gives its letters a fresh React key (see the `key`
-  // below), which counts as a new mount as far as Framer Motion is
-  // concerned - so `initial` normally fires on every single transition,
-  // not just page load. We only want to skip it once, for the very first
-  // paint, so this stays `true` through that first render and flips to
-  // `false` before anything else re-renders.
-  const isFirstMount = useRef(true);
-  useEffect(() => {
-    isFirstMount.current = false;
-  }, []);
+  // Cursor-follower ("View" bubble) - tracks the pointer only while it's
+  // inside the thumbnail row, spring-smoothed rather than snapping frame
+  // to frame so it reads as trailing the cursor, not locked to it.
+  const rowRef = useRef(null);
+  const cursorX = useMotionValue(0);
+  const cursorY = useMotionValue(0);
+  const springX = useSpring(cursorX, { stiffness: 260, damping: 24, mass: 0.4 });
+  const springY = useSpring(cursorY, { stiffness: 260, damping: 24, mass: 0.4 });
 
-  useEffect(() => {
-    if (active.slug === displayedCategory.slug) return;
-    if (reduceMotion) {
-      setDisplayedCategory(active);
-      return;
-    }
-    setWordPhase('exiting');
-    const exitMs = (displayedCategory.name.length - 1) * LETTER_STAGGER * 1000 + 550;
-    clearTimeout(swapTimeout.current);
-    swapTimeout.current = setTimeout(() => {
-      setDisplayedCategory(active);
-      setWordPhase('resting');
-    }, exitMs);
-    return () => clearTimeout(swapTimeout.current);
-  }, [active, displayedCategory, reduceMotion]);
+  function handleRowMouseMove(e) {
+    const rect = rowRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    cursorX.set(e.clientX - rect.left);
+    cursorY.set(e.clientY - rect.top);
+  }
 
   // Autoplay advances the committed selection; pauses while a thumbnail is
   // hovered or focused (hoverIndex not null re-triggers this effect, which
@@ -142,9 +125,11 @@ export default function CategoryShowcase() {
   return (
     <div className="flex flex-col items-center gap-12 sm:gap-16">
       <div
+        ref={rowRef}
+        onMouseMove={handleRowMouseMove}
         role="tablist"
         aria-label="Equipment categories"
-        className="-mx-4 flex w-[calc(100%+2rem)] justify-start gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:w-auto sm:flex-wrap sm:justify-center sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0"
+        className="relative -mx-4 flex w-[calc(100%+2rem)] justify-start gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:w-auto sm:flex-wrap sm:justify-center sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0"
       >
         {CATEGORIES.map((cat, i) => {
           const isDisplayed = i === displayedIndex;
@@ -197,6 +182,37 @@ export default function CategoryShowcase() {
             </button>
           );
         })}
+
+        {/* Cursor follower - scoped to this row only, spring-trailing the
+            pointer while a specific thumbnail is hovered. Hidden below sm:
+            touch devices don't have a persistent hover to trail, and there's
+            no room for it in the mobile horizontal-scroll layout anyway. */}
+        {!reduceMotion && (
+          <AnimatePresence>
+            {hoverIndex !== null && (
+              <motion.div
+                key="cursor-follower"
+                initial={{ opacity: 0, scale: 0.4 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.4 }}
+                transition={{ duration: 0.2, ease: EASE }}
+                // `left`/`top` (plain CSS position) carry the spring-smoothed
+                // cursor tracking; `x`/`y` here are framer's own transform
+                // keys, kept separate so the -50% centering composes
+                // correctly into the same transform string as the
+                // initial/animate/exit `scale` above - a plain Tailwind
+                // -translate-x-1/2 class would get silently overwritten the
+                // moment framer-motion starts managing `scale`, since it
+                // takes full ownership of the element's `transform` once any
+                // transform-key prop is animated.
+                style={{ left: springX, top: springY, x: '-50%', y: '-50%' }}
+                className="pointer-events-none absolute z-20 hidden h-14 w-14 items-center justify-center rounded-full bg-homeAccent text-xs font-semibold uppercase tracking-wide text-night-bg sm:flex"
+              >
+                View
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
       </div>
 
       <div className="text-center">
@@ -206,37 +222,20 @@ export default function CategoryShowcase() {
           className="relative mx-auto mt-4 flex h-[1.3em] items-center justify-center whitespace-nowrap text-[clamp(40px,9vw,112px)] font-extrabold leading-[1.15]"
           aria-live="polite"
         >
-          {reduceMotion ? (
-            <span
-              className={`transition-opacity duration-200 ${
-                wordPhase === 'exiting' ? 'opacity-0' : 'opacity-100'
-              } ${displayedColorIndex % 2 === 0 ? 'text-night-text' : 'text-homeAccent'}`}
-            >
-              {displayedCategory.name}
-            </span>
-          ) : (
-            <span
-              className={`flex items-center justify-center ${
-                displayedColorIndex % 2 === 0 ? 'text-night-text' : 'text-homeAccent'
+          <AnimatePresence initial={false}>
+            <motion.span
+              key={active.slug}
+              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16, scale: 0.94 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -14, scale: 0.97 }}
+              transition={reduceMotion ? { duration: 0.15 } : { duration: 0.36, ease: TEXT_EASE }}
+              className={`absolute inset-0 flex items-center justify-center ${
+                hoverIndex !== null ? 'text-homeAccent' : 'text-night-text'
               }`}
             >
-              {[...displayedCategory.name].map((ch, i) => (
-                <span
-                  key={`${displayedCategory.slug}-${i}`}
-                  className="inline-block h-[1.15em] overflow-hidden leading-[1.15]"
-                >
-                  <motion.span
-                    initial={isFirstMount.current ? false : { y: '115%' }}
-                    animate={{ y: wordPhase === 'exiting' ? '-115%' : '0%' }}
-                    transition={{ duration: 0.55, ease: EASE, delay: i * LETTER_STAGGER }}
-                    className="inline-block"
-                  >
-                    {ch === ' ' ? ' ' : ch}
-                  </motion.span>
-                </span>
-              ))}
-            </span>
-          )}
+              {active.name}
+            </motion.span>
+          </AnimatePresence>
         </div>
 
         <p className="mx-auto mt-6 max-w-md text-base text-night-muted">
