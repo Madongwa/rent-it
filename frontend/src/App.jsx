@@ -20,9 +20,12 @@ import OwnerStorefront from './pages/OwnerStorefront';
 import SellerVerification from './pages/SellerVerification';
 import AdminDashboard from './pages/AdminDashboard';
 import Help from './pages/Help';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 const DARK_PATHS = [
   '/', '/login', '/signup', '/marketplace', '/how-it-works', '/why-it-matters', '/favorites', '/help',
+  '/forgot-password', '/reset-password',
 ];
 
 export default function App() {
@@ -109,6 +112,8 @@ export default function App() {
           />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
           <Route path="/why-it-matters" element={<WhyItMatters />} />
           <Route path="/help" element={<Help />} />

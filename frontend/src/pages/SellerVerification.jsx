@@ -13,8 +13,23 @@ const inputClass =
   'w-full rounded-btn border border-line px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent';
 const labelClass = 'mb-1 block text-sm font-medium text-text-secondary';
 
+// NOTE for when automated verification (Digio) actually goes live: a
+// submission can then reach 'approved' near-instantly instead of after a
+// staff review. At that point this copy - and the couple-of-days framing
+// in 'manual_review' below - should split into a distinct "verified
+// instantly" message rather than always implying a wait. Not done now
+// since DIGIO_API_KEY isn't set and every submission still takes the
+// manual path (see services/idVerification.js).
 const STATUS_COPY = {
   pending: {
+    title: 'Verification in progress',
+    body: "We've received your documents. Our staff will review them and you'll be able to list items once approved - usually within a couple of days.",
+  },
+  // Reachable once automated verification is live: the vendor checked the
+  // submission and flagged it for a human instead of clearing it
+  // instantly. Shown identically to 'pending' for now - there's nothing
+  // meaningfully different to tell the user yet.
+  manual_review: {
     title: 'Verification in progress',
     body: "We've received your documents. Our staff will review them and you'll be able to list items once approved - usually within a couple of days.",
   },

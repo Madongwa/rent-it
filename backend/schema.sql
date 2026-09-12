@@ -439,6 +439,28 @@ create table if not exists public.kyc_submissions (
   submitted_at timestamptz not null default now()
 );
 
+-- ---------------------------------------------------------------------------
+-- Automated eKYC scaffolding (Digio, once wired up) - see
+-- backend/src/services/idVerification.js. Additive to the manual-review
+-- flow above, not a replacement: every submission still lands here, this
+-- just records which path checked it and adds a "checked by the vendor
+-- but inconclusive, needs a human" state distinct from "just submitted,
+-- nothing has looked at it yet".
+-- ---------------------------------------------------------------------------
+alter table public.kyc_submissions
+  add column if not exists verification_method text
+    check (verification_method in ('manual', 'automated')),
+  add column if not exists verification_provider_reference text;
+
+alter table public.kyc_submissions drop constraint if exists kyc_submissions_status_check;
+alter table public.kyc_submissions
+  add constraint kyc_submissions_status_check
+    check (status in ('pending', 'manual_review', 'approved', 'rejected'));
+
+create index if not exists kyc_submissions_provider_ref_idx
+  on public.kyc_submissions (verification_provider_reference)
+  where verification_provider_reference is not null;
+
 alter table public.kyc_submissions enable row level security;
 
 drop policy if exists "Users and admins can view a KYC submission" on public.kyc_submissions;

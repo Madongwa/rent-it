@@ -32,6 +32,16 @@ export function AuthProvider({ children }) {
       }),
     signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
     signOut: () => supabase.auth.signOut(),
+    // Re-sends the signup confirmation email - used on both the "check your
+    // email" screen (in case the first one never arrived) and on Login when
+    // someone tries to log in before confirming.
+    resendConfirmation: (email) => supabase.auth.resend({ type: 'signup', email }),
+    // Supabase emails a recovery link to `redirectTo`; ResetPassword.jsx
+    // picks up the resulting session from the URL and lets the user set a
+    // new password via updatePassword below.
+    requestPasswordReset: (email) =>
+      supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` }),
+    updatePassword: (password) => supabase.auth.updateUser({ password }),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

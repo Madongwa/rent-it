@@ -12,6 +12,7 @@ import messagesRouter from './routes/messages.js';
 import kycRouter from './routes/kyc.js';
 import adminRouter from './routes/admin.js';
 import chatRouter from './routes/chat.js';
+import webhooksRouter from './routes/webhooks.js';
 
 // The Express app itself, with no app.listen() call. Shared between the
 // local dev server (server.js) and the Vercel serverless entry (api/index.js).
@@ -22,6 +23,12 @@ const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
   .map((origin) => origin.trim());
 
 app.use(cors({ origin: allowedOrigins }));
+
+// Mounted before express.json() below, deliberately - webhook signature
+// verification needs the exact raw bytes the sender signed, which a
+// JSON.parse()'d-then-reserialized body can't guarantee byte-for-byte.
+app.use('/api/webhooks', express.raw({ type: '*/*' }), webhooksRouter);
+
 app.use(express.json());
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'rent-it-backend' }));

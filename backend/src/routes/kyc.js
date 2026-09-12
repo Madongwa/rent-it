@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth } from '../middleware/auth.js';
+import { verifyIdentity } from '../services/idVerification.js';
 
 const router = Router();
 
@@ -29,9 +30,23 @@ router.post('/submit', requireAuth, async (req, res) => {
     });
   }
 
-  // A fresh submission always resets to 'pending' - re-review from scratch,
-  // even if a previous submission was rejected or (in an edge case) already
+  // A fresh submission always resets from scratch - re-review even if a
+  // previous submission was rejected or (in an edge case) already
   // approved and the seller is updating their details.
+  //
+  // verifyIdentity() is the only thing that decides manual vs. automated
+  // here - with no DIGIO_API_KEY set it always returns the manual-review
+  // result below, so this behaves exactly as before that function
+  // existed. See services/idVerification.js.
+  const verification = await verifyIdentity({
+    userId: req.user.id,
+    fullName: full_name,
+    phone,
+    address,
+    idDocumentUrl: id_document_url,
+    addressProofUrl: address_proof_url || null,
+  });
+
   const { data, error } = await supabase
     .from('kyc_submissions')
     .upsert(
@@ -42,7 +57,9 @@ router.post('/submit', requireAuth, async (req, res) => {
         address,
         id_document_url,
         address_proof_url: address_proof_url || null,
-        status: 'pending',
+        status: verification.status,
+        verification_method: verification.method,
+        verification_provider_reference: verification.providerReference,
         rejection_reason: null,
         reviewed_by: null,
         reviewed_at: null,
@@ -55,6 +72,9 @@ router.post('/submit', requireAuth, async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
 
+  // profiles.seller_status only ever needs 'pending' here (both 'pending'
+  // and 'manual_review' mean "not decided yet, can't list") - the finer
+  // distinction lives on kyc_submissions.status for the staff dashboard.
   await supabase.from('profiles').update({ seller_status: 'pending' }).eq('id', req.user.id);
 
   res.status(201).json(data);

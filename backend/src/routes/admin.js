@@ -7,12 +7,16 @@ const router = Router();
 // Every route here is staff-only.
 router.use(requireAuth, requireAdmin);
 
-// GET /api/admin/kyc-queue - pending seller verification submissions
+// GET /api/admin/kyc-queue - seller verification submissions awaiting a
+// staff decision. Includes both 'pending' (nothing has looked at it yet -
+// today's only case, since automated verification isn't wired up) and
+// 'manual_review' (the automated vendor checked it and flagged it for a
+// human) - both need the same staff action.
 router.get('/kyc-queue', async (req, res) => {
   const { data, error } = await supabase
     .from('kyc_submissions')
     .select('*, user:profiles!kyc_submissions_user_id_fkey(id, full_name, avatar_url)')
-    .eq('status', 'pending')
+    .in('status', ['pending', 'manual_review'])
     .order('submitted_at', { ascending: true });
 
   if (error) return res.status(500).json({ error: error.message });

@@ -6,7 +6,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 6;
 
 export default function Signup() {
-  const { signUp } = useAuth();
+  const { signUp, resendConfirmation } = useAuth();
   const navigate = useNavigate();
 
   const [fullName, setFullName] = useState('');
@@ -17,6 +17,7 @@ export default function Signup() {
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
+  const [resendState, setResendState] = useState('idle'); // idle | sending | sent | error
 
   function validate() {
     const errors = {};
@@ -53,6 +54,12 @@ export default function Signup() {
     }
   }
 
+  async function handleResend() {
+    setResendState('sending');
+    const { error } = await resendConfirmation(email.trim());
+    setResendState(error ? 'error' : 'sent');
+  }
+
   if (needsConfirmation) {
     return (
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-night-bg px-4 py-16 sm:px-6">
@@ -62,6 +69,33 @@ export default function Signup() {
             We sent a confirmation link to <strong className="text-night-text">{email}</strong>. Confirm
             your address, then log in.
           </p>
+
+          {/* Email delivery isn't instant and can occasionally fail or land
+              in spam - this is the way out of that dead end, instead of a
+              silent "just wait and hope" screen. */}
+          <div className="mt-6 border-t border-night-border/15 pt-5">
+            {resendState === 'sent' ? (
+              <p className="text-sm text-emerald-400">Sent again — check your inbox (and spam folder).</p>
+            ) : (
+              <>
+                <p className="text-xs text-night-muted">Didn't get it?</p>
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resendState === 'sending'}
+                  className="mt-1.5 text-sm font-medium text-homeAccent hover:underline disabled:opacity-60"
+                >
+                  {resendState === 'sending' ? 'Sending…' : 'Resend confirmation email'}
+                </button>
+                {resendState === 'error' && (
+                  <p className="mt-2 text-sm text-red-400">
+                    Couldn't resend that — please try again in a moment.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
           <Link
             to="/login"
             className="mt-6 inline-block font-medium text-homeAccent hover:underline"

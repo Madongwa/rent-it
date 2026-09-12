@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Login() {
-  const { signIn } = useAuth();
+  const { signIn, resendConfirmation } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || '/dashboard';
@@ -15,6 +15,8 @@ export default function Login() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [unconfirmed, setUnconfirmed] = useState(false);
+  const [resendState, setResendState] = useState('idle'); // idle | sending | sent | error
 
   function validate() {
     const errors = {};
@@ -27,6 +29,8 @@ export default function Login() {
   async function handleSubmit(e) {
     e.preventDefault();
     setFormError('');
+    setUnconfirmed(false);
+    setResendState('idle');
 
     const errors = validate();
     setFieldErrors(errors);
@@ -36,8 +40,21 @@ export default function Login() {
     const { error } = await signIn(email.trim(), password);
     setSubmitting(false);
 
-    if (error) setFormError(error.message);
-    else navigate(from, { replace: true });
+    if (error) {
+      setFormError(error.message);
+      // Supabase's message for this case is literally "Email not
+      // confirmed" - matched case-insensitively since that exact string
+      // isn't a documented, guaranteed-stable API contract.
+      if (/email not confirmed/i.test(error.message)) setUnconfirmed(true);
+    } else {
+      navigate(from, { replace: true });
+    }
+  }
+
+  async function handleResend() {
+    setResendState('sending');
+    const { error } = await resendConfirmation(email.trim());
+    setResendState(error ? 'error' : 'sent');
   }
 
   // DEMO ACCOUNT — REMOVE BEFORE PRODUCTION / when asked
@@ -81,9 +98,14 @@ export default function Login() {
           </div>
 
           <div>
-            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-night-text">
-              Password
-            </label>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label htmlFor="password" className="block text-sm font-medium text-night-text">
+                Password
+              </label>
+              <Link to="/forgot-password" className="text-xs font-medium text-homeAccent hover:underline">
+                Forgot password?
+              </Link>
+            </div>
             <input
               id="password"
               type="password"
@@ -104,9 +126,22 @@ export default function Login() {
           </div>
 
           {formError && (
-            <p role="alert" className="rounded-btn border border-red-500/30 bg-red-500/10 px-3.5 py-2.5 text-sm text-red-400">
-              {formError}
-            </p>
+            <div role="alert" className="rounded-btn border border-red-500/30 bg-red-500/10 px-3.5 py-2.5 text-sm text-red-400">
+              <p>{formError}</p>
+              {unconfirmed &&
+                (resendState === 'sent' ? (
+                  <p className="mt-1.5 text-emerald-400">Sent — check your inbox (and spam folder).</p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resendState === 'sending'}
+                    className="mt-1.5 block font-medium text-red-300 underline disabled:opacity-60"
+                  >
+                    {resendState === 'sending' ? 'Sending…' : 'Resend confirmation email'}
+                  </button>
+                ))}
+            </div>
           )}
 
           <button
