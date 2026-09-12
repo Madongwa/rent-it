@@ -55,13 +55,9 @@ const LETTER_EASE = EASE;
 
 // --- PART 3: hover hold-and-resume state machine ---------------------------
 const HOLD_DURATION_MS = 1500; // exact, not approximate
-// Was 2800ms. The old per-letter animation this replaced took noticeably
-// longer to resolve than the new 518ms-max transition above, so 2800ms of
-// dwell time now reads a little slow next to how quickly the word rolls in.
-// Landed on 2500ms - still comfortably inside the requested 2200-2800ms
-// range, and leaves ~2000ms+ of settled reading time after even the
-// longest word's roll finishes.
-const AUTOPLAY_INTERVAL_MS = 2500;
+// Bumped +1s from 2500ms per request - gives each category a beat longer
+// to sit before advancing.
+const AUTOPLAY_INTERVAL_MS = 3500;
 
 function ArrowUpRightIcon() {
   return (
