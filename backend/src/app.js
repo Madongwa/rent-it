@@ -11,6 +11,7 @@ import favoritesRouter from './routes/favorites.js';
 import messagesRouter from './routes/messages.js';
 import kycRouter from './routes/kyc.js';
 import adminRouter from './routes/admin.js';
+import chatRouter from './routes/chat.js';
 
 // The Express app itself, with no app.listen() call. Shared between the
 // local dev server (server.js) and the Vercel serverless entry (api/index.js).
@@ -34,6 +35,7 @@ app.use('/api/favorites', favoritesRouter);
 app.use('/api/messages', messagesRouter);
 app.use('/api/kyc', kycRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/chat', chatRouter);
 
 // Fallback error handler
 app.use((err, _req, res, _next) => {

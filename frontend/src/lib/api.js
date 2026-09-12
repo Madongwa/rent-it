@@ -18,7 +18,12 @@ async function request(path, options = {}) {
   if (res.status === 204) return null;
 
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error || `Request failed (${res.status})`);
+  // body.reply fallback: /api/chat's error responses use { reply } rather
+  // than { error } (its "reply" is itself the user-facing message, e.g.
+  // the rate-limit notice), so this surfaces that instead of a generic
+  // "Request failed (429)" for that one endpoint - harmless no-op for
+  // every other endpoint's error bodies, which never set `reply`.
+  if (!res.ok) throw new Error(body.error || body.reply || `Request failed (${res.status})`);
   return body;
 }
 
@@ -83,6 +88,9 @@ export const api = {
   approveKyc: (userId) => request(`/admin/kyc/${userId}/approve`, { method: 'POST' }),
   rejectKyc: (userId, reason) =>
     request(`/admin/kyc/${userId}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  sendChatMessage: (message, history = []) =>
+    request('/chat', { method: 'POST', body: JSON.stringify({ message, history }) }),
+
   getDisputeQueue: () => request('/admin/disputes'),
   resolveDispute: (disputeId, resolution, outcome) =>
     request(`/admin/disputes/${disputeId}/resolve`, {

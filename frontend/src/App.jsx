@@ -19,8 +19,11 @@ import Favorites from './pages/Favorites';
 import OwnerStorefront from './pages/OwnerStorefront';
 import SellerVerification from './pages/SellerVerification';
 import AdminDashboard from './pages/AdminDashboard';
+import Help from './pages/Help';
 
-const DARK_PATHS = ['/', '/login', '/signup', '/marketplace', '/how-it-works', '/why-it-matters', '/favorites'];
+const DARK_PATHS = [
+  '/', '/login', '/signup', '/marketplace', '/how-it-works', '/why-it-matters', '/favorites', '/help',
+];
 
 export default function App() {
   // Home, Login, Signup, Marketplace, How It Works, Why It Matters, and
@@ -108,7 +111,7 @@ export default function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
           <Route path="/why-it-matters" element={<WhyItMatters />} />
-          <Route path="/help" element={<ComingSoon title="Help / FAQ" />} />
+          <Route path="/help" element={<Help />} />
           <Route path="/about" element={<ComingSoon title="About Us" />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
