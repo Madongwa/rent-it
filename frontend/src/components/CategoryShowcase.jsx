@@ -41,6 +41,9 @@ const CATEGORIES = [
 ];
 
 const AUTOPLAY_MS = 2800;
+// How long a hovered category keeps holding the display after the mouse
+// leaves, before autoplay resumes (continuing forward from that item).
+const SETTLE_MS = 2500;
 const EASE = [0.22, 1, 0.36, 1];
 // Back-out cubic-bezier (y briefly exceeds 1) for the headline crossfade -
 // gives the word a slight organic overshoot as it settles instead of a
@@ -60,29 +63,51 @@ export default function CategoryShowcase() {
   const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
 
+  // Hovering IS the real selection now - there's no separate preview index
+  // that reverts on mouse-leave. activeIndex is the single source of truth,
+  // updated directly by hover, focus, click, and autoplay alike.
   const [activeIndex, setActiveIndex] = useState(0);
-  const [hoverIndex, setHoverIndex] = useState(null);
-  const displayedIndex = hoverIndex ?? activeIndex;
-  const active = CATEGORIES[displayedIndex];
+  const active = CATEGORIES[activeIndex];
 
-  // Sweeping the cursor across the thumbnail row fires a mouseenter on
-  // every thumbnail it passes over; committing each one instantly used to
-  // queue up several overlapping headline transitions that never fully
-  // resolved. Debouncing the "enter" side (not "leave") means only the
-  // thumbnail the cursor actually settles on triggers a transition.
-  const hoverTimeout = useRef(null);
+  // isHovering drives the headline's hover color and pauses autoplay
+  // outright; autoplayEnabled is the separate, slightly-delayed gate that
+  // actually lets the interval run again - kept apart so leaving a
+  // thumbnail doesn't immediately resume autoplay, it schedules a resume
+  // after the settle pause below instead.
+  const [isHovering, setIsHovering] = useState(false);
+  const [autoplayEnabled, setAutoplayEnabled] = useState(true);
+
+  // Sweeping the cursor across the row fires a mouseenter on every
+  // thumbnail it passes over; a short debounce on the "enter" side only
+  // (not "leave") means a fast pass-through doesn't fire a transition for
+  // every thumbnail it grazes, while an actual pause on one still reads as
+  // instant. resumeTimeout is the separate "settle" timer from point 2 -
+  // restarted (not stacked) on every new hover, per point 4.
+  const enterTimeout = useRef(null);
+  const resumeTimeout = useRef(null);
 
   function handleThumbEnter(i) {
-    clearTimeout(hoverTimeout.current);
-    hoverTimeout.current = setTimeout(() => setHoverIndex(i), 80);
+    clearTimeout(enterTimeout.current);
+    clearTimeout(resumeTimeout.current);
+    setIsHovering(true);
+    setAutoplayEnabled(false);
+    enterTimeout.current = setTimeout(() => setActiveIndex(i), 60);
   }
 
   function handleThumbLeave() {
-    clearTimeout(hoverTimeout.current);
-    setHoverIndex(null);
+    clearTimeout(enterTimeout.current);
+    setIsHovering(false);
+    clearTimeout(resumeTimeout.current);
+    resumeTimeout.current = setTimeout(() => setAutoplayEnabled(true), SETTLE_MS);
   }
 
-  useEffect(() => () => clearTimeout(hoverTimeout.current), []);
+  useEffect(
+    () => () => {
+      clearTimeout(enterTimeout.current);
+      clearTimeout(resumeTimeout.current);
+    },
+    []
+  );
 
   // Headline word swap - a single motion.span per word (no nested
   // per-letter spans), so AnimatePresence's exit-tracking works the way
@@ -90,16 +115,18 @@ export default function CategoryShowcase() {
   // overlapping stragglers stuck in the tree. That's what let this drop
   // the old manual setTimeout choreography entirely.
 
-  // Autoplay advances the committed selection; pauses while a thumbnail is
-  // hovered or focused (hoverIndex not null re-triggers this effect, which
-  // clears the previous interval).
+  // Autoplay only runs once autoplayEnabled flips back on (after the
+  // settle pause), and always advances forward from whatever activeIndex
+  // currently is - which, right after a hover, is the hovered item itself,
+  // so this naturally continues forward from there instead of resuming
+  // wherever it was before the hover.
   useEffect(() => {
-    if (hoverIndex !== null) return;
+    if (!autoplayEnabled) return;
     const id = setInterval(() => {
       setActiveIndex((prev) => (prev + 1) % CATEGORIES.length);
     }, AUTOPLAY_MS);
     return () => clearInterval(id);
-  }, [hoverIndex]);
+  }, [autoplayEnabled]);
 
   function handleSelect(index) {
     setActiveIndex(index);
@@ -114,7 +141,7 @@ export default function CategoryShowcase() {
         className="-mx-4 flex w-[calc(100%+2rem)] justify-start gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:w-auto sm:flex-wrap sm:justify-center sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0"
       >
         {CATEGORIES.map((cat, i) => {
-          const isDisplayed = i === displayedIndex;
+          const isDisplayed = i === activeIndex;
           return (
             <button
               key={cat.slug}
@@ -124,8 +151,8 @@ export default function CategoryShowcase() {
               aria-label={`View ${cat.name} equipment`}
               onMouseEnter={() => handleThumbEnter(i)}
               onMouseLeave={handleThumbLeave}
-              onFocus={() => setHoverIndex(i)}
-              onBlur={() => setHoverIndex(null)}
+              onFocus={() => handleThumbEnter(i)}
+              onBlur={handleThumbLeave}
               onClick={() => handleSelect(i)}
               className="relative shrink-0 rounded-2xl bg-transparent p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-homeAccent"
             >
@@ -181,7 +208,7 @@ export default function CategoryShowcase() {
               exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -14, scale: 0.97 }}
               transition={reduceMotion ? { duration: 0.15 } : { duration: 0.36, ease: TEXT_EASE }}
               className={`absolute inset-0 flex items-center justify-center ${
-                hoverIndex !== null ? 'text-homeAccent' : 'text-night-text'
+                isHovering ? 'text-homeAccent' : 'text-night-text'
               }`}
             >
               {active.name}
