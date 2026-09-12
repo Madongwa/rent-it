@@ -10,14 +10,16 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import ComingSoon from './pages/ComingSoon';
 import HowItWorks from './pages/HowItWorks';
+import WhyItMatters from './pages/WhyItMatters';
+
+const DARK_PATHS = ['/', '/login', '/signup', '/marketplace', '/how-it-works', '/why-it-matters'];
 
 export default function App() {
-  // Home, Login, Signup, Marketplace, and How It Works use the dark
-  // editorial theme; the footer needs to match it there instead of the
-  // site's default light theme.
+  // Home, Login, Signup, Marketplace, How It Works, and Why It Matters use
+  // the dark editorial theme; the footer needs to match it there instead of
+  // the site's default light theme.
   const pathname = useLocation().pathname;
-  const isDarkPage =
-    pathname === '/' || pathname === '/login' || pathname === '/signup' || pathname === '/marketplace' || pathname === '/how-it-works';
+  const isDarkPage = DARK_PATHS.includes(pathname);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -46,7 +48,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
-          <Route path="/why-it-matters" element={<ComingSoon title="Why It Matters" />} />
+          <Route path="/why-it-matters" element={<WhyItMatters />} />
           <Route path="/help" element={<ComingSoon title="Help / FAQ" />} />
           <Route path="/about" element={<ComingSoon title="About Us" />} />
           <Route path="*" element={<NotFound />} />
