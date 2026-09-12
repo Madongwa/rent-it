@@ -46,6 +46,25 @@ export const api = {
     request(`/rentals/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 
   getMyProfile: () => request('/profiles/me'),
+  getPublicProfile: (id) => request(`/profiles/${id}`),
   updateMyProfile: (payload) =>
     request('/profiles/me', { method: 'PATCH', body: JSON.stringify(payload) }),
+
+  createReview: (payload) => request('/reviews', { method: 'POST', body: JSON.stringify(payload) }),
+
+  getFavorites: () => request('/favorites'),
+  getFavoriteIds: () => request('/favorites/ids'),
+  addFavorite: (listing_id) =>
+    request('/favorites', { method: 'POST', body: JSON.stringify({ listing_id }) }),
+  removeFavorite: (listingId) => request(`/favorites/${listingId}`, { method: 'DELETE' }),
+
+  getConversations: () => request('/messages/conversations'),
+  startConversation: (listing_id) =>
+    request('/messages/conversations', { method: 'POST', body: JSON.stringify({ listing_id }) }),
+  getMessages: (conversationId) => request(`/messages/conversations/${conversationId}/messages`),
+  sendMessage: (conversationId, body) =>
+    request(`/messages/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    }),
 };

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { useFavorites } from '../hooks/useFavorites';
 import {
   POWER_SOURCE_OPTIONS,
   DELIVERY_OPTIONS,
@@ -138,7 +139,71 @@ function RentalHistoryCalendar({ history }) {
   );
 }
 
-function ReviewsSection({ reviews, avgRating, reviewCount }) {
+// Rating picker - plain buttons, not a native <input type="range">, so the
+// current value is always visible at a glance rather than needing a drag.
+function StarPicker({ value, onChange }) {
+  return (
+    <div className="flex gap-1">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          aria-label={`${n} star${n === 1 ? '' : 's'}`}
+          className={`text-2xl leading-none ${n <= value ? 'text-amber-500' : 'text-line'}`}
+        >
+          ★
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function WriteReviewForm({ listingId, onSubmitted }) {
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError('');
+    try {
+      await api.createReview({ listing_id: listingId, rating, comment: comment.trim() || undefined });
+      setComment('');
+      onSubmitted();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mb-6 space-y-3 border-b border-line pb-6">
+      <h3 className="text-sm font-semibold text-text-primary">Leave a review</h3>
+      <StarPicker value={rating} onChange={setRating} />
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        rows={3}
+        placeholder="How did it go? (optional)"
+        className="w-full rounded-btn border border-line px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+      />
+      {error && <p className="text-sm text-red-500">{error}</p>}
+      <button
+        type="submit"
+        disabled={submitting}
+        className="rounded-btn bg-text-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+      >
+        {submitting ? 'Submitting…' : 'Submit review'}
+      </button>
+    </form>
+  );
+}
+
+function ReviewsSection({ reviews, avgRating, reviewCount, canReview, listingId, onReviewSubmitted }) {
   const [showAll, setShowAll] = useState(false);
   const shown = showAll ? reviews : reviews.slice(0, 5);
 
@@ -151,6 +216,12 @@ function ReviewsSection({ reviews, avgRating, reviewCount }) {
           · {reviewCount} review{reviewCount === 1 ? '' : 's'}
         </span>
       </div>
+
+      {canReview && (
+        <div className="mt-6">
+          <WriteReviewForm listingId={listingId} onSubmitted={onReviewSubmitted} />
+        </div>
+      )}
 
       {reviews.length === 0 ? (
         <p className="mt-4 text-body text-text-muted">No reviews yet.</p>
@@ -197,15 +268,47 @@ export default function ListingDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [requestError, setRequestError] = useState('');
   const [requestSuccess, setRequestSuccess] = useState(false);
+  const [messaging, setMessaging] = useState(false);
+  const [messageError, setMessageError] = useState('');
+
+  const { favoriteIds, toggle: toggleFavorite, isLoggedIn } = useFavorites();
+
+  function reload() {
+    return api.getListing(id).then(setListing);
+  }
 
   useEffect(() => {
     setLoading(true);
-    api
-      .getListing(id)
-      .then(setListing)
+    reload()
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  function handleToggleFavorite() {
+    if (!isLoggedIn) {
+      navigate('/login', { state: { from: { pathname: `/listing/${id}` } } });
+      return;
+    }
+    toggleFavorite(id);
+  }
+
+  async function handleMessageOwner() {
+    if (!user) {
+      navigate('/login', { state: { from: { pathname: `/listing/${id}` } } });
+      return;
+    }
+    setMessaging(true);
+    setMessageError('');
+    try {
+      const conversation = await api.startConversation(id);
+      navigate(`/messages?c=${conversation.id}`);
+    } catch (err) {
+      setMessageError(err.message);
+    } finally {
+      setMessaging(false);
+    }
+  }
 
   async function handleRequestRent(e) {
     e.preventDefault();
@@ -247,7 +350,7 @@ export default function ListingDetail() {
 
       <div className="mt-4 grid gap-8 md:grid-cols-2">
         {/* 1. Image */}
-        <div className="aspect-[4/3] w-full overflow-hidden rounded-card bg-canvas">
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-card bg-canvas">
           {listing.image_url ? (
             <img src={listing.image_url} alt={listing.title} className="h-full w-full object-cover" />
           ) : (
@@ -255,6 +358,19 @@ export default function ListingDetail() {
               {listing.category?.icon || '🧰'}
             </div>
           )}
+          <button
+            type="button"
+            onClick={handleToggleFavorite}
+            aria-label={favoriteIds.has(id) ? 'Remove from favorites' : 'Save to favorites'}
+            aria-pressed={favoriteIds.has(id)}
+            className={`absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/45 backdrop-blur transition-transform hover:scale-110 ${
+              favoriteIds.has(id) ? 'text-[#ff5a7a]' : 'text-white'
+            }`}
+          >
+            <svg viewBox="0 0 24 24" fill={favoriteIds.has(id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+              <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z" />
+            </svg>
+          </button>
         </div>
 
         <div>
@@ -324,13 +440,33 @@ export default function ListingDetail() {
           <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-line pt-4 text-sm">
             <div>
               <dt className="text-text-muted">Listed by</dt>
-              <dd className="font-medium text-text-primary">{listing.owner?.full_name || 'Rent It user'}</dd>
+              <dd className="font-medium text-text-primary">
+                {listing.owner_id ? (
+                  <Link to={`/owner/${listing.owner_id}`} className="hover:underline">
+                    {listing.owner?.full_name || 'Rent It user'}
+                  </Link>
+                ) : (
+                  listing.owner?.full_name || 'Rent It user'
+                )}
+              </dd>
             </div>
             <div>
               <dt className="text-text-muted">Owner type</dt>
               <dd className="font-medium text-text-primary">{OWNER_TYPE_LABEL[listing.owner_type] || '—'}</dd>
             </div>
           </dl>
+
+          {!isOwner && (
+            <button
+              type="button"
+              onClick={handleMessageOwner}
+              disabled={messaging}
+              className="mt-3 text-sm font-medium text-accent hover:underline disabled:opacity-60"
+            >
+              {messaging ? 'Starting conversation…' : '💬 Message the owner'}
+            </button>
+          )}
+          {messageError && <p className="mt-1 text-sm text-red-500">{messageError}</p>}
 
           {/* 3. Description */}
           {listing.description && (
@@ -460,7 +596,14 @@ export default function ListingDetail() {
       </SectionCard>
 
       {/* 8. Reviews */}
-      <ReviewsSection reviews={reviews} avgRating={listing.avg_rating} reviewCount={listing.review_count} />
+      <ReviewsSection
+        reviews={reviews}
+        avgRating={listing.avg_rating}
+        reviewCount={listing.review_count}
+        listingId={id}
+        canReview={!!user && !isOwner && !reviews.some((r) => r.reviewer_id === user.id)}
+        onReviewSubmitted={reload}
+      />
     </div>
   );
 }

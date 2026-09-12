@@ -28,6 +28,28 @@ router.post('/', requireAuth, async (req, res) => {
   if (listing.status !== 'available') {
     return res.status(400).json({ error: 'This item is not currently available' });
   }
+  if (new Date(end_date) < new Date(start_date)) {
+    return res.status(400).json({ error: 'End date must be on or after the start date' });
+  }
+
+  // Reject requests that overlap an already-approved rental on this listing -
+  // two ranges [a,b] and [c,d] overlap iff a<=d and c<=b. Only 'approved'
+  // rentals actually block dates; a merely 'pending' one doesn't (nothing
+  // stops the owner from approving a different request for the same dates
+  // instead).
+  const { data: conflicting, error: conflictError } = await supabase
+    .from('rentals')
+    .select('id')
+    .eq('listing_id', listing_id)
+    .eq('status', 'approved')
+    .lte('start_date', end_date)
+    .gte('end_date', start_date)
+    .limit(1);
+
+  if (conflictError) return res.status(500).json({ error: conflictError.message });
+  if (conflicting && conflicting.length > 0) {
+    return res.status(409).json({ error: 'This item is already booked for part of those dates' });
+  }
 
   const { data, error } = await supabase
     .from('rentals')
@@ -82,7 +104,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
 
   const { data: rental, error: findError } = await supabase
     .from('rentals')
-    .select('id, renter_id, listing:listings(owner_id)')
+    .select('id, renter_id, status, listing:listings(owner_id)')
     .eq('id', req.params.id)
     .single();
 
@@ -94,8 +116,24 @@ router.patch('/:id', requireAuth, async (req, res) => {
   if (['approved', 'rejected'].includes(status) && !isOwner) {
     return res.status(403).json({ error: 'Only the item owner can approve or reject a request' });
   }
+  if (status === 'completed' && !isOwner) {
+    return res.status(403).json({ error: 'Only the item owner can mark a rental complete' });
+  }
   if (status === 'cancelled' && !isRenter && !isOwner) {
     return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  // Only sensible from-states per target, so a request can't e.g. jump
+  // straight from 'pending' to 'completed', or be re-approved after
+  // already being rejected.
+  const validFrom = {
+    approved: ['pending'],
+    rejected: ['pending'],
+    completed: ['approved'],
+    cancelled: ['pending', 'approved'],
+  };
+  if (!validFrom[status].includes(rental.status)) {
+    return res.status(400).json({ error: `Cannot mark a "${rental.status}" rental as "${status}"` });
   }
 
   const { data, error } = await supabase

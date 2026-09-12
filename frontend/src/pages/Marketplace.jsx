@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import ListingCard from '../components/ListingCard';
 import FilterSidebar, { PRICE_BUCKETS, countActiveFilters } from '../components/FilterSidebar';
+import { useFavorites } from '../hooks/useFavorites';
 
 const MULTI_KEYS = ['condition', 'powerSource', 'delivery', 'cancellation', 'ownerType', 'duration', 'availability'];
 // Filter keys whose URL param name differs from the filter-state key name.
@@ -95,9 +96,19 @@ function Pill({ active, disabled, onClick, children, title }) {
 }
 
 export default function Marketplace() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = readFilters(searchParams);
   const q = searchParams.get('q') || '';
+  const { favoriteIds, toggle: toggleFavorite, isLoggedIn } = useFavorites();
+
+  function handleToggleFavorite(listingId) {
+    if (!isLoggedIn) {
+      navigate('/login', { state: { from: { pathname: '/marketplace' } } });
+      return;
+    }
+    toggleFavorite(listingId);
+  }
 
   const [categories, setCategories] = useState([]);
   const [listings, setListings] = useState([]);
@@ -426,7 +437,12 @@ export default function Marketplace() {
 
             <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
               {listings.map((listing) => (
-                <ListingCard key={listing.id} listing={listing} />
+                <ListingCard
+                  key={listing.id}
+                  listing={listing}
+                  isFavorited={favoriteIds.has(listing.id)}
+                  onToggleFavorite={handleToggleFavorite}
+                />
               ))}
             </div>
           </div>

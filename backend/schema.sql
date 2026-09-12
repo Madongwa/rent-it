@@ -255,3 +255,142 @@ create policy "Renter or owner can update a rental" on public.rentals
     auth.uid() = renter_id
     or auth.uid() = (select owner_id from public.listings where listings.id = rentals.listing_id)
   );
+
+-- ---------------------------------------------------------------------------
+-- Real review submission. `reviews` already existed (seed content, plain
+-- reviewer_name/no account link) - this adds an optional reviewer_id so a
+-- signed-in user's real review can be tied to their account and capped at
+-- one per listing, without touching the seeded rows (reviewer_id stays
+-- null for those).
+-- ---------------------------------------------------------------------------
+alter table public.reviews
+  add column if not exists reviewer_id uuid references public.profiles (id) on delete set null;
+
+create unique index if not exists reviews_listing_reviewer_unique
+  on public.reviews (listing_id, reviewer_id)
+  where reviewer_id is not null;
+
+drop policy if exists "Users can create their own reviews" on public.reviews;
+create policy "Users can create their own reviews" on public.reviews
+  for insert with check (auth.uid() = reviewer_id);
+
+-- ---------------------------------------------------------------------------
+-- favorites: a user saving a listing. No extra metadata - just membership.
+-- ---------------------------------------------------------------------------
+create table if not exists public.favorites (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  listing_id uuid not null references public.listings (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (user_id, listing_id)
+);
+
+create index if not exists favorites_user_idx on public.favorites (user_id);
+create index if not exists favorites_listing_idx on public.favorites (listing_id);
+
+alter table public.favorites enable row level security;
+
+drop policy if exists "Users can view their own favorites" on public.favorites;
+create policy "Users can view their own favorites" on public.favorites
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "Users can add their own favorites" on public.favorites;
+create policy "Users can add their own favorites" on public.favorites
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "Users can remove their own favorites" on public.favorites;
+create policy "Users can remove their own favorites" on public.favorites
+  for delete using (auth.uid() = user_id);
+
+-- ---------------------------------------------------------------------------
+-- Basic messaging: one conversation per (listing, renter) pair, so an
+-- owner and a prospective renter have exactly one thread per item they're
+-- discussing rather than a new one every message.
+-- ---------------------------------------------------------------------------
+create table if not exists public.conversations (
+  id uuid primary key default uuid_generate_v4(),
+  listing_id uuid not null references public.listings (id) on delete cascade,
+  owner_id uuid not null references public.profiles (id) on delete cascade,
+  renter_id uuid not null references public.profiles (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (listing_id, renter_id)
+);
+
+create table if not exists public.messages (
+  id uuid primary key default uuid_generate_v4(),
+  conversation_id uuid not null references public.conversations (id) on delete cascade,
+  sender_id uuid not null references public.profiles (id) on delete cascade,
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists conversations_owner_idx on public.conversations (owner_id);
+create index if not exists conversations_renter_idx on public.conversations (renter_id);
+create index if not exists messages_conversation_idx on public.messages (conversation_id);
+
+alter table public.conversations enable row level security;
+alter table public.messages enable row level security;
+
+drop policy if exists "Participants can view their conversations" on public.conversations;
+create policy "Participants can view their conversations" on public.conversations
+  for select using (auth.uid() = owner_id or auth.uid() = renter_id);
+
+drop policy if exists "Renter can start a conversation as themselves" on public.conversations;
+create policy "Renter can start a conversation as themselves" on public.conversations
+  for insert with check (auth.uid() = renter_id);
+
+drop policy if exists "Participants can view their messages" on public.messages;
+create policy "Participants can view their messages" on public.messages
+  for select using (
+    exists (
+      select 1 from public.conversations c
+      where c.id = messages.conversation_id
+        and (auth.uid() = c.owner_id or auth.uid() = c.renter_id)
+    )
+  );
+
+drop policy if exists "Participants can send messages" on public.messages;
+create policy "Participants can send messages" on public.messages
+  for insert with check (
+    auth.uid() = sender_id
+    and exists (
+      select 1 from public.conversations c
+      where c.id = messages.conversation_id
+        and (auth.uid() = c.owner_id or auth.uid() = c.renter_id)
+    )
+  );
+
+-- ---------------------------------------------------------------------------
+-- Full-text search over title+description, replacing the plain ILIKE scan.
+-- Generated column + GIN index so it stays in sync automatically.
+-- ---------------------------------------------------------------------------
+alter table public.listings
+  add column if not exists search_vector tsvector
+    generated always as (
+      setweight(to_tsvector('english', coalesce(title, '')), 'A')
+      || setweight(to_tsvector('english', coalesce(description, '')), 'B')
+    ) stored;
+
+create index if not exists listings_search_idx on public.listings using gin (search_vector);
+
+-- ---------------------------------------------------------------------------
+-- Storage bucket for listing photos, uploaded directly from the browser
+-- (frontend already talks to Supabase directly for auth, same pattern) -
+-- public bucket so images render via a plain public URL, folder-per-user
+-- (auth.uid()/filename) so the delete policy can check ownership by path.
+-- ---------------------------------------------------------------------------
+insert into storage.buckets (id, name, public)
+values ('listing-images', 'listing-images', true)
+on conflict (id) do nothing;
+
+drop policy if exists "Anyone can view listing images" on storage.objects;
+create policy "Anyone can view listing images" on storage.objects
+  for select using (bucket_id = 'listing-images');
+
+drop policy if exists "Authenticated users can upload listing images" on storage.objects;
+create policy "Authenticated users can upload listing images" on storage.objects
+  for insert with check (bucket_id = 'listing-images' and auth.role() = 'authenticated');
+
+drop policy if exists "Users can delete their own listing images" on storage.objects;
+create policy "Users can delete their own listing images" on storage.objects
+  for delete using (bucket_id = 'listing-images' and auth.uid()::text = (storage.foldername(name))[1]);

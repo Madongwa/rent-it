@@ -16,6 +16,20 @@ router.get('/me', requireAuth, async (req, res) => {
   res.json({ ...data, email: req.user.email });
 });
 
+// GET /api/profiles/:id - public storefront info only (no phone/email) -
+// deliberately not behind requireAuth, and must come after the /me route
+// above so "/me" doesn't get captured as an :id param.
+router.get('/:id', async (req, res) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url, created_at')
+    .eq('id', req.params.id)
+    .single();
+
+  if (error || !data) return res.status(404).json({ error: 'Profile not found' });
+  res.json(data);
+});
+
 // PATCH /api/profiles/me
 router.patch('/me', requireAuth, async (req, res) => {
   const { full_name, phone, avatar_url } = req.body;

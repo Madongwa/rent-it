@@ -25,15 +25,22 @@ const MULTI_VALUE_FILTERS = {
 // Max km for each "Within X km" distance-filter option.
 const DISTANCE_BUCKET_KM = { '2': 2, '5': 5, '10': 10, '25': 25 };
 
+// Hard cap on how many rows a single request can pull back - the previous
+// version had no limit at all (fine at 30 seed rows, not fine once real
+// listings accumulate). Not full page-by-page pagination (the frontend
+// doesn't have page controls yet), just a ceiling.
+const DEFAULT_LIMIT = 60;
+const MAX_LIMIT = 120;
+
 // GET /api/listings?category=farming&q=drill&minPrice=&maxPrice=&sort=...
 //   &condition=Good,Fair&powerSource=electric,battery&delivery=either
 //   &deposit=true|false&ownerType=individual,business&accessories=true|false
 //   &distance=10&duration=daily,weekly&minRating=4&minRentalPeriod=1_day
-//   &availability=today,week
+//   &availability=today,week&ownerId=<uuid>&limit=60
 router.get('/', async (req, res) => {
   const {
     category, q, minPrice, maxPrice, sort, deposit, accessories,
-    distance, duration, minRating, minRentalPeriod, availability,
+    distance, duration, minRating, minRentalPeriod, availability, ownerId, limit,
   } = req.query;
 
   let query = supabase.from('listings').select(LISTING_SELECT).eq('status', 'available');
@@ -48,8 +55,13 @@ router.get('/', async (req, res) => {
     else return res.json([]); // unknown category slug -> no results
   }
 
+  if (ownerId) query = query.eq('owner_id', ownerId);
+
+  // Full-text search (title weighted over description) instead of a plain
+  // substring scan - handles multi-word queries and word-order/prefix
+  // matching better, and can use the search_vector GIN index.
   if (q) {
-    query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);
+    query = query.textSearch('search_vector', q, { type: 'websearch', config: 'english' });
   }
 
   if (minPrice) query = query.gte('price_per_day', Number(minPrice));
@@ -73,6 +85,9 @@ router.get('/', async (req, res) => {
   if (sort === 'price_asc') query = query.order('price_per_day', { ascending: true });
   else if (sort === 'price_desc') query = query.order('price_per_day', { ascending: false });
   else query = query.order('created_at', { ascending: false }); // 'relevance'/'newest' default
+
+  const limitNum = Math.min(Number(limit) || DEFAULT_LIMIT, MAX_LIMIT);
+  query = query.limit(limitNum);
 
   let { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
@@ -147,27 +162,48 @@ router.get('/:id', async (req, res) => {
   res.json(data);
 });
 
+// Fields the "List an Item" create form and the Dashboard edit form are
+// both allowed to set, beyond the original core 7. All optional - a
+// listing created without them just keeps the column defaults from
+// schema.sql (pickup_only/not-required/flexible/individual/no_minimum/
+// ['daily']), same as before this list existed.
+const WRITABLE_FIELDS = [
+  'title',
+  'description',
+  'category_id',
+  'price_per_day',
+  'location',
+  'condition',
+  'image_url',
+  'power_source',
+  'delivery_option',
+  'deposit_required',
+  'deposit_amount',
+  'cancellation_policy',
+  'owner_type',
+  'accessories_included',
+  'accessories_note',
+  'min_rental_period',
+  'supported_durations',
+  'distance_km',
+];
+
 // POST /api/listings - create a new listing (the "List an Item" form)
 router.post('/', requireAuth, async (req, res) => {
-  const { title, description, category_id, price_per_day, location, condition, image_url } =
-    req.body;
+  const { title, category_id, price_per_day } = req.body;
 
   if (!title || !category_id || !price_per_day) {
     return res.status(400).json({ error: 'title, category_id and price_per_day are required' });
   }
 
+  const fields = {};
+  for (const field of WRITABLE_FIELDS) {
+    if (field in req.body) fields[field] = req.body[field];
+  }
+
   const { data, error } = await supabase
     .from('listings')
-    .insert({
-      owner_id: req.user.id,
-      title,
-      description,
-      category_id,
-      price_per_day,
-      location,
-      condition,
-      image_url,
-    })
+    .insert({ ...fields, owner_id: req.user.id })
     .select(LISTING_SELECT)
     .single();
 
@@ -186,16 +222,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
   if (findError || !existing) return res.status(404).json({ error: 'Listing not found' });
   if (existing.owner_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
 
-  const allowedFields = [
-    'title',
-    'description',
-    'category_id',
-    'price_per_day',
-    'location',
-    'condition',
-    'image_url',
-    'status',
-  ];
+  const allowedFields = [...WRITABLE_FIELDS, 'status'];
   const updates = {};
   for (const field of allowedFields) {
     if (field in req.body) updates[field] = req.body[field];

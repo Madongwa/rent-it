@@ -11,7 +11,24 @@ function PinIcon(props) {
   );
 }
 
-export default function ListingCard({ listing }) {
+function HeartIcon({ filled, ...props }) {
+  return (
+    <svg viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z" />
+    </svg>
+  );
+}
+
+// isFavorited/onToggleFavorite are optional - callers that haven't loaded
+// favorite state yet (or don't care, e.g. a logged-out view) can just omit
+// them and the heart button won't render at all.
+export default function ListingCard({ listing, isFavorited, onToggleFavorite }) {
+  function handleHeartClick(e) {
+    e.preventDefault(); // this card is a <Link> - don't navigate on heart click
+    e.stopPropagation();
+    onToggleFavorite?.(listing.id);
+  }
+
   return (
     <Link to={`/listing/${listing.id}`} className="listing-card group">
       {/* Aceternity-style proximity glow, sized to trace this card's own
@@ -26,6 +43,17 @@ export default function ListingCard({ listing }) {
             <div className="flex h-full w-full items-center justify-center text-4xl">
               {listing.category?.icon || '🧰'}
             </div>
+          )}
+          {onToggleFavorite && (
+            <button
+              type="button"
+              onClick={handleHeartClick}
+              aria-label={isFavorited ? 'Remove from favorites' : 'Save to favorites'}
+              aria-pressed={isFavorited}
+              className={`listing-card-heart ${isFavorited ? 'listing-card-heart--active' : ''}`}
+            >
+              <HeartIcon filled={isFavorited} className="h-4 w-4" />
+            </button>
           )}
         </div>
 

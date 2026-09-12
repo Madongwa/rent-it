@@ -20,7 +20,7 @@ const SORT_OPTIONS = [
   { value: 'nearest', label: 'Nearest', disabled: true },
 ];
 
-const CONDITION_OPTIONS = ['New', 'Like New', 'Good', 'Fair'];
+export const CONDITION_OPTIONS = ['New', 'Like New', 'Good', 'Fair'];
 
 export const POWER_SOURCE_OPTIONS = [
   { value: 'electric', label: 'Electric' },
