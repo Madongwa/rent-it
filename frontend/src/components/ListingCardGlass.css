@@ -12,8 +12,15 @@
 
 .listing-card {
   position: relative;
-  color: #fff;
   display: block;
+  color: #fff;
+  /* A couple of px of breathing room + a slightly larger outer radius than
+     .listing-card-inner's, so the GlowingEffect ring (which traces THIS
+     element's edge) has room to show instead of being fully covered by the
+     inner box sitting flush on top of it. Doesn't change the card's visual
+     size/shape at grid scale. */
+  padding: 2px;
+  border-radius: 1rem;
 }
 
 /* Decorative glow blob - brand accent green at low opacity, standing in for

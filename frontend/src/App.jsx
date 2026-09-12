@@ -11,10 +11,11 @@ import Signup from './pages/Signup';
 import ComingSoon from './pages/ComingSoon';
 
 export default function App() {
-  // Home, Login, and Signup use the dark editorial theme; the footer needs
-  // to match it there instead of the site's default light theme.
+  // Home, Login, Signup, and Marketplace use the dark editorial theme; the
+  // footer needs to match it there instead of the site's default light
+  // theme.
   const pathname = useLocation().pathname;
-  const isDarkPage = pathname === '/' || pathname === '/login' || pathname === '/signup';
+  const isDarkPage = pathname === '/' || pathname === '/login' || pathname === '/signup' || pathname === '/marketplace';
 
   return (
     <div className="min-h-screen flex flex-col">

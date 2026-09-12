@@ -75,10 +75,10 @@ function Pill({ active, disabled, onClick, children, title }) {
       aria-disabled={disabled}
       className={`shrink-0 whitespace-nowrap rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
         disabled
-          ? 'cursor-not-allowed border-line text-text-muted/40'
+          ? 'cursor-not-allowed border-night-border/10 text-night-muted/30'
           : active
-          ? 'border-text-primary bg-text-primary text-white'
-          : 'border-line text-text-secondary hover:border-text-muted'
+          ? 'border-white bg-white text-black'
+          : 'border-night-border/20 text-night-muted hover:border-night-border/40 hover:text-night-text'
       }`}
     >
       {children}
@@ -248,157 +248,160 @@ export default function Marketplace() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-      <div className="mb-6">
-        <h1 className="text-heading-sm text-text-primary">
-          {activeCategory ? `${activeCategory.icon} ${activeCategory.name}` : 'Marketplace'}
-        </h1>
-        <p className="mt-1 text-body text-text-muted">
-          {activeCategory ? activeCategory.description : 'Browse all equipment available to rent.'}
-        </p>
-      </div>
-
-      {/* Search + sort-adjacent row (kept simple; sort itself lives in the sidebar) */}
-      <form onSubmit={handleSearchSubmit} className="mb-4 flex max-w-md gap-2">
-        <input
-          type="text"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder="Search listings…"
-          className="w-full rounded-btn border border-line px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-        />
-        <button type="submit" className="shrink-0 rounded-btn bg-text-primary px-4 text-sm font-medium text-white hover:opacity-90">
-          Search
-        </button>
-      </form>
-
-      {/* TOP PILL BAR - quick filters, horizontally scrollable */}
-      <div className="relative mb-6">
-        {canScrollLeft && (
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-canvas to-transparent" />
-        )}
-        {canScrollRight && (
-          <>
-            <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-canvas to-transparent" />
-            <button
-              type="button"
-              onClick={() => scrollPills(1)}
-              aria-label="Show more filters"
-              className="absolute right-0 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-line bg-surface shadow-sm hover:border-text-muted"
-            >
-              <ChevronRightIcon className="h-4 w-4 text-text-secondary" />
-            </button>
-          </>
-        )}
-
-        <div ref={pillRef} className="flex gap-2 overflow-x-auto scroll-smooth pb-1 pr-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <Pill active={!filters.category} onClick={() => setSingle('category', '')}>
-            All
-          </Pill>
-          {categories.map((cat) => (
-            <Pill key={cat.slug} active={filters.category === cat.slug} onClick={() => setSingle('category', filters.category === cat.slug ? '' : cat.slug)}>
-              {cat.icon} {cat.slug === 'diy' ? 'Household' : cat.name.replace(' Tools', '')}
-            </Pill>
-          ))}
-
-          <span className="mx-1 w-px shrink-0 self-stretch bg-line" aria-hidden="true" />
-
-          <Pill disabled title="Coming soon - location isn't collected yet">
-            📍 Nearby
-          </Pill>
-          <Pill disabled title="Every listing shown is already available">
-            Available Now
-          </Pill>
-          <Pill active={under750Active} onClick={toggleUnder750}>
-            Under ₹750/day
-          </Pill>
-          <Pill disabled title="Coming soon - ratings aren't built yet">
-            Top Rated
-          </Pill>
-          <Pill active={filters.sort === 'newest'} onClick={toggleNewest}>
-            New Listings
-          </Pill>
-          <Pill disabled title="Coming soon - owner verification isn't built yet">
-            Verified Owners
-          </Pill>
-          <Pill active={freeDeliveryActive} onClick={toggleFreeDelivery}>
-            Free Delivery
-          </Pill>
-          <Pill disabled title="Coming soon - pickup/delivery timing isn't tracked yet">
-            Same-Day Pickup
-          </Pill>
-          <Pill disabled title="Coming soon - rental counts aren't tracked yet">
-            Trending
-          </Pill>
+    // Whole-page dark theme (not just a boxed insert around the grid) - see
+    // App.jsx's isDarkPage list for the matching footer treatment. Reuses
+    // the site's existing night.* tokens from the Home hero rather than
+    // introducing a new palette.
+    <div className="min-h-[calc(100vh-4rem)] bg-night-bg text-night-text">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+        <div className="mb-6">
+          <h1 className="text-heading-sm text-night-text">
+            {activeCategory ? `${activeCategory.icon} ${activeCategory.name}` : 'Marketplace'}
+          </h1>
+          <p className="mt-1 text-body text-night-muted">
+            {activeCategory ? activeCategory.description : 'Browse all equipment available to rent.'}
+          </p>
         </div>
-      </div>
 
-      {/* Mobile filters trigger */}
-      <button
-        type="button"
-        onClick={() => setMobileFiltersOpen(true)}
-        className="mb-6 flex items-center gap-2 rounded-btn border border-line px-4 py-2 text-sm font-medium text-text-secondary lg:hidden"
-      >
-        <FilterListIcon className="h-4 w-4" />
-        Filters
-        {activeCount > 0 && (
-          <span className="rounded-full bg-accent px-1.5 py-0.5 text-xs font-semibold text-white">{activeCount}</span>
-        )}
-      </button>
+        {/* Search + sort-adjacent row (kept simple; sort itself lives in the sidebar) */}
+        <form onSubmit={handleSearchSubmit} className="mb-4 flex max-w-md gap-2">
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search listings…"
+            className="w-full rounded-btn border border-night-border/20 bg-white/5 px-3 py-2 text-sm text-night-text placeholder:text-night-muted focus:outline-none focus:ring-2 focus:ring-accent"
+          />
+          <button type="submit" className="shrink-0 rounded-btn bg-white px-4 text-sm font-medium text-black hover:opacity-90">
+            Search
+          </button>
+        </form>
 
-      <div className="lg:grid lg:grid-cols-[260px_1fr] lg:items-start lg:gap-10">
-        {/* LEFT SIDEBAR - desktop. Sticky below the navbar (top-16 matches
-            its h-16 height) and independently scrollable if the filter
-            list itself is taller than the viewport - the grid's default
-            stretch alignment means this column's containing block spans
-            the full row height (matching the listings column), so the
-            sticky element travels the whole page and only stops once it
-            hits the bottom of that row, before the footer. Only active at
-            lg+, where the sidebar renders alongside the grid instead of
-            in the mobile drawer. */}
-        <aside className="hidden lg:sticky lg:top-16 lg:block lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto">
-          <FilterSidebar {...sidebarProps} />
-        </aside>
+        {/* TOP PILL BAR - quick filters, horizontally scrollable */}
+        <div className="relative mb-6">
+          {canScrollLeft && (
+            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-night-bg to-transparent" />
+          )}
+          {canScrollRight && (
+            <>
+              <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-night-bg to-transparent" />
+              <button
+                type="button"
+                onClick={() => scrollPills(1)}
+                aria-label="Show more filters"
+                className="absolute right-0 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-night-border/20 bg-night-bg shadow-sm hover:border-night-border/40"
+              >
+                <ChevronRightIcon className="h-4 w-4 text-night-muted" />
+              </button>
+            </>
+          )}
 
-        {/* Mobile slide-out drawer */}
-        {mobileFiltersOpen && (
-          <div className="fixed inset-0 z-50 lg:hidden">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setMobileFiltersOpen(false)} />
-            <div className="absolute inset-y-0 left-0 w-[85%] max-w-sm overflow-y-auto bg-surface px-5 py-5 shadow-xl">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-subheading text-text-primary">Filters</span>
-                <button type="button" onClick={() => setMobileFiltersOpen(false)} aria-label="Close filters">
-                  <CloseIcon className="h-5 w-5 text-text-secondary" />
-                </button>
-              </div>
-              <FilterSidebar {...sidebarProps} />
-            </div>
+          <div ref={pillRef} className="flex gap-2 overflow-x-auto scroll-smooth pb-1 pr-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <Pill active={!filters.category} onClick={() => setSingle('category', '')}>
+              All
+            </Pill>
+            {categories.map((cat) => (
+              <Pill key={cat.slug} active={filters.category === cat.slug} onClick={() => setSingle('category', filters.category === cat.slug ? '' : cat.slug)}>
+                {cat.icon} {cat.slug === 'diy' ? 'Household' : cat.name.replace(' Tools', '')}
+              </Pill>
+            ))}
+
+            <span className="mx-1 w-px shrink-0 self-stretch bg-night-border/15" aria-hidden="true" />
+
+            <Pill disabled title="Coming soon - location isn't collected yet">
+              📍 Nearby
+            </Pill>
+            <Pill disabled title="Every listing shown is already available">
+              Available Now
+            </Pill>
+            <Pill active={under750Active} onClick={toggleUnder750}>
+              Under ₹750/day
+            </Pill>
+            <Pill disabled title="Coming soon - ratings aren't built yet">
+              Top Rated
+            </Pill>
+            <Pill active={filters.sort === 'newest'} onClick={toggleNewest}>
+              New Listings
+            </Pill>
+            <Pill disabled title="Coming soon - owner verification isn't built yet">
+              Verified Owners
+            </Pill>
+            <Pill active={freeDeliveryActive} onClick={toggleFreeDelivery}>
+              Free Delivery
+            </Pill>
+            <Pill disabled title="Coming soon - pickup/delivery timing isn't tracked yet">
+              Same-Day Pickup
+            </Pill>
+            <Pill disabled title="Coming soon - rental counts aren't tracked yet">
+              Trending
+            </Pill>
           </div>
-        )}
+        </div>
 
-        {/* Dark section behind the grid - the glass cards' translucent fill
-            + backdrop-blur only reads correctly with something visible
-            behind them to blur, so this reuses the site's existing dark
-            tone from the Home hero rather than sitting on the light
-            canvas background. */}
-        <div className="rounded-card bg-night-bg p-5 sm:p-8">
-          {loading && <div className="py-16 text-center text-night-muted">Loading listings…</div>}
-          {error && <div className="py-16 text-center text-red-400">{error}</div>}
+        {/* Mobile filters trigger */}
+        <button
+          type="button"
+          onClick={() => setMobileFiltersOpen(true)}
+          className="mb-6 flex items-center gap-2 rounded-btn border border-night-border/20 px-4 py-2 text-sm font-medium text-night-muted lg:hidden"
+        >
+          <FilterListIcon className="h-4 w-4" />
+          Filters
+          {activeCount > 0 && (
+            <span className="rounded-full bg-accent px-1.5 py-0.5 text-xs font-semibold text-white">{activeCount}</span>
+          )}
+        </button>
 
-          {!loading && !error && listings.length === 0 && (
-            <div className="py-16 text-center text-night-muted">
-              No listings found. Try a different search or{' '}
-              <a href="/list-item" className="font-medium text-white underline">
-                be the first to list an item
-              </a>
-              .
+        <div className="lg:grid lg:grid-cols-[260px_1fr] lg:items-start lg:gap-10">
+          {/* LEFT SIDEBAR - desktop. Sticky below the navbar (top-16 matches
+              its h-16 height) and independently scrollable if the filter
+              list itself is taller than the viewport - the grid's default
+              stretch alignment means this column's containing block spans
+              the full row height (matching the listings column), so the
+              sticky element travels the whole page and only stops once it
+              hits the bottom of that row, before the footer. Only active at
+              lg+, where the sidebar renders alongside the grid instead of
+              in the mobile drawer. */}
+          <aside className="hidden lg:sticky lg:top-16 lg:block lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto">
+            <FilterSidebar {...sidebarProps} />
+          </aside>
+
+          {/* Mobile slide-out drawer */}
+          {mobileFiltersOpen && (
+            <div className="fixed inset-0 z-50 lg:hidden">
+              <div className="absolute inset-0 bg-black/60" onClick={() => setMobileFiltersOpen(false)} />
+              <div className="absolute inset-y-0 left-0 w-[85%] max-w-sm overflow-y-auto border-r border-night-border/15 bg-night-bg px-5 py-5 shadow-xl">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-subheading text-night-text">Filters</span>
+                  <button type="button" onClick={() => setMobileFiltersOpen(false)} aria-label="Close filters">
+                    <CloseIcon className="h-5 w-5 text-night-muted" />
+                  </button>
+                </div>
+                <FilterSidebar {...sidebarProps} />
+              </div>
             </div>
           )}
 
-          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-            {listings.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} />
-            ))}
+          {/* Listings grid - sits directly on the page's own dark background
+              now (see the wrapper above), no boxed insert. */}
+          <div>
+            {loading && <div className="py-16 text-center text-night-muted">Loading listings…</div>}
+            {error && <div className="py-16 text-center text-red-400">{error}</div>}
+
+            {!loading && !error && listings.length === 0 && (
+              <div className="py-16 text-center text-night-muted">
+                No listings found. Try a different search or{' '}
+                <a href="/list-item" className="font-medium text-accent">
+                  be the first to list an item
+                </a>
+                .
+              </div>
+            )}
+
+            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+              {listings.map((listing) => (
+                <ListingCard key={listing.id} listing={listing} />
+              ))}
+            </div>
           </div>
         </div>
       </div>

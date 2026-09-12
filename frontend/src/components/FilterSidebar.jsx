@@ -89,7 +89,7 @@ function ChevronIcon({ open }) {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={`h-4 w-4 shrink-0 text-text-muted transition-transform ${open ? 'rotate-180' : ''}`}
+      className={`h-4 w-4 shrink-0 text-night-muted transition-transform ${open ? 'rotate-180' : ''}`}
     >
       <polyline points="6 9 12 15 18 9" />
     </svg>
@@ -99,17 +99,17 @@ function ChevronIcon({ open }) {
 function Section({ title, badge, defaultOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border-b border-line py-4 first:pt-0 last:border-b-0">
+    <div className="border-b border-night-border/15 py-4 first:pt-0 last:border-b-0">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between gap-2 text-left"
         aria-expanded={open}
       >
-        <span className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+        <span className="flex items-center gap-2 text-sm font-semibold text-night-text">
           {title}
           {badge && (
-            <span className="rounded-badge border border-line px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-text-muted">
+            <span className="rounded-badge border border-night-border/20 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-night-muted">
               {badge}
             </span>
           )}
@@ -125,7 +125,7 @@ function CheckboxRow({ label, checked, onChange, disabled }) {
   return (
     <label
       className={`flex items-center gap-2.5 text-sm ${
-        disabled ? 'cursor-not-allowed text-text-muted/50' : 'cursor-pointer text-text-secondary'
+        disabled ? 'cursor-not-allowed text-night-muted/50' : 'cursor-pointer text-night-muted'
       }`}
     >
       <input
@@ -133,7 +133,7 @@ function CheckboxRow({ label, checked, onChange, disabled }) {
         checked={checked}
         disabled={disabled}
         onChange={onChange}
-        className="h-4 w-4 shrink-0 rounded border-line text-accent focus:ring-2 focus:ring-accent disabled:opacity-50"
+        className="h-4 w-4 shrink-0 rounded border-night-border/30 bg-white/5 text-accent focus:ring-2 focus:ring-accent disabled:opacity-50"
       />
       {label}
     </label>
@@ -144,7 +144,7 @@ function RadioRow({ name, label, checked, onChange, disabled }) {
   return (
     <label
       className={`flex items-center gap-2.5 text-sm ${
-        disabled ? 'cursor-not-allowed text-text-muted/50' : 'cursor-pointer text-text-secondary'
+        disabled ? 'cursor-not-allowed text-night-muted/50' : 'cursor-pointer text-night-muted'
       }`}
     >
       <input
@@ -153,7 +153,7 @@ function RadioRow({ name, label, checked, onChange, disabled }) {
         checked={checked}
         disabled={disabled}
         onChange={onChange}
-        className="h-4 w-4 shrink-0 border-line text-accent focus:ring-2 focus:ring-accent disabled:opacity-50"
+        className="h-4 w-4 shrink-0 border-night-border/30 bg-white/5 text-accent focus:ring-2 focus:ring-accent disabled:opacity-50"
       />
       {label}
     </label>
@@ -166,7 +166,7 @@ function RadioRow({ name, label, checked, onChange, disabled }) {
 function ComingSoonSection({ title, options }) {
   return (
     <Section title={title} badge="Coming soon">
-      <p className="text-xs text-text-muted">This filter isn't wired up to real data yet.</p>
+      <p className="text-xs text-night-muted">This filter isn't wired up to real data yet.</p>
       <div className="space-y-2.5 opacity-60">
         {options.map((label) => (
           <CheckboxRow key={label} label={label} checked={false} disabled onChange={() => {}} />
@@ -199,7 +199,7 @@ export default function FilterSidebar({
   return (
     <div className="w-full">
       <div className="flex items-center justify-between pb-4">
-        <h2 className="text-sm font-semibold text-text-primary">Filters</h2>
+        <h2 className="text-sm font-semibold text-night-text">Filters</h2>
         {activeCount > 0 && (
           <button
             type="button"
@@ -249,21 +249,21 @@ export default function FilterSidebar({
             placeholder="Min"
             value={minInput}
             onChange={(e) => setMinInput(e.target.value)}
-            className="w-full rounded-btn border border-line px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+            className="w-full rounded-btn border border-night-border/20 bg-white/5 px-2.5 py-1.5 text-sm text-night-text placeholder:text-night-muted focus:outline-none focus:ring-2 focus:ring-accent"
           />
-          <span className="text-text-muted">–</span>
+          <span className="text-night-muted">–</span>
           <input
             type="number"
             min="0"
             placeholder="Max"
             value={maxInput}
             onChange={(e) => setMaxInput(e.target.value)}
-            className="w-full rounded-btn border border-line px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+            className="w-full rounded-btn border border-night-border/20 bg-white/5 px-2.5 py-1.5 text-sm text-night-text placeholder:text-night-muted focus:outline-none focus:ring-2 focus:ring-accent"
           />
           <button
             type="button"
             onClick={() => onApplyCustomPrice(minInput, maxInput)}
-            className="shrink-0 rounded-btn bg-text-primary px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+            className="shrink-0 rounded-btn bg-white px-3 py-1.5 text-sm font-medium text-black hover:opacity-90"
           >
             Go
           </button>
@@ -286,7 +286,7 @@ export default function FilterSidebar({
           no subcategory taxonomy exists yet so it's a coming-soon note. */}
       {selectedCategory && (
         <Section title="Subcategory" badge="Coming soon">
-          <p className="text-xs text-text-muted">
+          <p className="text-xs text-night-muted">
             Subcategories for {selectedCategory.name} aren't available yet.
           </p>
         </Section>

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { GlowingEffect } from './ui/GlowingEffect';
 import './ListingCardGlass.css';
 
 function PinIcon(props) {
@@ -13,6 +14,10 @@ function PinIcon(props) {
 export default function ListingCard({ listing }) {
   return (
     <Link to={`/listing/${listing.id}`} className="listing-card group">
+      {/* Aceternity-style proximity glow, sized to trace this card's own
+          outer edge (see the padding/radius on .listing-card) - the card's
+          own layout/shape below is untouched. */}
+      <GlowingEffect className="rounded-[1rem]" spread={40} glow disabled={false} proximity={64} inactiveZone={0.01} />
       <div className="listing-card-inner">
         <div className="listing-card-image">
           {listing.image_url ? (
