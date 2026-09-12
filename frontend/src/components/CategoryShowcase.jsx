@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
 // Real equipment photography, one per category. "Household" maps to the
 // `diy` slug so it actually filters the Marketplace correctly; Events,
@@ -90,22 +90,6 @@ export default function CategoryShowcase() {
   // overlapping stragglers stuck in the tree. That's what let this drop
   // the old manual setTimeout choreography entirely.
 
-  // Cursor-follower ("View" bubble) - tracks the pointer only while it's
-  // inside the thumbnail row, spring-smoothed rather than snapping frame
-  // to frame so it reads as trailing the cursor, not locked to it.
-  const rowRef = useRef(null);
-  const cursorX = useMotionValue(0);
-  const cursorY = useMotionValue(0);
-  const springX = useSpring(cursorX, { stiffness: 260, damping: 24, mass: 0.4 });
-  const springY = useSpring(cursorY, { stiffness: 260, damping: 24, mass: 0.4 });
-
-  function handleRowMouseMove(e) {
-    const rect = rowRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    cursorX.set(e.clientX - rect.left);
-    cursorY.set(e.clientY - rect.top);
-  }
-
   // Autoplay advances the committed selection; pauses while a thumbnail is
   // hovered or focused (hoverIndex not null re-triggers this effect, which
   // clears the previous interval).
@@ -125,11 +109,9 @@ export default function CategoryShowcase() {
   return (
     <div className="flex flex-col items-center gap-12 sm:gap-16">
       <div
-        ref={rowRef}
-        onMouseMove={handleRowMouseMove}
         role="tablist"
         aria-label="Equipment categories"
-        className="relative -mx-4 flex w-[calc(100%+2rem)] justify-start gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:w-auto sm:flex-wrap sm:justify-center sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0"
+        className="-mx-4 flex w-[calc(100%+2rem)] justify-start gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:w-auto sm:flex-wrap sm:justify-center sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0"
       >
         {CATEGORIES.map((cat, i) => {
           const isDisplayed = i === displayedIndex;
@@ -182,37 +164,6 @@ export default function CategoryShowcase() {
             </button>
           );
         })}
-
-        {/* Cursor follower - scoped to this row only, spring-trailing the
-            pointer while a specific thumbnail is hovered. Hidden below sm:
-            touch devices don't have a persistent hover to trail, and there's
-            no room for it in the mobile horizontal-scroll layout anyway. */}
-        {!reduceMotion && (
-          <AnimatePresence>
-            {hoverIndex !== null && (
-              <motion.div
-                key="cursor-follower"
-                initial={{ opacity: 0, scale: 0.4 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.4 }}
-                transition={{ duration: 0.2, ease: EASE }}
-                // `left`/`top` (plain CSS position) carry the spring-smoothed
-                // cursor tracking; `x`/`y` here are framer's own transform
-                // keys, kept separate so the -50% centering composes
-                // correctly into the same transform string as the
-                // initial/animate/exit `scale` above - a plain Tailwind
-                // -translate-x-1/2 class would get silently overwritten the
-                // moment framer-motion starts managing `scale`, since it
-                // takes full ownership of the element's `transform` once any
-                // transform-key prop is animated.
-                style={{ left: springX, top: springY, x: '-50%', y: '-50%' }}
-                className="pointer-events-none absolute z-20 hidden h-14 w-14 items-center justify-center rounded-full bg-homeAccent text-xs font-semibold uppercase tracking-wide text-night-bg sm:flex"
-              >
-                View
-              </motion.div>
-            )}
-          </AnimatePresence>
-        )}
       </div>
 
       <div className="text-center">
