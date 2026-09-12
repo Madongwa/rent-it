@@ -22,29 +22,56 @@ const SORT_OPTIONS = [
 
 const CONDITION_OPTIONS = ['New', 'Like New', 'Good', 'Fair'];
 
-const POWER_SOURCE_OPTIONS = [
+export const POWER_SOURCE_OPTIONS = [
   { value: 'electric', label: 'Electric' },
   { value: 'petrol', label: 'Petrol' },
   { value: 'diesel', label: 'Diesel' },
   { value: 'manual', label: 'Manual' },
   { value: 'battery', label: 'Battery' },
+  { value: 'not_applicable', label: 'Not applicable' },
 ];
 
-const DELIVERY_OPTIONS = [
+export const DELIVERY_OPTIONS = [
   { value: 'owner_delivers', label: 'Owner delivers' },
   { value: 'pickup_only', label: 'Pickup only' },
   { value: 'either', label: 'Either' },
 ];
 
-const CANCELLATION_OPTIONS = [
+export const CANCELLATION_OPTIONS = [
   { value: 'free', label: 'Free cancellation' },
   { value: 'flexible', label: 'Flexible' },
   { value: 'strict', label: 'Strict' },
 ];
 
-const OWNER_TYPE_OPTIONS = [
+export const OWNER_TYPE_OPTIONS = [
   { value: 'individual', label: 'Individual' },
   { value: 'business', label: 'Business / Dealer' },
+];
+
+const DISTANCE_BUCKETS = [
+  { id: '2', label: 'Within 2 km' },
+  { id: '5', label: 'Within 5 km' },
+  { id: '10', label: 'Within 10 km' },
+  { id: '25', label: 'Within 25 km' },
+];
+
+export const DURATION_OPTIONS = [
+  { value: 'hourly', label: 'Hourly' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+];
+
+const RATING_OPTIONS = [
+  { value: '4', label: '4★ & up' },
+  { value: '3', label: '3★ & up' },
+];
+
+export const MIN_RENTAL_PERIOD_OPTIONS = [
+  { value: 'no_minimum', label: 'No minimum' },
+  { value: '1_day', label: '1 day min' },
+  { value: '3_day', label: '3 day min' },
+  { value: 'weekly', label: 'Weekly min' },
 ];
 
 // Empty, default filter state - exported so Marketplace.jsx and the "active
@@ -62,6 +89,11 @@ export const DEFAULT_FILTERS = {
   cancellation: [],
   ownerType: [],
   accessories: '',
+  availability: [],
+  maxDistance: '',
+  duration: [],
+  minRating: '',
+  minRentalPeriod: '',
 };
 
 export function countActiveFilters(filters) {
@@ -77,6 +109,11 @@ export function countActiveFilters(filters) {
   count += filters.cancellation.length;
   count += filters.ownerType.length;
   if (filters.accessories) count++;
+  count += filters.availability.length;
+  if (filters.maxDistance) count++;
+  count += filters.duration.length;
+  if (filters.minRating) count++;
+  if (filters.minRentalPeriod) count++;
   return count;
 }
 
@@ -160,22 +197,6 @@ function RadioRow({ name, label, checked, onChange, disabled }) {
   );
 }
 
-// Sections with no backing data yet - rendered so the UI is fully explorable,
-// but every control is disabled and the section itself carries a "Coming
-// soon" badge rather than silently doing nothing when clicked.
-function ComingSoonSection({ title, options }) {
-  return (
-    <Section title={title} badge="Coming soon">
-      <p className="text-xs text-night-muted">This filter isn't wired up to real data yet.</p>
-      <div className="space-y-2.5 opacity-60">
-        {options.map((label) => (
-          <CheckboxRow key={label} label={label} checked={false} disabled onChange={() => {}} />
-        ))}
-      </div>
-    </Section>
-  );
-}
-
 export default function FilterSidebar({
   filters,
   categories,
@@ -225,11 +246,23 @@ export default function FilterSidebar({
         ))}
       </Section>
 
-      {/* Availability - not backed by real availability/calendar data */}
-      <ComingSoonSection
-        title="Availability"
-        options={['Available today', 'Available this week', 'Instant book']}
-      />
+      {/* Availability - real, derived from rental_history on the backend
+          (a listing is excluded from a checked window if a past-rental row
+          overlaps it - see listings.js). "Instant book" has no backing
+          concept yet, so it stays disabled. */}
+      <Section title="Availability">
+        <CheckboxRow
+          label="Available today"
+          checked={filters.availability.includes('today')}
+          onChange={() => onToggleMulti('availability', 'today')}
+        />
+        <CheckboxRow
+          label="Available this week"
+          checked={filters.availability.includes('week')}
+          onChange={() => onToggleMulti('availability', 'week')}
+        />
+        <CheckboxRow label="Instant book" checked={false} disabled onChange={() => {}} />
+      </Section>
 
       {/* Price per day - real, expanded by default */}
       <Section title="Price per day" defaultOpen>
@@ -304,14 +337,49 @@ export default function FilterSidebar({
         ))}
       </Section>
 
-      {/* Distance - no geolocation data */}
-      <ComingSoonSection title="Distance" options={['Within 2 km', '5 km', '10 km', '25 km', 'Any']} />
+      {/* Distance - real, filtered against the static distance_km field
+          (no live geolocation yet, so it's a fixed per-listing value
+          rather than a true "distance from me"). */}
+      <Section title="Distance">
+        {DISTANCE_BUCKETS.map((bucket) => (
+          <RadioRow
+            key={bucket.id}
+            name="maxDistance"
+            label={bucket.label}
+            checked={filters.maxDistance === bucket.id}
+            onChange={() => onSetSingle('maxDistance', bucket.id)}
+          />
+        ))}
+        <RadioRow name="maxDistance" label="Any" checked={filters.maxDistance === ''} onChange={() => onSetSingle('maxDistance', '')} />
+      </Section>
 
-      {/* Rental Duration - no duration-unit field */}
-      <ComingSoonSection title="Rental Duration" options={['Hourly', 'Daily', 'Weekly', 'Monthly']} />
+      {/* Rental Duration - real, matches against the listing's
+          supported_durations array (a listing can support more than one). */}
+      <Section title="Rental Duration">
+        {DURATION_OPTIONS.map((opt) => (
+          <CheckboxRow
+            key={opt.value}
+            label={opt.label}
+            checked={filters.duration.includes(opt.value)}
+            onChange={() => onToggleMulti('duration', opt.value)}
+          />
+        ))}
+      </Section>
 
-      {/* Owner Rating - no reviews yet */}
-      <ComingSoonSection title="Owner Rating" options={['4★ & up', '3★ & up']} />
+      {/* Owner Rating - real, filtered against the listing's computed
+          avg_rating (from reviews). */}
+      <Section title="Owner Rating">
+        {RATING_OPTIONS.map((opt) => (
+          <RadioRow
+            key={opt.value}
+            name="minRating"
+            label={opt.label}
+            checked={filters.minRating === opt.value}
+            onChange={() => onSetSingle('minRating', opt.value)}
+          />
+        ))}
+        <RadioRow name="minRating" label="Any" checked={filters.minRating === ''} onChange={() => onSetSingle('minRating', '')} />
+      </Section>
 
       {/* Delivery - real */}
       <Section title="Delivery">
@@ -344,11 +412,25 @@ export default function FilterSidebar({
         ))}
       </Section>
 
-      {/* Minimum Rental Period - no such field/logic yet */}
-      <ComingSoonSection
-        title="Minimum Rental Period"
-        options={['No minimum', '1 day min', '3 day min', 'Weekly min']}
-      />
+      {/* Minimum Rental Period - real, exact match against the listing's
+          min_rental_period field. */}
+      <Section title="Minimum Rental Period">
+        {MIN_RENTAL_PERIOD_OPTIONS.map((opt) => (
+          <RadioRow
+            key={opt.value}
+            name="minRentalPeriod"
+            label={opt.label}
+            checked={filters.minRentalPeriod === opt.value}
+            onChange={() => onSetSingle('minRentalPeriod', opt.value)}
+          />
+        ))}
+        <RadioRow
+          name="minRentalPeriod"
+          label="Any"
+          checked={filters.minRentalPeriod === ''}
+          onChange={() => onSetSingle('minRentalPeriod', '')}
+        />
+      </Section>
 
       {/* Cancellation Policy - real */}
       <Section title="Cancellation Policy">

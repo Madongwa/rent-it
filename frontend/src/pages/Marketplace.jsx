@@ -4,9 +4,9 @@ import { api } from '../lib/api';
 import ListingCard from '../components/ListingCard';
 import FilterSidebar, { PRICE_BUCKETS, countActiveFilters } from '../components/FilterSidebar';
 
-const MULTI_KEYS = ['condition', 'powerSource', 'delivery', 'cancellation', 'ownerType'];
+const MULTI_KEYS = ['condition', 'powerSource', 'delivery', 'cancellation', 'ownerType', 'duration', 'availability'];
 // Filter keys whose URL param name differs from the filter-state key name.
-const PARAM_NAME = { customMin: 'minPrice', customMax: 'maxPrice' };
+const PARAM_NAME = { customMin: 'minPrice', customMax: 'maxPrice', maxDistance: 'distance' };
 const CLEARABLE_PARAMS = [
   'category',
   'sort',
@@ -20,6 +20,11 @@ const CLEARABLE_PARAMS = [
   'cancellation',
   'ownerType',
   'accessories',
+  'availability',
+  'distance',
+  'duration',
+  'minRating',
+  'minRentalPeriod',
 ];
 
 function readFilters(searchParams) {
@@ -32,6 +37,9 @@ function readFilters(searchParams) {
   }
   filters.deposit = searchParams.get('deposit') || '';
   filters.accessories = searchParams.get('accessories') || '';
+  filters.maxDistance = searchParams.get('distance') || '';
+  filters.minRating = searchParams.get('minRating') || '';
+  filters.minRentalPeriod = searchParams.get('minRentalPeriod') || '';
   return filters;
 }
 
@@ -129,12 +137,20 @@ export default function Marketplace() {
         cancellation: filters.cancellation.join(','),
         ownerType: filters.ownerType.join(','),
         accessories: filters.accessories,
+        availability: filters.availability.join(','),
+        distance: filters.maxDistance,
+        duration: filters.duration.join(','),
+        minRating: filters.minRating,
+        minRentalPeriod: filters.minRentalPeriod,
       })
       .then(setListings)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.category, q, filters.sort, minPrice, maxPrice, multiParams, filters.deposit, filters.accessories]);
+  }, [
+    filters.category, q, filters.sort, minPrice, maxPrice, multiParams, filters.deposit, filters.accessories,
+    filters.maxDistance, filters.minRating, filters.minRentalPeriod,
+  ]);
 
   function updateParam(key, value) {
     const next = new URLSearchParams(searchParams);
@@ -195,6 +211,14 @@ export default function Marketplace() {
     if (isActive) next.delete('delivery');
     else next.set('delivery', 'owner_delivers,either');
     setSearchParams(next);
+  }
+
+  function toggleAvailableToday() {
+    toggleMulti('availability', 'today');
+  }
+
+  function toggleTopRated() {
+    setSingle('minRating', filters.minRating === '4' ? '' : '4');
   }
 
   function handleSearchSubmit(e) {
@@ -311,13 +335,13 @@ export default function Marketplace() {
             <Pill disabled title="Coming soon - location isn't collected yet">
               📍 Nearby
             </Pill>
-            <Pill disabled title="Every listing shown is already available">
+            <Pill active={filters.availability.includes('today')} onClick={toggleAvailableToday}>
               Available Now
             </Pill>
             <Pill active={under750Active} onClick={toggleUnder750}>
               Under ₹750/day
             </Pill>
-            <Pill disabled title="Coming soon - ratings aren't built yet">
+            <Pill active={filters.minRating === '4'} onClick={toggleTopRated}>
               Top Rated
             </Pill>
             <Pill active={filters.sort === 'newest'} onClick={toggleNewest}>

@@ -132,9 +132,16 @@
   white-space: nowrap;
 }
 
-.listing-card-price {
+.listing-card-price-row {
   margin-top: auto;
   padding-top: 0.4rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.listing-card-price {
   font-size: 1.4rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -145,4 +152,19 @@
   font-size: 0.8rem;
   font-weight: 300;
   color: rgba(255, 255, 255, 0.7);
+}
+
+.listing-card-rating {
+  flex-shrink: 0;
+  padding-bottom: 0.2rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #ffc94d;
+  white-space: nowrap;
+}
+
+.listing-card-rating span {
+  margin-left: 0.1rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.6);
 }

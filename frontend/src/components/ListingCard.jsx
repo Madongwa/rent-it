@@ -51,9 +51,16 @@ export default function ListingCard({ listing }) {
             </p>
           )}
 
-          <div className="listing-card-price">
-            ₹{Number(listing.price_per_day).toLocaleString('en-IN')}
-            <span>/day</span>
+          <div className="listing-card-price-row">
+            <div className="listing-card-price">
+              ₹{Number(listing.price_per_day).toLocaleString('en-IN')}
+              <span>/day</span>
+            </div>
+            {listing.review_count > 0 && (
+              <div className="listing-card-rating" title={`${listing.avg_rating} out of 5, ${listing.review_count} review${listing.review_count === 1 ? '' : 's'}`}>
+                ★{Number(listing.avg_rating).toFixed(1)} <span>({listing.review_count})</span>
+              </div>
+            )}
           </div>
 
           {listing.status !== 'available' && (
