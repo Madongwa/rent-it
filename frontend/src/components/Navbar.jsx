@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../lib/api';
 
 const navLinkClass = ({ isActive }) =>
   `px-2 py-2 rounded-full text-[12.5px] font-medium whitespace-nowrap transition-colors ${
@@ -35,6 +36,15 @@ export default function Navbar() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setIsAdmin(false);
+      return;
+    }
+    api.getMyProfile().then((p) => setIsAdmin(p.role === 'admin')).catch(() => setIsAdmin(false));
+  }, [user]);
 
   async function handleSignOut() {
     setMobileOpen(false);
@@ -78,6 +88,11 @@ export default function Navbar() {
           {user && (
             <NavLink to="/dashboard" className={navLinkClass}>
               Dashboard
+            </NavLink>
+          )}
+          {isAdmin && (
+            <NavLink to="/admin" className={navLinkClass}>
+              Staff
             </NavLink>
           )}
         </div>
@@ -145,6 +160,11 @@ export default function Navbar() {
             {user && (
               <NavLink to="/dashboard" className={mobileNavLinkClass} onClick={closeMobileMenu}>
                 Dashboard
+              </NavLink>
+            )}
+            {isAdmin && (
+              <NavLink to="/admin" className={mobileNavLinkClass} onClick={closeMobileMenu}>
+                Staff
               </NavLink>
             )}
             {/* Log in/out is hidden below sm in the main bar - surface it here too. */}

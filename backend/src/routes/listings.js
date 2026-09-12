@@ -196,6 +196,22 @@ router.post('/', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'title, category_id and price_per_day are required' });
   }
 
+  // Sellers must pass KYC review before they can publish anything - see
+  // kyc.js. Checked here (not just hidden in the UI) since this is a real
+  // trust & safety boundary, not just a UX nicety.
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('seller_status')
+    .eq('id', req.user.id)
+    .single();
+  if (profileError) return res.status(500).json({ error: profileError.message });
+  if (profile.seller_status !== 'approved') {
+    return res.status(403).json({
+      error: 'Your seller account must be verified before you can list an item.',
+      seller_status: profile.seller_status,
+    });
+  }
+
   const fields = {};
   for (const field of WRITABLE_FIELDS) {
     if (field in req.body) fields[field] = req.body[field];

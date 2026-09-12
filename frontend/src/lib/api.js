@@ -67,4 +67,26 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ body }),
     }),
+
+  getMyKyc: () => request('/kyc/me'),
+  submitKyc: (payload) => request('/kyc/submit', { method: 'POST', body: JSON.stringify(payload) }),
+
+  submitRentalPhotos: (rentalId, stage, photo_urls) =>
+    request(`/rentals/${rentalId}/photos`, {
+      method: 'POST',
+      body: JSON.stringify({ stage, photo_urls }),
+    }),
+  raiseDispute: (rentalId, reason) =>
+    request(`/rentals/${rentalId}/dispute`, { method: 'POST', body: JSON.stringify({ reason }) }),
+
+  getKycQueue: () => request('/admin/kyc-queue'),
+  approveKyc: (userId) => request(`/admin/kyc/${userId}/approve`, { method: 'POST' }),
+  rejectKyc: (userId, reason) =>
+    request(`/admin/kyc/${userId}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  getDisputeQueue: () => request('/admin/disputes'),
+  resolveDispute: (disputeId, resolution, outcome) =>
+    request(`/admin/disputes/${disputeId}/resolve`, {
+      method: 'POST',
+      body: JSON.stringify({ resolution, outcome }),
+    }),
 };

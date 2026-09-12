@@ -157,4 +157,81 @@ router.patch('/:id', requireAuth, async (req, res) => {
   res.json(data);
 });
 
+// POST /api/rentals/:id/photos - record pickup or return condition photos.
+// Files are uploaded straight from the browser to the private
+// rental-photos bucket first (same pattern as listing images/KYC docs) -
+// this just records the resulting URLs. Replaces the stage's whole list
+// rather than appending, so re-submitting corrects a mistake cleanly.
+router.post('/:id/photos', requireAuth, async (req, res) => {
+  const { stage, photo_urls } = req.body;
+  if (!['pickup', 'return'].includes(stage) || !Array.isArray(photo_urls)) {
+    return res.status(400).json({ error: 'stage ("pickup"|"return") and photo_urls (array) are required' });
+  }
+
+  const { data: rental, error: findError } = await supabase
+    .from('rentals')
+    .select('id, renter_id, listing:listings(owner_id)')
+    .eq('id', req.params.id)
+    .single();
+
+  if (findError || !rental) return res.status(404).json({ error: 'Rental request not found' });
+  const isParticipant = rental.renter_id === req.user.id || rental.listing?.owner_id === req.user.id;
+  if (!isParticipant) return res.status(403).json({ error: 'Forbidden' });
+
+  const column = stage === 'pickup' ? 'pickup_photo_urls' : 'return_photo_urls';
+  const { data, error } = await supabase
+    .from('rentals')
+    .update({ [column]: photo_urls })
+    .eq('id', req.params.id)
+    .select(RENTAL_SELECT)
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// POST /api/rentals/:id/dispute - flag a problem instead of confirming a
+// clean return. Freezes the rental (no further status change until staff
+// resolve it - see admin.js) rather than the platform trying to judge the
+// equipment claim itself; see the dispute-window discussion in schema.sql.
+const DISPUTE_FREEZE_DAYS = 15;
+
+router.post('/:id/dispute', requireAuth, async (req, res) => {
+  const { reason } = req.body;
+  if (!reason) return res.status(400).json({ error: 'reason is required' });
+
+  const { data: rental, error: findError } = await supabase
+    .from('rentals')
+    .select('id, renter_id, status, listing:listings(owner_id)')
+    .eq('id', req.params.id)
+    .single();
+
+  if (findError || !rental) return res.status(404).json({ error: 'Rental request not found' });
+  const isParticipant = rental.renter_id === req.user.id || rental.listing?.owner_id === req.user.id;
+  if (!isParticipant) return res.status(403).json({ error: 'Forbidden' });
+  if (rental.status !== 'approved') {
+    return res.status(400).json({ error: `Cannot dispute a "${rental.status}" rental` });
+  }
+
+  const freezeUntil = new Date(Date.now() + DISPUTE_FREEZE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+  const { error: disputeError } = await supabase.from('rental_disputes').insert({
+    rental_id: req.params.id,
+    raised_by: req.user.id,
+    reason,
+    freeze_until: freezeUntil,
+  });
+  if (disputeError) return res.status(500).json({ error: disputeError.message });
+
+  const { data, error } = await supabase
+    .from('rentals')
+    .update({ status: 'disputed' })
+    .eq('id', req.params.id)
+    .select(RENTAL_SELECT)
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
 export default router;

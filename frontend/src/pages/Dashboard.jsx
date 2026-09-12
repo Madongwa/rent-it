@@ -19,6 +19,7 @@ const STATUS_COLORS = {
   rejected: 'bg-red-100 text-red-700',
   completed: 'bg-line text-text-muted',
   cancelled: 'bg-line text-text-muted',
+  disputed: 'bg-red-100 text-red-700',
 };
 
 function StatusBadge({ status }) {
@@ -26,6 +27,40 @@ function StatusBadge({ status }) {
     <span className={`rounded-badge px-2.5 py-1 text-caption font-medium capitalize ${STATUS_COLORS[status] || 'bg-line text-text-muted'}`}>
       {status}
     </span>
+  );
+}
+
+// Inline "report a problem" control - either party on an approved rental
+// can use this instead of confirming a clean return. Kept as its own small
+// component since both the renter and owner tabs below need it.
+function DisputeControl({ rentalId, onSubmit }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} className="text-sm font-medium text-red-500 hover:text-red-700">
+        Report a problem
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        autoFocus
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="What went wrong?"
+        className="w-48 rounded-btn border border-line px-2 py-1 text-sm"
+      />
+      <button
+        onClick={() => reason.trim() && onSubmit(rentalId, reason.trim())}
+        className="rounded-btn border border-red-300 px-2 py-1 text-sm font-medium text-red-600 hover:bg-red-50"
+      >
+        Submit
+      </button>
+    </div>
   );
 }
 
@@ -57,6 +92,16 @@ export default function Dashboard() {
     setActionError('');
     try {
       await api.updateRentalStatus(rentalId, status);
+      loadAll();
+    } catch (err) {
+      setActionError(err.message);
+    }
+  }
+
+  async function dispute(rentalId, reason) {
+    setActionError('');
+    try {
+      await api.raiseDispute(rentalId, reason);
       loadAll();
     } catch (err) {
       setActionError(err.message);
@@ -170,6 +215,7 @@ export default function Dashboard() {
                     Cancel
                   </button>
                 )}
+                {r.status === 'approved' && <DisputeControl rentalId={r.id} onSubmit={dispute} />}
                 <StatusBadge status={r.status} />
               </div>
             </div>
@@ -214,6 +260,7 @@ export default function Dashboard() {
                     >
                       Mark completed
                     </button>
+                    <DisputeControl rentalId={r.id} onSubmit={dispute} />
                     <StatusBadge status={r.status} />
                   </>
                 ) : (

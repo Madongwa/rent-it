@@ -394,3 +394,226 @@ create policy "Authenticated users can upload listing images" on storage.objects
 drop policy if exists "Users can delete their own listing images" on storage.objects;
 create policy "Users can delete their own listing images" on storage.objects
   for delete using (bucket_id = 'listing-images' and auth.uid()::text = (storage.foldername(name))[1]);
+
+-- ---------------------------------------------------------------------------
+-- Trust & safety: platform roles, seller verification (KYC), rental
+-- disputes, and the escrow/payout ledger.
+--
+-- Payment collection itself (Razorpay/RazorpayX) and automated identity
+-- verification (a KYC vendor) aren't wired up yet - both need real API keys
+-- the backend doesn't have. This block lays the data model + a manual-review
+-- workflow so staff can review submitted documents and approve/reject
+-- sellers by hand today; the same tables are what an automated vendor check
+-- would write into later without changing the shape of anything downstream.
+-- ---------------------------------------------------------------------------
+
+-- role: gates the staff/admin dashboard. A plain flag rather than a
+-- separate roles table, since there's exactly one privilege boundary right
+-- now (admin or not) - matches this schema's "simplest thing that works"
+-- style elsewhere.
+alter table public.profiles
+  add column if not exists role text not null default 'user'
+    check (role in ('user', 'admin')),
+  add column if not exists seller_status text not null default 'not_submitted'
+    check (seller_status in ('not_submitted', 'pending', 'approved', 'rejected'));
+
+-- kyc_submissions: one row per user - resubmitting overwrites the previous
+-- attempt rather than piling up rows, since only the latest submission is
+-- ever actionable. Deliberately stores document *files* (in a private
+-- bucket below), not parsed Aadhaar/PAN numbers - collecting and storing
+-- raw Aadhaar data requires UIDAI authorization the backend doesn't have,
+-- so staff review the uploaded documents directly instead of the app
+-- extracting/storing the numbers itself.
+create table if not exists public.kyc_submissions (
+  user_id uuid primary key references public.profiles (id) on delete cascade,
+  full_name text not null,
+  phone text not null,
+  address text not null,
+  id_document_url text not null,
+  address_proof_url text,
+  status text not null default 'pending'
+    check (status in ('pending', 'approved', 'rejected')),
+  rejection_reason text,
+  reviewed_by uuid references public.profiles (id) on delete set null,
+  reviewed_at timestamptz,
+  submitted_at timestamptz not null default now()
+);
+
+alter table public.kyc_submissions enable row level security;
+
+drop policy if exists "Users and admins can view a KYC submission" on public.kyc_submissions;
+create policy "Users and admins can view a KYC submission" on public.kyc_submissions
+  for select using (
+    auth.uid() = user_id
+    or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+  );
+
+drop policy if exists "Users can submit their own KYC" on public.kyc_submissions;
+create policy "Users can submit their own KYC" on public.kyc_submissions
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "Users can resubmit or admins can review KYC" on public.kyc_submissions;
+create policy "Users can resubmit or admins can review KYC" on public.kyc_submissions
+  for update using (
+    auth.uid() = user_id
+    or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+  );
+
+-- Private bucket for KYC documents - unlike listing-images, these are
+-- identity documents and must never be publicly readable.
+insert into storage.buckets (id, name, public)
+values ('kyc-documents', 'kyc-documents', false)
+on conflict (id) do nothing;
+
+drop policy if exists "Users can upload their own KYC documents" on storage.objects;
+create policy "Users can upload their own KYC documents" on storage.objects
+  for insert with check (
+    bucket_id = 'kyc-documents' and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "Users and admins can view KYC documents" on storage.objects;
+create policy "Users and admins can view KYC documents" on storage.objects
+  for select using (
+    bucket_id = 'kyc-documents'
+    and (
+      (storage.foldername(name))[1] = auth.uid()::text
+      or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+    )
+  );
+
+-- ---------------------------------------------------------------------------
+-- Rental disputes: raised by either party instead of confirming a clean
+-- return. Kept as its own table (rather than columns on `rentals`) so a
+-- rental's dispute history is never overwritten - useful if the same
+-- rental is disputed, resolved, and disputed again, and gives an audit
+-- trail for decisions that move real money.
+-- ---------------------------------------------------------------------------
+alter table public.rentals drop constraint if exists rentals_status_check;
+alter table public.rentals
+  add constraint rentals_status_check
+    check (status in ('pending', 'approved', 'rejected', 'completed', 'cancelled', 'disputed'));
+
+alter table public.rentals
+  add column if not exists pickup_photo_urls text[] not null default array[]::text[],
+  add column if not exists return_photo_urls text[] not null default array[]::text[];
+
+create table if not exists public.rental_disputes (
+  id uuid primary key default uuid_generate_v4(),
+  rental_id uuid not null references public.rentals (id) on delete cascade,
+  raised_by uuid not null references public.profiles (id) on delete cascade,
+  reason text not null,
+  status text not null default 'open' check (status in ('open', 'resolved')),
+  freeze_until timestamptz not null,
+  resolution text,
+  outcome text check (outcome in ('completed', 'cancelled')),
+  resolved_by uuid references public.profiles (id) on delete set null,
+  resolved_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists rental_disputes_rental_idx on public.rental_disputes (rental_id);
+create index if not exists rental_disputes_status_idx on public.rental_disputes (status);
+
+alter table public.rental_disputes enable row level security;
+
+drop policy if exists "Participants and admins can view disputes" on public.rental_disputes;
+create policy "Participants and admins can view disputes" on public.rental_disputes
+  for select using (
+    auth.uid() = raised_by
+    or exists (
+      select 1 from public.rentals r
+      join public.listings l on l.id = r.listing_id
+      where r.id = rental_disputes.rental_id
+        and (auth.uid() = r.renter_id or auth.uid() = l.owner_id)
+    )
+    or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+  );
+
+drop policy if exists "Participants can raise a dispute" on public.rental_disputes;
+create policy "Participants can raise a dispute" on public.rental_disputes
+  for insert with check (
+    auth.uid() = raised_by
+    and exists (
+      select 1 from public.rentals r
+      join public.listings l on l.id = r.listing_id
+      where r.id = rental_disputes.rental_id
+        and (auth.uid() = r.renter_id or auth.uid() = l.owner_id)
+    )
+  );
+
+drop policy if exists "Admins can resolve disputes" on public.rental_disputes;
+create policy "Admins can resolve disputes" on public.rental_disputes
+  for update using (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin'));
+
+-- Rental condition photos (pickup/return) - required so a dispute has
+-- evidence to point to. Own private bucket, not the public listing-images
+-- one, since these can reveal a home address or other identifying detail.
+insert into storage.buckets (id, name, public)
+values ('rental-photos', 'rental-photos', false)
+on conflict (id) do nothing;
+
+drop policy if exists "Rental participants can upload condition photos" on storage.objects;
+create policy "Rental participants can upload condition photos" on storage.objects
+  for insert with check (
+    bucket_id = 'rental-photos'
+    and exists (
+      select 1 from public.rentals r
+      join public.listings l on l.id = r.listing_id
+      where r.id::text = (storage.foldername(name))[1]
+        and (auth.uid() = r.renter_id or auth.uid() = l.owner_id)
+    )
+  );
+
+drop policy if exists "Rental participants and admins can view condition photos" on storage.objects;
+create policy "Rental participants and admins can view condition photos" on storage.objects
+  for select using (
+    bucket_id = 'rental-photos'
+    and (
+      exists (
+        select 1 from public.rentals r
+        join public.listings l on l.id = r.listing_id
+        where r.id::text = (storage.foldername(name))[1]
+          and (auth.uid() = r.renter_id or auth.uid() = l.owner_id)
+      )
+      or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+    )
+  );
+
+-- ---------------------------------------------------------------------------
+-- Escrow ledger: one row per rental that has been paid for, recording the
+-- full breakdown (platform fee, deposit, the two owner payout stages) so
+-- "whose money is where" is always a plain read, never recomputed.
+--
+-- No insert/update policy below is intentional: this table only ever gets
+-- written by the backend after a real Razorpay event (payment captured, a
+-- payout sent), never directly by a client, so there's no legitimate
+-- client-side write path to defend even as a fallback.
+-- ---------------------------------------------------------------------------
+create table if not exists public.rental_payments (
+  rental_id uuid primary key references public.rentals (id) on delete cascade,
+  total_amount numeric(10, 2) not null check (total_amount >= 0),
+  platform_fee_amount numeric(10, 2) not null check (platform_fee_amount >= 0),
+  deposit_amount numeric(10, 2) not null default 0 check (deposit_amount >= 0),
+  owner_stage1_amount numeric(10, 2) not null check (owner_stage1_amount >= 0),
+  owner_stage1_paid_at timestamptz,
+  owner_stage2_amount numeric(10, 2) not null check (owner_stage2_amount >= 0),
+  owner_stage2_paid_at timestamptz,
+  deposit_refunded_at timestamptz,
+  razorpay_order_id text,
+  razorpay_payment_id text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.rental_payments enable row level security;
+
+drop policy if exists "Participants and admins can view payment records" on public.rental_payments;
+create policy "Participants and admins can view payment records" on public.rental_payments
+  for select using (
+    exists (
+      select 1 from public.rentals r
+      join public.listings l on l.id = r.listing_id
+      where r.id = rental_payments.rental_id
+        and (auth.uid() = r.renter_id or auth.uid() = l.owner_id)
+    )
+    or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+  );

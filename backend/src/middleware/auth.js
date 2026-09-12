@@ -20,6 +20,23 @@ export async function requireAuth(req, res, next) {
   next();
 }
 
+// Like requireAuth, but also checks the caller's profile has role='admin'.
+// Must run after requireAuth (relies on req.user being set) - mounted as
+// [requireAuth, requireAdmin] on admin-only routes.
+export async function requireAdmin(req, res, next) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', req.user.id)
+    .single();
+
+  if (error || data?.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+
+  next();
+}
+
 // Like requireAuth, but does not fail the request when no/invalid token is
 // present - just leaves req.user undefined. Useful for routes that are
 // public but behave slightly differently for a logged-in user.
