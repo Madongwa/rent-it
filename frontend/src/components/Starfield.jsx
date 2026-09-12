@@ -93,7 +93,16 @@ export default function Starfield({
         if (s.z <= 0 || s.z > 1) Object.assign(s, createStar());
 
         s.tw += clamp(twinkle, 0, 1) * 0.05;
-        const alpha = Math.max(0, 1 - s.z / clamp(fadeInRange, 0.1, 10));
+        // Fade based on distance from EITHER end of the star's 0..1 life
+        // (not just the far end) so every star fades down to fully
+        // transparent right before it gets reset, and fades back up from
+        // transparent right after - the respawn above always happens while
+        // invisible, so a star never just pops into or out of existence at
+        // a new position. (The original `1 - z/fadeInRange` only faded the
+        // far end, and did it so gently - fadeInRange defaults well above
+        // z's 0..1 span - that respawns mostly happened near full opacity.)
+        const edgeDistance = Math.min(s.z, 1 - s.z);
+        const alpha = clamp(edgeDistance * clamp(fadeInRange, 0.1, 10), 0, 1);
         const radius = clamp(size, 0.1, 5) * (1 - s.z) * (1 + Math.sin(s.tw) * clamp(twinkle, 0, 1));
 
         ctx.globalAlpha = alpha;

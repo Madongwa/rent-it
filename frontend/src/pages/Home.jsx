@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import CategoryShowcase from '../components/CategoryShowcase';
 import { LampContainer } from '../components/Lamp';
-import Starfield from '../components/Starfield';
 
 // ---------------------------------------------------------------------------
 // NOTE ON FIGURES BELOW: every number in this file (355 days, 6 weeks/year,
@@ -69,17 +68,7 @@ function CtaBar({ text, cta, to }) {
 
 export default function Home() {
   return (
-    <div className="relative bg-night-bg">
-      {/* Fixed so it stays a consistent viewport-sized backdrop as this long
-          page scrolls, instead of stretching (and thinning out) across the
-          whole page's height. Sits behind everything (z-0); the Lamp hero
-          and the CtaBar strips paint their own opaque backgrounds over it
-          by design - those already have their own effect/contrast going on. */}
-      <div className="fixed inset-0 z-0">
-        <Starfield />
-      </div>
-
-      <div className="relative z-10">
+    <div className="bg-night-bg">
       {/* SECTION 1 - Hero */}
       <LampContainer>
         <motion.h1
@@ -190,7 +179,6 @@ export default function Home() {
         </p>
       </section>
       <CtaBar text="See how it works." cta="How it works" to="/how-it-works" />
-      </div>
     </div>
   );
 }
