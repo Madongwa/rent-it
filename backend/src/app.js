@@ -22,7 +22,25 @@ const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
   .split(',')
   .map((origin) => origin.trim());
 
-app.use(cors({ origin: allowedOrigins }));
+// Every Vercel deployment of the frontend (not just the production alias in
+// CLIENT_ORIGIN) gets its own throwaway preview URL, e.g.
+// https://rent-it-exzvxbdqz-shawnharsha2-6771.vercel.app - these change on
+// every deploy, so they can't be listed individually. Recognize the whole
+// family by shape instead: https://rent-i<anything>-shawnharsha2-6771.vercel.app
+const previewOriginPattern = /^https:\/\/rent-i[a-z0-9-]*-shawnharsha2-6771\.vercel\.app$/i;
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      // No Origin header (curl, server-to-server, same-origin) - allow.
+      if (!origin || allowedOrigins.includes(origin) || previewOriginPattern.test(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
+  })
+);
 
 // Mounted before express.json() below, deliberately - webhook signature
 // verification needs the exact raw bytes the sender signed, which a
