@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Reveal, StaggerGroup, StaggerItem, IconRevealItem } from '../components/ScrollReveal';
+import useSeo from '../hooks/useSeo';
+import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 
 const RENTER_STEPS = [
   {
@@ -118,15 +120,17 @@ function CtaBar({ text, cta, to }) {
 }
 
 export default function HowItWorks() {
-  return (
-    <div className="relative bg-black">
-      {/* Pure black, no Starfield particles here - a static grain texture
-          instead (see .lm-grain in index.css), matching the flatter,
-          more graphic background language borrowed from the Vesper
-          reference spec. Why It Matters keeps the Starfield/Lamp look. */}
-      <div className="lm-grain" aria-hidden="true"></div>
+  useSeo({
+    title: 'How It Works',
+    description: 'From search to return - how renting and listing equipment works on Rent It.',
+    path: '/how-it-works',
+  });
 
-      <div className="relative z-10">
+  return (
+    // DarkGradientBg's own noise/gradient/streak layers replace the old
+    // flat bg-black + .lm-grain treatment - see components/ui/elegant-dark-pattern.jsx.
+    <DarkGradientBg>
+      <div>
         {/* Hero */}
         <section className="flex min-h-[70vh] flex-col items-center justify-center px-4 py-24 text-center sm:px-6">
           <span className="lm-badge">
@@ -211,6 +215,6 @@ export default function HowItWorks() {
 
         <CtaBar text="Ready to see what's available near you?" cta="Browse the marketplace" to="/marketplace" />
       </div>
-    </div>
+    </DarkGradientBg>
   );
 }

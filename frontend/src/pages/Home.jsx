@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import CategoryShowcase from '../components/CategoryShowcase';
 import HomeHero from '../components/HomeHero';
 import Starfield from '../components/Starfield';
+import useSeo from '../hooks/useSeo';
 
 // ---------------------------------------------------------------------------
 // NOTE ON FIGURES BELOW: every number in this file (355 days, 6 weeks/year,
@@ -67,6 +68,8 @@ function CtaBar({ text, cta, to }) {
 }
 
 export default function Home() {
+  useSeo({ title: null, path: '/' });
+
   return (
     <div className="relative bg-night-bg">
       {/* Fixed so it stays a consistent viewport-sized backdrop as this long

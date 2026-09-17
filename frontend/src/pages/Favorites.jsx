@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import ListingCard from '../components/ListingCard';
+import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 
 // ListingCard is built for the dark glassmorphism treatment used on
 // Marketplace (its translucent fill + backdrop-blur wash out on a light
@@ -33,7 +34,7 @@ export default function Favorites() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-night-bg text-night-text">
+    <DarkGradientBg className="min-h-[calc(100vh-4rem)] text-night-text">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
         <h1 className="text-heading-sm text-night-text">Your favorites</h1>
         <p className="mt-1 text-body text-night-muted">Equipment you've saved to come back to later.</p>
@@ -57,6 +58,6 @@ export default function Favorites() {
           </div>
         </div>
       </div>
-    </div>
+    </DarkGradientBg>
   );
 }

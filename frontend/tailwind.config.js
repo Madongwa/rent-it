@@ -52,6 +52,12 @@ export default {
         btn: '14px',
         badge: '12px',
       },
+      // Tailwind only ships linear bg-gradient-to-* utilities by default -
+      // this enables `bg-gradient-radial` (paired with from-*/via-*/to-*)
+      // for DarkGradientBg's radial highlight layer.
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+      },
     },
   },
   plugins: [],

@@ -1,4 +1,4 @@
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -23,26 +23,22 @@ import AdminDashboard from './pages/AdminDashboard';
 import Help from './pages/Help';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
-
-const DARK_PATHS = [
-  '/', '/login', '/signup', '/marketplace', '/how-it-works', '/why-it-matters', '/favorites', '/help',
-  '/forgot-password', '/reset-password',
-];
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
+import { DarkGradientBg } from './components/ui/elegant-dark-pattern';
 
 export default function App() {
-  // Home, Login, Signup, Marketplace, How It Works, Why It Matters, and
-  // Favorites use the dark editorial theme; the footer needs to match it
-  // there instead of the site's default light theme. Owner storefronts
-  // (/owner/:id) are dark too but the id is dynamic, so that one needs a
-  // prefix check instead of a plain list membership test.
+  // Nav is fixed/floating so it can sit transparently over Home's video
+  // hero - everywhere else needs top padding equal to the nav's height so
+  // page content doesn't start underneath it. See .rh-nav-offset.
   const pathname = useLocation().pathname;
-  const isDarkPage = DARK_PATHS.includes(pathname) || pathname.startsWith('/owner/');
+  const isHome = pathname === '/';
 
   return (
     <div className="min-h-screen flex flex-col">
       <ScrollToTop />
       <Navbar />
-      <main className="flex-1">
+      <main className={`flex-1 ${isHome ? '' : 'rh-nav-offset'}`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/marketplace" element={<Marketplace />} />
@@ -119,16 +115,22 @@ export default function App() {
           <Route path="/how-it-works" element={<HowItWorks />} />
           <Route path="/why-it-matters" element={<WhyItMatters />} />
           <Route path="/help" element={<Help />} />
-          <Route path="/about" element={<ComingSoon title="About Us" />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/about" element={<ComingSoon title="About Us" path="/about" />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      <footer
-        className={`border-t py-6 text-center text-caption ${
-          isDarkPage ? 'border-night-border/15 bg-night-bg text-night-muted' : 'border-line text-text-muted'
-        }`}
-      >
-        © {new Date().getFullYear()} Rent It. Rent smarter, not harder.
+      <footer className="border-t border-night-border/15 bg-night-bg py-6 text-center text-caption text-night-muted">
+        <p>© {new Date().getFullYear()} Rent It. Rent smarter, not harder.</p>
+        <p className="mt-1 space-x-3">
+          <Link to="/terms" className="hover:underline">
+            Terms
+          </Link>
+          <Link to="/privacy" className="hover:underline">
+            Privacy
+          </Link>
+        </p>
       </footer>
     </div>
   );
@@ -136,8 +138,8 @@ export default function App() {
 
 function NotFound() {
   return (
-    <div className="py-24 text-center">
-      <h1 className="text-heading-sm text-text-primary">Page not found</h1>
-    </div>
+    <DarkGradientBg className="min-h-[calc(100vh-4rem)] py-24 text-center">
+      <h1 className="text-heading-sm text-night-text">Page not found</h1>
+    </DarkGradientBg>
   );
 }

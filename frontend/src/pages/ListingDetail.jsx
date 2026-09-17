@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useFavorites } from '../hooks/useFavorites';
+import useSeo from '../hooks/useSeo';
+import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 import {
   POWER_SOURCE_OPTIONS,
   DELIVERY_OPTIONS,
@@ -45,15 +47,15 @@ function StarRating({ rating, className = '' }) {
   return (
     <span className={`text-amber-500 ${className}`} aria-hidden="true">
       {'★'.repeat(rounded)}
-      <span className="text-line">{'★'.repeat(Math.max(0, 5 - rounded))}</span>
+      <span className="text-white/15">{'★'.repeat(Math.max(0, 5 - rounded))}</span>
     </span>
   );
 }
 
 function SectionCard({ title, children }) {
   return (
-    <section className="mt-8 rounded-card border border-line bg-surface p-6">
-      <h2 className="text-subheading text-text-primary">{title}</h2>
+    <section className="mt-8 rounded-card border border-night-border/15 bg-night-card p-6">
+      <h2 className="text-subheading text-night-text">{title}</h2>
       <div className="mt-4">{children}</div>
     </section>
   );
@@ -93,24 +95,24 @@ function RentalHistoryCalendar({ history }) {
           type="button"
           onClick={() => setViewDate(new Date(year, month - 1, 1))}
           aria-label="Previous month"
-          className="flex h-7 w-7 items-center justify-center rounded-full border border-line text-text-secondary hover:border-text-muted"
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-night-border/15 text-night-muted hover:border-night-muted"
         >
           ‹
         </button>
-        <span className="text-sm font-semibold text-text-primary">
+        <span className="text-sm font-semibold text-night-text">
           {MONTH_NAMES[month]} {year}
         </span>
         <button
           type="button"
           onClick={() => setViewDate(new Date(year, month + 1, 1))}
           aria-label="Next month"
-          className="flex h-7 w-7 items-center justify-center rounded-full border border-line text-text-secondary hover:border-text-muted"
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-night-border/15 text-night-muted hover:border-night-muted"
         >
           ›
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center text-caption text-text-muted">
+      <div className="grid grid-cols-7 gap-1 text-center text-caption text-night-muted">
         {WEEKDAY_LABELS.map((d, i) => (
           <div key={i} className="py-1 font-medium">{d}</div>
         ))}
@@ -121,8 +123,8 @@ function RentalHistoryCalendar({ history }) {
               className={`flex h-8 items-center justify-center rounded-md text-sm ${
                 isBooked(day)
                   ? 'bg-accent/15 font-semibold text-accent'
-                  : 'text-text-secondary'
-              } ${dateStrFor(day) === todayStr ? 'ring-1 ring-inset ring-text-primary' : ''}`}
+                  : 'text-night-muted'
+              } ${dateStrFor(day) === todayStr ? 'ring-1 ring-inset ring-white' : ''}`}
             >
               {day}
             </div>
@@ -132,7 +134,7 @@ function RentalHistoryCalendar({ history }) {
         )}
       </div>
 
-      <p className="mt-3 flex items-center gap-1.5 text-caption text-text-muted">
+      <p className="mt-3 flex items-center gap-1.5 text-caption text-night-muted">
         <span className="h-2.5 w-2.5 rounded-sm bg-accent/15" /> Booked date
       </p>
     </div>
@@ -150,7 +152,7 @@ function StarPicker({ value, onChange }) {
           type="button"
           onClick={() => onChange(n)}
           aria-label={`${n} star${n === 1 ? '' : 's'}`}
-          className={`text-2xl leading-none ${n <= value ? 'text-amber-500' : 'text-line'}`}
+          className={`text-2xl leading-none ${n <= value ? 'text-amber-500' : 'text-white/15'}`}
         >
           ★
         </button>
@@ -181,21 +183,21 @@ function WriteReviewForm({ listingId, onSubmitted }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mb-6 space-y-3 border-b border-line pb-6">
-      <h3 className="text-sm font-semibold text-text-primary">Leave a review</h3>
+    <form onSubmit={handleSubmit} className="mb-6 space-y-3 border-b border-night-border/15 pb-6">
+      <h3 className="text-sm font-semibold text-night-text">Leave a review</h3>
       <StarPicker value={rating} onChange={setRating} />
       <textarea
         value={comment}
         onChange={(e) => setComment(e.target.value)}
         rows={3}
         placeholder="How did it go? (optional)"
-        className="w-full rounded-btn border border-line px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+        className="w-full rounded-btn border border-night-border/20 bg-black/20 px-3 py-2 text-sm text-night-text placeholder:text-night-muted/60 focus:outline-none focus:ring-2 focus:ring-accent"
       />
       {error && <p className="text-sm text-red-500">{error}</p>}
       <button
         type="submit"
         disabled={submitting}
-        className="rounded-btn bg-text-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+        className="rounded-btn bg-white px-4 py-2 text-sm font-semibold text-black hover:opacity-90 disabled:opacity-60"
       >
         {submitting ? 'Submitting…' : 'Submit review'}
       </button>
@@ -209,10 +211,10 @@ function ReviewsSection({ reviews, avgRating, reviewCount, canReview, listingId,
 
   return (
     <SectionCard title="Reviews">
-      <div className="flex items-center gap-2 border-b border-line pb-4">
+      <div className="flex items-center gap-2 border-b border-night-border/15 pb-4">
         <StarRating rating={avgRating} className="text-lg" />
-        <span className="text-subheading text-text-primary">{Number(avgRating).toFixed(1)}</span>
-        <span className="text-body text-text-muted">
+        <span className="text-subheading text-night-text">{Number(avgRating).toFixed(1)}</span>
+        <span className="text-body text-night-muted">
           · {reviewCount} review{reviewCount === 1 ? '' : 's'}
         </span>
       </div>
@@ -224,18 +226,18 @@ function ReviewsSection({ reviews, avgRating, reviewCount, canReview, listingId,
       )}
 
       {reviews.length === 0 ? (
-        <p className="mt-4 text-body text-text-muted">No reviews yet.</p>
+        <p className="mt-4 text-body text-night-muted">No reviews yet.</p>
       ) : (
         <>
           <ul className="mt-4 space-y-4">
             {shown.map((r) => (
-              <li key={r.id} className="border-b border-line pb-4 last:border-b-0 last:pb-0">
+              <li key={r.id} className="border-b border-night-border/15 pb-4 last:border-b-0 last:pb-0">
                 <div className="flex flex-wrap items-center justify-between gap-1">
-                  <span className="font-medium text-text-primary">{r.reviewer_name}</span>
-                  <span className="text-caption text-text-muted">{formatDate(r.created_at.slice(0, 10))}</span>
+                  <span className="font-medium text-night-text">{r.reviewer_name}</span>
+                  <span className="text-caption text-night-muted">{formatDate(r.created_at.slice(0, 10))}</span>
                 </div>
                 <StarRating rating={r.rating} className="text-sm" />
-                {r.comment && <p className="mt-1.5 text-body text-text-secondary">{r.comment}</p>}
+                {r.comment && <p className="mt-1.5 text-body text-night-muted">{r.comment}</p>}
               </li>
             ))}
           </ul>
@@ -272,6 +274,13 @@ export default function ListingDetail() {
   const [messageError, setMessageError] = useState('');
 
   const { favoriteIds, toggle: toggleFavorite, isLoggedIn } = useFavorites();
+
+  useSeo({
+    title: listing?.title || 'Listing',
+    description: listing?.description || undefined,
+    path: `/listing/${id}`,
+    image: listing?.image_url || undefined,
+  });
 
   function reload() {
     return api.getListing(id).then(setListing);
@@ -334,23 +343,24 @@ export default function ListingDetail() {
     }
   }
 
-  if (loading) return <div className="py-24 text-center text-text-muted">Loading…</div>;
+  if (loading) return <DarkGradientBg className="min-h-[calc(100vh-4rem)] py-24 text-center text-night-muted">Loading…</DarkGradientBg>;
   if (error || !listing)
-    return <div className="py-24 text-center text-red-500">{error || 'Listing not found.'}</div>;
+    return <DarkGradientBg className="min-h-[calc(100vh-4rem)] py-24 text-center text-red-400">{error || 'Listing not found.'}</DarkGradientBg>;
 
   const isOwner = user && listing.owner_id === user.id;
   const reviews = listing.reviews || [];
   const rentalHistory = listing.rental_history || [];
 
   return (
+    <DarkGradientBg className="min-h-[calc(100vh-4rem)]">
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-      <Link to="/marketplace" className="text-sm text-text-muted hover:text-text-primary">
+      <Link to="/marketplace" className="text-sm text-night-muted hover:text-night-text">
         ← Back to marketplace
       </Link>
 
       <div className="mt-4 grid gap-8 md:grid-cols-2">
         {/* 1. Image */}
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-card bg-canvas">
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-card bg-white/5">
           {listing.image_url ? (
             <img src={listing.image_url} alt={listing.title} className="h-full w-full object-cover" />
           ) : (
@@ -382,25 +392,25 @@ export default function ListingDetail() {
               </span>
             )}
             {listing.condition && (
-              <span className="rounded-badge border border-line px-2.5 py-1 text-caption font-medium text-text-secondary">
+              <span className="rounded-badge border border-night-border/15 px-2.5 py-1 text-caption font-medium text-night-muted">
                 {listing.condition}
               </span>
             )}
             {listing.status !== 'available' && (
-              <span className="rounded-badge border border-line px-2.5 py-1 text-caption font-medium capitalize text-text-muted">
+              <span className="rounded-badge border border-night-border/15 px-2.5 py-1 text-caption font-medium capitalize text-night-muted">
                 {listing.status}
               </span>
             )}
           </div>
 
-          <h1 className="mt-3 text-heading-sm text-text-primary">{listing.title}</h1>
+          <h1 className="mt-3 text-heading-sm text-night-text">{listing.title}</h1>
 
           {/* 5. Rating/review count, kept up near the title as specified */}
-          <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-body text-text-muted">
+          <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-body text-night-muted">
             {listing.review_count > 0 && (
               <>
                 <StarRating rating={listing.avg_rating} className="text-sm" />
-                <span className="font-medium text-text-primary">{Number(listing.avg_rating).toFixed(1)}</span>
+                <span className="font-medium text-night-text">{Number(listing.avg_rating).toFixed(1)}</span>
                 <span>· {listing.review_count} reviews</span>
                 {listing.location && <span aria-hidden="true">·</span>}
               </>
@@ -410,26 +420,26 @@ export default function ListingDetail() {
 
           {/* 2. Price, deposit, min rental period, supported durations */}
           <div className="mt-4">
-            <p className="text-heading-sm text-text-primary">
+            <p className="text-heading-sm text-night-text">
               ₹{Number(listing.price_per_day).toLocaleString('en-IN')}
-              <span className="text-body font-normal text-text-muted"> /day</span>
+              <span className="text-body font-normal text-night-muted"> /day</span>
             </p>
-            <div className="mt-1.5 space-y-0.5 text-body text-text-muted">
+            <div className="mt-1.5 space-y-0.5 text-body text-night-muted">
               {listing.deposit_required && (
                 <p>
                   Refundable deposit:{' '}
-                  <span className="font-medium text-text-secondary">
+                  <span className="font-medium text-night-muted">
                     {listing.deposit_amount ? `₹${Number(listing.deposit_amount).toLocaleString('en-IN')}` : 'Required'}
                   </span>
                 </p>
               )}
               <p>
-                Minimum rental: <span className="font-medium text-text-secondary">{MIN_RENTAL_PERIOD_LABEL[listing.min_rental_period] || 'No minimum'}</span>
+                Minimum rental: <span className="font-medium text-night-muted">{MIN_RENTAL_PERIOD_LABEL[listing.min_rental_period] || 'No minimum'}</span>
               </p>
               {listing.supported_durations?.length > 0 && (
                 <p>
                   Available by:{' '}
-                  <span className="font-medium text-text-secondary">
+                  <span className="font-medium text-night-muted">
                     {listing.supported_durations.map((d) => DURATION_LABEL[d] || d).join(', ')}
                   </span>
                 </p>
@@ -437,10 +447,10 @@ export default function ListingDetail() {
             </div>
           </div>
 
-          <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-line pt-4 text-sm">
+          <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-night-border/15 pt-4 text-sm">
             <div>
-              <dt className="text-text-muted">Listed by</dt>
-              <dd className="font-medium text-text-primary">
+              <dt className="text-night-muted">Listed by</dt>
+              <dd className="font-medium text-night-text">
                 {listing.owner_id ? (
                   <Link to={`/owner/${listing.owner_id}`} className="hover:underline">
                     {listing.owner?.full_name || 'Rent It user'}
@@ -451,8 +461,8 @@ export default function ListingDetail() {
               </dd>
             </div>
             <div>
-              <dt className="text-text-muted">Owner type</dt>
-              <dd className="font-medium text-text-primary">{OWNER_TYPE_LABEL[listing.owner_type] || '—'}</dd>
+              <dt className="text-night-muted">Owner type</dt>
+              <dd className="font-medium text-night-text">{OWNER_TYPE_LABEL[listing.owner_type] || '—'}</dd>
             </div>
           </dl>
 
@@ -471,42 +481,42 @@ export default function ListingDetail() {
           {/* 3. Description */}
           {listing.description && (
             <div className="mt-6">
-              <h2 className="font-semibold text-text-primary">Description</h2>
-              <p className="mt-1 whitespace-pre-line text-text-secondary">{listing.description}</p>
+              <h2 className="font-semibold text-night-text">Description</h2>
+              <p className="mt-1 whitespace-pre-line text-night-muted">{listing.description}</p>
             </div>
           )}
 
           {/* 6. Availability/booking request form - unchanged logic */}
-          <div className="mt-8 rounded-card border border-line bg-canvas p-5">
+          <div className="mt-8 rounded-card border border-night-border/15 bg-white/5 p-5">
             {isOwner ? (
-              <p className="text-sm text-text-muted">This is your own listing.</p>
+              <p className="text-sm text-night-muted">This is your own listing.</p>
             ) : requestSuccess ? (
               <p className="text-sm font-medium text-green-600">
                 ✅ Request sent! Check your dashboard for updates.
               </p>
             ) : listing.status !== 'available' ? (
-              <p className="text-sm text-text-muted">This item isn't currently available.</p>
+              <p className="text-sm text-night-muted">This item isn't currently available.</p>
             ) : (
               <form onSubmit={handleRequestRent} className="space-y-3">
-                <h2 className="font-semibold text-text-primary">Request to rent</h2>
+                <h2 className="font-semibold text-night-text">Request to rent</h2>
                 <div className="flex gap-3">
                   <div className="flex-1">
-                    <label className="mb-1 block text-xs font-medium text-text-muted">Start date</label>
+                    <label className="mb-1 block text-xs font-medium text-night-muted">Start date</label>
                     <input
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full rounded-btn border border-line px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                      className="w-full rounded-btn border border-night-border/20 bg-black/20 px-3 py-2 text-sm text-night-text [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-accent"
                       required
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="mb-1 block text-xs font-medium text-text-muted">End date</label>
+                    <label className="mb-1 block text-xs font-medium text-night-muted">End date</label>
                     <input
                       type="date"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full rounded-btn border border-line px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                      className="w-full rounded-btn border border-night-border/20 bg-black/20 px-3 py-2 text-sm text-night-text [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-accent"
                       required
                     />
                   </div>
@@ -515,7 +525,7 @@ export default function ListingDetail() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full rounded-btn bg-text-primary py-2.5 font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                  className="w-full rounded-btn bg-white py-2.5 font-semibold text-black hover:opacity-90 disabled:opacity-60"
                 >
                   {submitting ? 'Sending…' : user ? 'Request to Rent' : 'Log in to request'}
                 </button>
@@ -529,27 +539,27 @@ export default function ListingDetail() {
       <SectionCard title="Details">
         <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm sm:grid-cols-3">
           <div>
-            <dt className="text-text-muted">Power source</dt>
-            <dd className="font-medium text-text-primary">{POWER_SOURCE_LABEL[listing.power_source] || '—'}</dd>
+            <dt className="text-night-muted">Power source</dt>
+            <dd className="font-medium text-night-text">{POWER_SOURCE_LABEL[listing.power_source] || '—'}</dd>
           </div>
           <div>
-            <dt className="text-text-muted">Delivery</dt>
-            <dd className="font-medium text-text-primary">{DELIVERY_LABEL[listing.delivery_option] || '—'}</dd>
+            <dt className="text-night-muted">Delivery</dt>
+            <dd className="font-medium text-night-text">{DELIVERY_LABEL[listing.delivery_option] || '—'}</dd>
           </div>
           <div>
-            <dt className="text-text-muted">Cancellation policy</dt>
-            <dd className="font-medium text-text-primary">{CANCELLATION_LABEL[listing.cancellation_policy] || '—'}</dd>
+            <dt className="text-night-muted">Cancellation policy</dt>
+            <dd className="font-medium text-night-text">{CANCELLATION_LABEL[listing.cancellation_policy] || '—'}</dd>
           </div>
           <div>
-            <dt className="text-text-muted">Accessories included</dt>
-            <dd className="font-medium text-text-primary">
+            <dt className="text-night-muted">Accessories included</dt>
+            <dd className="font-medium text-night-text">
               {listing.accessories_included ? listing.accessories_note || 'Yes' : 'Bare equipment only'}
             </dd>
           </div>
           {listing.distance_km != null && (
             <div>
-              <dt className="text-text-muted">Distance</dt>
-              <dd className="font-medium text-text-primary">{listing.distance_km} km away</dd>
+              <dt className="text-night-muted">Distance</dt>
+              <dd className="font-medium text-night-text">{listing.distance_km} km away</dd>
             </div>
           )}
         </dl>
@@ -558,7 +568,7 @@ export default function ListingDetail() {
       {/* 7. Rental history calendar + list */}
       <SectionCard title="Rental History">
         {rentalHistory.length === 0 ? (
-          <p className="text-body text-text-muted">No past rentals yet.</p>
+          <p className="text-body text-night-muted">No past rentals yet.</p>
         ) : (
           <div className="grid gap-8 md:grid-cols-[auto_1fr]">
             <RentalHistoryCalendar history={rentalHistory} />
@@ -566,7 +576,7 @@ export default function ListingDetail() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[420px] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-line text-text-muted">
+                  <tr className="border-b border-night-border/15 text-night-muted">
                     <th className="pb-2 font-medium">Renter</th>
                     <th className="pb-2 font-medium">Dates</th>
                     <th className="pb-2 font-medium">Duration</th>
@@ -575,15 +585,15 @@ export default function ListingDetail() {
                 </thead>
                 <tbody>
                   {rentalHistory.map((h) => (
-                    <tr key={h.id} className="border-b border-line last:border-b-0">
-                      <td className="py-2.5 font-medium text-text-primary">{h.renter_display_name}</td>
-                      <td className="py-2.5 text-text-secondary">
+                    <tr key={h.id} className="border-b border-night-border/15 last:border-b-0">
+                      <td className="py-2.5 font-medium text-night-text">{h.renter_display_name}</td>
+                      <td className="py-2.5 text-night-muted">
                         {formatDate(h.start_date)} – {formatDate(h.end_date)}
                       </td>
-                      <td className="py-2.5 text-text-secondary">
+                      <td className="py-2.5 text-night-muted">
                         {daysBetween(h.start_date, h.end_date)} day{daysBetween(h.start_date, h.end_date) === 1 ? '' : 's'}
                       </td>
-                      <td className="py-2.5 text-right font-medium text-text-primary">
+                      <td className="py-2.5 text-right font-medium text-night-text">
                         ₹{Number(h.amount_paid).toLocaleString('en-IN')}
                       </td>
                     </tr>
@@ -605,5 +615,6 @@ export default function ListingDetail() {
         onReviewSubmitted={reload}
       />
     </div>
+    </DarkGradientBg>
   );
 }

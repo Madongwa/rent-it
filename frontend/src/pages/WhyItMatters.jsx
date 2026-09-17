@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import { LampContainer } from '../components/Lamp';
 import { Reveal, StaggerGroup, IconRevealItem } from '../components/ScrollReveal';
+import useSeo from '../hooks/useSeo';
+import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 
 const VIGNETTES = [
   "A farmer buys a tiller for planting season. It runs hard for a few weeks, then goes back into the shed for the rest of the year — paid for in full, used for a fraction of it.",
@@ -87,8 +89,14 @@ function Hero() {
 }
 
 export default function WhyItMatters() {
+  useSeo({
+    title: 'Why It Matters',
+    description: 'The hidden cost of ownership - why idle equipment costs more than most people realize, and how shared access fixes it.',
+    path: '/why-it-matters',
+  });
+
   return (
-    <div className="bg-night-bg">
+    <DarkGradientBg>
       <Hero />
 
       {/* It shows up everywhere */}
@@ -200,6 +208,6 @@ export default function WhyItMatters() {
       </section>
 
       <CtaBar text="Have equipment sitting idle? Put it to work." cta="List your equipment" to="/list-item" />
-    </div>
+    </DarkGradientBg>
   );
 }

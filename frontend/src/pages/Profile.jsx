@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 
 const inputClass =
-  'w-full rounded-btn border border-line px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent';
+  'w-full rounded-btn border border-night-border/20 bg-black/20 px-3 py-2 text-sm text-night-text placeholder:text-night-muted/60 focus:outline-none focus:ring-2 focus:ring-accent';
 
 export default function Profile() {
   const [profile, setProfile] = useState(null);
@@ -41,27 +42,28 @@ export default function Profile() {
     }
   }
 
-  if (loading) return <div className="py-24 text-center text-text-muted">Loading…</div>;
+  if (loading) return <DarkGradientBg className="min-h-[calc(100vh-4rem)] py-24 text-center text-night-muted">Loading…</DarkGradientBg>;
 
   return (
+    <DarkGradientBg className="min-h-[calc(100vh-4rem)]">
     <div className="mx-auto max-w-lg px-4 py-10 sm:px-6">
-      <h1 className="text-heading-sm text-text-primary">Your profile</h1>
-      <p className="mt-1 text-body text-text-muted">Manage the details other users see when you list or rent equipment.</p>
+      <h1 className="text-heading-sm text-night-text">Your profile</h1>
+      <p className="mt-1 text-body text-night-muted">Manage the details other users see when you list or rent equipment.</p>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-5 rounded-card border border-line bg-surface p-6">
+      <form onSubmit={handleSubmit} className="mt-8 space-y-5 rounded-card border border-night-border/15 bg-night-card p-6">
         <div>
-          <label className="mb-1 block text-sm font-medium text-text-secondary">Email</label>
-          <input type="email" value={profile?.email || ''} disabled className={`${inputClass} bg-canvas text-text-muted`} />
-          <p className="mt-1 text-xs text-text-muted">Your email is managed through sign-in and can't be changed here.</p>
+          <label className="mb-1 block text-sm font-medium text-night-muted">Email</label>
+          <input type="email" value={profile?.email || ''} disabled className={`${inputClass} text-night-muted`} />
+          <p className="mt-1 text-xs text-night-muted">Your email is managed through sign-in and can't be changed here.</p>
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-text-secondary">Full name</label>
+          <label className="mb-1 block text-sm font-medium text-night-muted">Full name</label>
           <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputClass} placeholder="Your name" />
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-text-secondary">Phone</label>
+          <label className="mb-1 block text-sm font-medium text-night-muted">Phone</label>
           <input
             type="tel"
             value={phone}
@@ -71,17 +73,18 @@ export default function Profile() {
           />
         </div>
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
-        {saved && <p className="text-sm font-medium text-green-600">Saved.</p>}
+        {error && <p className="text-sm text-red-400">{error}</p>}
+        {saved && <p className="text-sm font-medium text-emerald-400">Saved.</p>}
 
         <button
           type="submit"
           disabled={saving}
-          className="w-full rounded-btn bg-text-primary py-2.5 font-semibold text-white hover:opacity-90 disabled:opacity-60"
+          className="w-full rounded-btn bg-white py-2.5 font-semibold text-black hover:opacity-90 disabled:opacity-60"
         >
           {saving ? 'Saving…' : 'Save changes'}
         </button>
       </form>
     </div>
+    </DarkGradientBg>
   );
 }

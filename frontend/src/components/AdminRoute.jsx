@@ -21,7 +21,7 @@ export default function AdminRoute({ children }) {
   }, [user]);
 
   if (authLoading || (user && isAdmin === null)) {
-    return <div className="flex justify-center py-24 text-text-muted">Loading…</div>;
+    return <div className="flex justify-center bg-black py-24 text-night-muted">Loading…</div>;
   }
 
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;

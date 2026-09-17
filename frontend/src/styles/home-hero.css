@@ -6,11 +6,13 @@
  *
  * Two consumers share this one stylesheet, exactly like the original
  * single-file spec shared one <style> block between its hero and its nav:
- *   - HomeHero.jsx   (video background, headline, subtitle, CTAs)
- *   - Navbar.jsx     (the `isHome` dark/transparent nav variant only)
- * Both are driven by the same html.rh-anim/.rh-go entrance state and the
- * same --rh-u reference-pixel unit, so a single mount effect in HomeHero
- * can animate elements that live in a totally different React component.
+ *   - HomeHero.jsx   (video background, headline, subtitle, CTAs - Home only)
+ *   - Navbar.jsx     (the one nav, rendered identically on every route)
+ * The entrance animation (html.rh-anim/.rh-go) is driven by a mount effect
+ * in HomeHero, so it only ever plays on Home - on every other route `html`
+ * never gets those classes, and the nav just renders in its resting state
+ * (see the plain, non-`.rh-anim`-scoped rules below) with no animation.
+ * Both share the same --rh-u reference-pixel unit either way.
  *
  * Reference render: 1280x800, scaled proportionally by --rh-u. All desktop
  * measurements below are `calc(N * var(--rh-u))`, never bare rem/px.
@@ -146,8 +148,23 @@
   outline:2px solid var(--rh-accent);outline-offset:3px;border-radius:99px;
 }
 
+/* Nav is `position:fixed` so it never pushes content down on its own -
+   fine on Home, where .rh-hero is designed to sit full-bleed behind it,
+   but every other page needs this to keep its own content from starting
+   underneath the bar. Kept as its own class (applied in App.jsx to
+   everything except Home) rather than baked into .rh-nav's own layout, so
+   Home's hero math above doesn't have to account for it. Values mirror
+   .rh-nav's `height` at each breakpoint exactly - see those rules below. */
+.rh-nav-offset{padding-top:calc(68 * var(--rh-u))}
+@media (max-width:1200px){
+  .rh-nav-offset{padding-top:max(58px, calc(67 * var(--rh-u)))}
+}
+@media (max-width:552px){
+  .rh-nav-offset{padding-top:56px}
+}
+
 /* ---------------------------------------------------------------------- */
-/* NAV (Navbar.jsx `isHome` variant only)                                  */
+/* NAV (Navbar.jsx - every route)                                          */
 /* ---------------------------------------------------------------------- */
 /* Now that the buttons are back down to 40u, the original's generous
    padding ratio (19.5u above/below a 28u button, i.e. padding ~0.7x the
@@ -163,7 +180,14 @@
   position:fixed;top:0;left:0;right:0;height:calc(68 * var(--rh-u));
   display:flex;align-items:center;
   padding-left:calc(24.5 * var(--rh-u));padding-right:calc(32 * var(--rh-u));
-  z-index:30;background:transparent;
+  z-index:30;
+  /* Frosted glass, not flat-transparent - Home's video hero is designed to
+     sit full-bleed behind this bar (see .rh-hero/.rh-nav-offset below), but
+     every other route needs the bar to read as intentional chrome on its
+     own, not just invisible padding. */
+  background:rgba(0,0,0,.4);
+  -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+  border-bottom:1px solid rgba(255,255,255,.08);
 }
 
 .rh-logo{
@@ -209,7 +233,7 @@
 }
 .rh-nav-links a:hover,.rh-nav-links a.is-active{color:#fff}
 
-.rh-nav-actions{margin-left:auto;display:flex;align-items:center;gap:calc(10 * var(--rh-u))}
+.rh-nav-actions{margin-left:auto;display:flex;align-items:center;gap:max(12px, calc(14 * var(--rh-u)))}
 
 /* Walked back from the literal 3x on the buttons (84u tall, 33-34.5u
    font) - next to 15u nav-link text that read as wildly mismatched, like
@@ -220,11 +244,13 @@
    padding/height ~0.46-0.48x, radius = height/2 for a true pill). */
 .rh-btn-login{
   height:calc(40 * var(--rh-u));padding:0 calc(18 * var(--rh-u));
-  border-radius:calc(20 * var(--rh-u));background:var(--rh-panel);color:#e8e8e8;
+  border-radius:calc(20 * var(--rh-u));color:#e8e8e8;
   font-size:calc(16.5 * var(--rh-u));font-weight:500;letter-spacing:calc(-0.22 * var(--rh-u));
-  transition:background .18s ease,color .18s ease;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  transition:background .18s ease,border-color .18s ease,color .18s ease;
 }
-.rh-btn-login:hover{background:#454545;color:#fff}
+.rh-btn-login:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.22);color:#fff}
 
 .rh-btn-nav-start{
   height:calc(40 * var(--rh-u));padding-left:calc(19 * var(--rh-u));

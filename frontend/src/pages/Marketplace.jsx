@@ -4,6 +4,8 @@ import { api } from '../lib/api';
 import ListingCard from '../components/ListingCard';
 import FilterSidebar, { PRICE_BUCKETS, countActiveFilters } from '../components/FilterSidebar';
 import { useFavorites } from '../hooks/useFavorites';
+import useSeo from '../hooks/useSeo';
+import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 
 const MULTI_KEYS = ['condition', 'powerSource', 'delivery', 'cancellation', 'ownerType', 'duration', 'availability'];
 // Filter keys whose URL param name differs from the filter-state key name.
@@ -96,6 +98,11 @@ function Pill({ active, disabled, onClick, children, title }) {
 }
 
 export default function Marketplace() {
+  useSeo({
+    title: 'Marketplace',
+    description: 'Browse farming, construction, household, events, moving, and medical equipment available to rent near you.',
+    path: '/marketplace',
+  });
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = readFilters(searchParams);
@@ -287,7 +294,7 @@ export default function Marketplace() {
     // App.jsx's isDarkPage list for the matching footer treatment. Reuses
     // the site's existing night.* tokens from the Home hero rather than
     // introducing a new palette.
-    <div className="min-h-[calc(100vh-4rem)] bg-night-bg text-night-text">
+    <DarkGradientBg className="min-h-[calc(100vh-4rem)] text-night-text">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
         <div className="mb-6">
           <h1 className="text-heading-sm text-night-text">
@@ -448,6 +455,6 @@ export default function Marketplace() {
           </div>
         </div>
       </div>
-    </div>
+    </DarkGradientBg>
   );
 }

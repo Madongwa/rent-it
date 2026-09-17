@@ -72,6 +72,114 @@ router.post('/kyc/:userId/reject', async (req, res) => {
   res.json(data);
 });
 
+// GET /api/admin/users - every account, for the staff user-management tab.
+// Email/ban status live on Supabase's own auth.users, not our `profiles`
+// table, so this merges the Admin API's user list with our profile rows
+// instead of a single query - there's no public.* view joining the two.
+// listUsers() paginates at up to 1000/page; fine for now, would need real
+// pagination past that.
+router.get('/users', async (req, res) => {
+  const { data: authData, error: authError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+  if (authError) return res.status(500).json({ error: authError.message });
+
+  const { data: profiles, error: profileError } = await supabase
+    .from('profiles')
+    .select('id, full_name, role, seller_status, created_at');
+  if (profileError) return res.status(500).json({ error: profileError.message });
+
+  const profileById = Object.fromEntries(profiles.map((p) => [p.id, p]));
+
+  const users = authData.users
+    .map((u) => ({
+      id: u.id,
+      email: u.email,
+      full_name: profileById[u.id]?.full_name || null,
+      role: profileById[u.id]?.role || 'user',
+      seller_status: profileById[u.id]?.seller_status || 'not_submitted',
+      created_at: profileById[u.id]?.created_at || u.created_at,
+      banned: !!u.banned_until && new Date(u.banned_until) > new Date(),
+    }))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  res.json(users);
+});
+
+// PATCH /api/admin/users/:id/role - body: { role: 'admin' | 'user' }
+router.patch('/users/:id/role', async (req, res) => {
+  const { role } = req.body;
+  if (!['user', 'admin'].includes(role)) {
+    return res.status(400).json({ error: "role must be 'user' or 'admin'" });
+  }
+  if (req.params.id === req.user.id && role === 'user') {
+    return res.status(400).json({ error: "You can't remove your own admin access." });
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ role })
+    .eq('id', req.params.id)
+    .select('id, full_name, role')
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// POST /api/admin/users/:id/ban - blocks sign-in via Supabase Auth's own
+// ban_duration (not a column of ours) - ~100 years reads as "indefinite"
+// without a magic "forever" sentinel the Admin API doesn't accept.
+router.post('/users/:id/ban', async (req, res) => {
+  if (req.params.id === req.user.id) {
+    return res.status(400).json({ error: "You can't ban your own account." });
+  }
+
+  const { data, error } = await supabase.auth.admin.updateUserById(req.params.id, { ban_duration: '876000h' });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ id: data.user.id, banned: true });
+});
+
+// POST /api/admin/users/:id/unban
+router.post('/users/:id/unban', async (req, res) => {
+  const { data, error } = await supabase.auth.admin.updateUserById(req.params.id, { ban_duration: 'none' });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ id: data.user.id, banned: false });
+});
+
+// GET /api/admin/listings - every listing regardless of status, for the
+// moderation tab (the public /api/listings only ever returns 'available'
+// ones). Capped at 200 - a moderation queue, not full pagination.
+router.get('/listings', async (req, res) => {
+  const { data, error } = await supabase
+    .from('listings')
+    .select('id, title, status, price_per_day, created_at, owner:profiles(id, full_name)')
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// PATCH /api/admin/listings/:id/status - body: { status }. Same
+// 'available'/'rented'/'inactive' enum as the owner-facing PATCH
+// /api/listings/:id, but bypasses the ownership check - this is the
+// takedown/restore action for a listing that violates policy.
+router.patch('/listings/:id/status', async (req, res) => {
+  const { status } = req.body;
+  if (!['available', 'inactive'].includes(status)) {
+    return res.status(400).json({ error: "status must be 'available' or 'inactive'" });
+  }
+
+  const { data, error } = await supabase
+    .from('listings')
+    .update({ status })
+    .eq('id', req.params.id)
+    .select('id, title, status')
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
 // GET /api/admin/disputes - open disputes awaiting a staff decision
 router.get('/disputes', async (req, res) => {
   const { data, error } = await supabase

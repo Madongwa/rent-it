@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import ListingForm from '../components/ListingForm';
+import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 
 const GATE_COPY = {
   not_submitted: {
@@ -38,28 +39,31 @@ export default function ListItem() {
     navigate(`/listing/${created.id}`);
   }
 
-  if (loading) return <div className="py-24 text-center text-text-muted">Loading…</div>;
+  if (loading) return <DarkGradientBg className="min-h-[calc(100vh-4rem)] py-24 text-center text-night-muted">Loading…</DarkGradientBg>;
 
   if (sellerStatus !== 'approved') {
     const copy = GATE_COPY[sellerStatus] || GATE_COPY.not_submitted;
     return (
+      <DarkGradientBg className="min-h-[calc(100vh-4rem)]">
       <div className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6">
-        <h1 className="text-heading-sm text-text-primary">{copy.title}</h1>
-        <p className="mt-2 text-body text-text-muted">{copy.body}</p>
+        <h1 className="text-heading-sm text-night-text">{copy.title}</h1>
+        <p className="mt-2 text-body text-night-muted">{copy.body}</p>
         <Link
           to="/become-seller"
-          className="mt-6 inline-block rounded-btn bg-text-primary px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90"
+          className="mt-6 inline-block rounded-btn bg-white px-5 py-2.5 text-sm font-semibold text-black hover:opacity-90"
         >
           {copy.cta}
         </Link>
       </div>
+      </DarkGradientBg>
     );
   }
 
   return (
+    <DarkGradientBg className="min-h-[calc(100vh-4rem)]">
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
-      <h1 className="text-heading-sm text-text-primary">List an item for rent</h1>
-      <p className="mt-1 text-body text-text-muted">
+      <h1 className="text-heading-sm text-night-text">List an item for rent</h1>
+      <p className="mt-1 text-body text-night-muted">
         Have a tool sitting idle? List it here and start earning when someone rents it.
       </p>
 
@@ -67,5 +71,6 @@ export default function ListItem() {
         <ListingForm onSubmit={handleSubmit} submitLabel="Publish listing" />
       </div>
     </div>
+    </DarkGradientBg>
   );
 }

@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import useSeo from '../hooks/useSeo';
+import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Login() {
+  useSeo({ title: 'Log In', description: 'Log in to your Rent It account.', path: '/login' });
   const { signIn, resendConfirmation } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -68,7 +71,8 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-night-bg px-4 py-16 sm:px-6">
+    <DarkGradientBg className="min-h-[calc(100vh-4rem)]">
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-16 sm:px-6">
       <div className="w-full max-w-md rounded-2xl border border-night-border/15 bg-night-card p-8 sm:p-10">
         <h1 className="text-3xl font-extrabold tracking-tight text-night-text">Log in to Rent It</h1>
         <p className="mt-2 text-sm text-night-muted">Welcome back — enter your details below.</p>
@@ -171,6 +175,7 @@ export default function Login() {
           </Link>
         </p>
       </div>
-    </div>
+      </div>
+    </DarkGradientBg>
   );
 }

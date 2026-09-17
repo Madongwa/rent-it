@@ -12,8 +12,12 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Every route now uses the dark theme (DarkGradientBg or Home's own
+   Starfield/video), so the body default matches - this also kills the
+   flash of the old light bg-canvas that would otherwise show for an
+   instant before React mounts and paints the real background. */
 body {
-  @apply bg-canvas text-text-primary;
+  @apply bg-black text-night-text;
 }
 
 /* ---------------------------------------------------------------------- */

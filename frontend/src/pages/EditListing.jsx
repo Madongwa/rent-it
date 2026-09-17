@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import ListingForm from '../components/ListingForm';
+import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 
 // Normalizes a fetched listing into the shape ListingForm's controlled
 // inputs expect - mainly turning `null` (a real, valid DB value for
@@ -58,17 +59,19 @@ export default function EditListing() {
     navigate(`/listing/${id}`);
   }
 
-  if (loading) return <div className="py-24 text-center text-text-muted">Loading…</div>;
-  if (error) return <div className="py-24 text-center text-red-500">{error}</div>;
+  if (loading) return <DarkGradientBg className="min-h-[calc(100vh-4rem)] py-24 text-center text-night-muted">Loading…</DarkGradientBg>;
+  if (error) return <DarkGradientBg className="min-h-[calc(100vh-4rem)] py-24 text-center text-red-400">{error}</DarkGradientBg>;
 
   return (
+    <DarkGradientBg className="min-h-[calc(100vh-4rem)]">
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
-      <h1 className="text-heading-sm text-text-primary">Edit listing</h1>
-      <p className="mt-1 text-body text-text-muted">Update the details renters see for this item.</p>
+      <h1 className="text-heading-sm text-night-text">Edit listing</h1>
+      <p className="mt-1 text-body text-night-muted">Update the details renters see for this item.</p>
 
       <div className="mt-8">
         <ListingForm initial={initial} onSubmit={handleSubmit} submitLabel="Save changes" />
       </div>
     </div>
+    </DarkGradientBg>
   );
 }

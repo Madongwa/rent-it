@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { api } from '../lib/api';
+import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 
 // Deliberately does NOT collect an Aadhaar/PAN number as text anywhere -
 // only a photo of the ID document, uploaded to a private bucket. Staff
@@ -10,8 +11,8 @@ import { api } from '../lib/api';
 // doesn't have). A KYC vendor API can later replace this manual review
 // without changing the shape of what's stored here.
 const inputClass =
-  'w-full rounded-btn border border-line px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent';
-const labelClass = 'mb-1 block text-sm font-medium text-text-secondary';
+  'w-full rounded-btn border border-night-border/20 bg-black/20 px-3 py-2 text-sm text-night-text focus:outline-none focus:ring-2 focus:ring-accent';
+const labelClass = 'mb-1 block text-sm font-medium text-night-muted';
 
 // NOTE for when automated verification (Digio) actually goes live: a
 // submission can then reach 'approved' near-instantly instead of after a
@@ -109,25 +110,26 @@ export default function SellerVerification() {
     }
   }
 
-  if (loading) return <div className="py-24 text-center text-text-muted">Loading…</div>;
+  if (loading) return <DarkGradientBg className="min-h-[calc(100vh-4rem)] py-24 text-center text-night-muted">Loading…</DarkGradientBg>;
 
   const copy = submission ? STATUS_COPY[submission.status] : null;
   const canEdit = status !== 'pending' && status !== 'approved';
 
   return (
+    <DarkGradientBg className="min-h-[calc(100vh-4rem)]">
     <div className="mx-auto max-w-xl px-4 py-10 sm:px-6">
-      <h1 className="text-heading-sm text-text-primary">Seller verification</h1>
-      <p className="mt-2 text-body text-text-muted">
+      <h1 className="text-heading-sm text-night-text">Seller verification</h1>
+      <p className="mt-2 text-body text-night-muted">
         We verify every seller before they can list equipment, to keep the marketplace safe for
         renters. This takes a couple of minutes.
       </p>
 
       {copy && (
-        <div className="mt-6 rounded-card border border-line bg-surface p-4">
-          <p className="font-semibold text-text-primary">{copy.title}</p>
-          <p className="mt-1 text-sm text-text-muted">{copy.body}</p>
+        <div className="mt-6 rounded-card border border-night-border/15 bg-night-card p-4">
+          <p className="font-semibold text-night-text">{copy.title}</p>
+          <p className="mt-1 text-sm text-night-muted">{copy.body}</p>
           {submission.status === 'rejected' && submission.rejection_reason && (
-            <p className="mt-2 rounded-btn bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p className="mt-2 rounded-btn bg-red-500/10 px-3 py-2 text-sm text-red-400">
               {submission.rejection_reason}
             </p>
           )}
@@ -135,14 +137,14 @@ export default function SellerVerification() {
       )}
 
       {success && (
-        <p className="mt-4 rounded-btn bg-green-50 px-3 py-2 text-sm text-green-700">
+        <p className="mt-4 rounded-btn bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
           Submitted! We'll review it shortly.
         </p>
       )}
-      {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
+      {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
 
       {canEdit && (
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4 rounded-card border border-line bg-surface p-6">
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4 rounded-card border border-night-border/15 bg-night-card p-6">
           <div>
             <label className={labelClass}>Full name (as on your ID)</label>
             <input
@@ -175,7 +177,7 @@ export default function SellerVerification() {
               accept="image/*,application/pdf"
               onChange={(e) => setIdFile(e.target.files?.[0] || null)}
             />
-            <p className="mt-1 text-xs text-text-muted">
+            <p className="mt-1 text-xs text-night-muted">
               Only our verification staff can view this. We never share it or show it publicly.
             </p>
           </div>
@@ -190,12 +192,13 @@ export default function SellerVerification() {
           <button
             type="submit"
             disabled={uploading}
-            className="w-full rounded-btn bg-text-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+            className="w-full rounded-btn bg-white px-4 py-2 text-sm font-semibold text-black hover:opacity-90 disabled:opacity-50"
           >
             {uploading ? 'Submitting…' : submission ? 'Resubmit' : 'Submit for review'}
           </button>
         </form>
       )}
     </div>
+    </DarkGradientBg>
   );
 }

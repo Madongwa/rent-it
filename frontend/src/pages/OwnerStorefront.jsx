@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import ListingCard from '../components/ListingCard';
 import { useFavorites } from '../hooks/useFavorites';
+import useSeo from '../hooks/useSeo';
+import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 
 export default function OwnerStorefront() {
   const { id } = useParams();
@@ -12,6 +14,13 @@ export default function OwnerStorefront() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { favoriteIds, toggle: toggleFavorite, isLoggedIn } = useFavorites();
+
+  useSeo({
+    title: owner ? `${owner.full_name || 'Rent It user'}'s listings` : 'Owner',
+    description: owner ? `Equipment listed by ${owner.full_name || 'this Rent It user'}.` : undefined,
+    path: `/owner/${id}`,
+    image: owner?.avatar_url || undefined,
+  });
 
   useEffect(() => {
     setLoading(true);
@@ -32,13 +41,13 @@ export default function OwnerStorefront() {
     toggleFavorite(listingId);
   }
 
-  if (loading) return <div className="min-h-[calc(100vh-4rem)] bg-night-bg py-24 text-center text-night-muted">Loading…</div>;
+  if (loading) return <DarkGradientBg className="min-h-[calc(100vh-4rem)] py-24 text-center text-night-muted">Loading…</DarkGradientBg>;
   if (error || !owner) {
-    return <div className="min-h-[calc(100vh-4rem)] bg-night-bg py-24 text-center text-red-400">{error || 'Owner not found.'}</div>;
+    return <DarkGradientBg className="min-h-[calc(100vh-4rem)] py-24 text-center text-red-400">{error || 'Owner not found.'}</DarkGradientBg>;
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-night-bg text-night-text">
+    <DarkGradientBg className="min-h-[calc(100vh-4rem)] text-night-text">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
         <div className="flex items-center gap-4">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-night-card text-2xl font-bold">
@@ -73,6 +82,6 @@ export default function OwnerStorefront() {
           )}
         </div>
       </div>
-    </div>
+    </DarkGradientBg>
   );
 }

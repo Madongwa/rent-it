@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /messages
+Disallow: /profile
+Disallow: /favorites
+Disallow: /list-item
+Disallow: /listing/*/edit
+Disallow: /become-seller
+Disallow: /forgot-password
+Disallow: /reset-password
+
+Sitemap: https://renthere.in/sitemap.xml

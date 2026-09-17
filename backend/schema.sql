@@ -639,3 +639,64 @@ create policy "Participants and admins can view payment records" on public.renta
     )
     or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
   );
+
+-- ---------------------------------------------------------------------------
+-- Realtime: the messages page subscribes to postgres_changes on `messages`
+-- (and `conversations`, for last-message-preview/ordering updates) instead
+-- of polling. Supabase only streams changes for tables explicitly added to
+-- this publication - the existing RLS policies above still apply on top of
+-- that, so a client only ever receives rows it could already SELECT.
+-- do block + catch since Postgres has no "add table to publication if not
+-- already a member" clause, and re-adding an already-added table errors.
+do $$
+begin
+  begin
+    execute 'alter publication supabase_realtime add table public.messages';
+  exception when duplicate_object then null;
+  end;
+  begin
+    execute 'alter publication supabase_realtime add table public.conversations';
+  exception when duplicate_object then null;
+  end;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- In-app notifications: a rental request landing, a request being approved/
+-- rejected, a dispute being raised, a new message - anything a user should
+-- hear about without having to go check their Dashboard/Messages on a
+-- hunch. Always written by the backend (service_role, bypasses RLS below),
+-- never by a client directly - `link` is a same-origin app path (e.g.
+-- `/dashboard?tab=mine`) the frontend navigates to on click.
+-- ---------------------------------------------------------------------------
+create table if not exists public.notifications (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  type text not null,
+  title text not null,
+  body text,
+  link text,
+  read boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists notifications_user_created_idx on public.notifications (user_id, created_at desc);
+
+alter table public.notifications enable row level security;
+
+drop policy if exists "Users can view their own notifications" on public.notifications;
+create policy "Users can view their own notifications" on public.notifications
+  for select using (auth.uid() = user_id);
+
+-- Only `read` is ever client-writable (marking a notification seen) - every
+-- other field is set once at insert time by the backend.
+drop policy if exists "Users can mark their own notifications read" on public.notifications;
+create policy "Users can mark their own notifications read" on public.notifications
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+do $$
+begin
+  begin
+    execute 'alter publication supabase_realtime add table public.notifications';
+  exception when duplicate_object then null;
+  end;
+end $$;

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
+import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -57,12 +58,17 @@ export default function ResetPassword() {
   }
 
   if (!ready) {
-    return <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-night-bg text-night-muted">Loading…</div>;
+    return (
+      <DarkGradientBg className="min-h-[calc(100vh-4rem)]">
+        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center text-night-muted">Loading…</div>
+      </DarkGradientBg>
+    );
   }
 
   if (invalid) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-night-bg px-4 py-16 sm:px-6">
+      <DarkGradientBg className="min-h-[calc(100vh-4rem)]">
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-16 sm:px-6">
         <div className="w-full max-w-md rounded-2xl border border-night-border/15 bg-night-card p-8 text-center sm:p-10">
           <h1 className="text-2xl font-extrabold tracking-tight text-night-text">Link expired or invalid</h1>
           <p className="mt-3 text-sm leading-relaxed text-night-muted">
@@ -71,22 +77,26 @@ export default function ResetPassword() {
           </p>
         </div>
       </div>
+      </DarkGradientBg>
     );
   }
 
   if (done) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-night-bg px-4 py-16 sm:px-6">
+      <DarkGradientBg className="min-h-[calc(100vh-4rem)]">
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-16 sm:px-6">
         <div className="w-full max-w-md rounded-2xl border border-night-border/15 bg-night-card p-8 text-center sm:p-10">
           <h1 className="text-2xl font-extrabold tracking-tight text-night-text">Password updated</h1>
           <p className="mt-3 text-sm text-night-muted">Taking you to your dashboard…</p>
         </div>
       </div>
+      </DarkGradientBg>
     );
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-night-bg px-4 py-16 sm:px-6">
+    <DarkGradientBg className="min-h-[calc(100vh-4rem)]">
+    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-16 sm:px-6">
       <div className="w-full max-w-md rounded-2xl border border-night-border/15 bg-night-card p-8 sm:p-10">
         <h1 className="text-3xl font-extrabold tracking-tight text-night-text">Set a new password</h1>
 
@@ -136,5 +146,6 @@ export default function ResetPassword() {
         </form>
       </div>
     </div>
+    </DarkGradientBg>
   );
 }

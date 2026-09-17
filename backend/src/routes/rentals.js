@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth } from '../middleware/auth.js';
+import { notify } from '../lib/notify.js';
 
 const router = Router();
 
@@ -58,6 +59,20 @@ router.post('/', requireAuth, async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
+
+  const { data: renterProfile } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .eq('id', req.user.id)
+    .single();
+  notify({
+    userId: listing.owner_id,
+    type: 'rental_request',
+    title: 'New rental request',
+    body: `${renterProfile?.full_name || 'Someone'} wants to rent "${data.listing.title}" (${start_date} → ${end_date}).`,
+    link: '/dashboard?tab=incoming',
+  });
+
   res.status(201).json(data);
 });
 
@@ -154,6 +169,26 @@ router.patch('/:id', requireAuth, async (req, res) => {
     await supabase.from('listings').update({ status: 'available' }).eq('id', data.listing_id);
   }
 
+  // Notify whichever side didn't just take the action - the owner acting
+  // (approve/reject/completed) tells the renter, the renter cancelling
+  // tells the owner.
+  const NOTIFY_COPY = {
+    approved: { title: 'Rental request approved', body: `Your request for "${data.listing.title}" was approved.` },
+    rejected: { title: 'Rental request declined', body: `Your request for "${data.listing.title}" was declined.` },
+    completed: { title: 'Rental marked complete', body: `Your rental of "${data.listing.title}" is marked complete.` },
+    cancelled: { title: 'Rental cancelled', body: `The rental for "${data.listing.title}" was cancelled.` },
+  };
+  const copy = NOTIFY_COPY[status];
+  if (copy) {
+    // Owner acting (approve/reject/completed) notifies the renter, who
+    // finds it under "My Rental Requests"; the renter cancelling notifies
+    // the owner, who finds it under "Requests on My Items" - different
+    // tabs, since each side only ever sees the other's half of Dashboard.
+    const recipientId = isOwner ? rental.renter_id : data.listing.owner_id;
+    const tab = isOwner ? 'mine' : 'incoming';
+    notify({ userId: recipientId, type: `rental_${status}`, ...copy, link: `/dashboard?tab=${tab}` });
+  }
+
   res.json(data);
 });
 
@@ -231,6 +266,16 @@ router.post('/:id/dispute', requireAuth, async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
+
+  const otherPartyId = req.user.id === rental.renter_id ? rental.listing.owner_id : rental.renter_id;
+  notify({
+    userId: otherPartyId,
+    type: 'rental_disputed',
+    title: 'A problem was reported',
+    body: `A dispute was raised on the rental for "${data.listing.title}". Our staff will review it.`,
+    link: '/dashboard',
+  });
+
   res.json(data);
 });
 

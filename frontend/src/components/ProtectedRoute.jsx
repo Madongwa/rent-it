@@ -6,7 +6,7 @@ export default function ProtectedRoute({ children }) {
   const location = useLocation();
 
   if (loading) {
-    return <div className="flex justify-center py-24 text-stone-500">Loading…</div>;
+    return <div className="flex justify-center bg-black py-24 text-night-muted">Loading…</div>;
   }
 
   if (!user) {

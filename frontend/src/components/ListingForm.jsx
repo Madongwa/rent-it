@@ -38,15 +38,16 @@ const FIELD_DEFAULTS = {
 };
 
 const inputClass =
-  'w-full rounded-btn border border-line px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent';
-const labelClass = 'mb-1 block text-sm font-medium text-text-secondary';
+  'w-full rounded-btn border border-night-border/20 bg-black/20 px-3 py-2 text-sm text-night-text placeholder:text-night-muted/60 [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-accent';
+const labelClass = 'mb-1 block text-sm font-medium text-night-muted';
+const checkboxClass = 'h-4 w-4 rounded border-night-border/30 bg-black/20 text-accent focus:ring-accent';
 
 function Field({ label, children, hint }) {
   return (
     <div>
       <label className={labelClass}>{label}</label>
       {children}
-      {hint && <p className="mt-1 text-xs text-text-muted">{hint}</p>}
+      {hint && <p className="mt-1 text-xs text-night-muted">{hint}</p>}
     </div>
   );
 }
@@ -126,8 +127,8 @@ export default function ListingForm({ initial, onSubmit, submitLabel = 'Publish 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-5 rounded-card border border-line bg-surface p-6">
-        <h2 className="text-subheading text-text-primary">Basics</h2>
+      <div className="space-y-5 rounded-card border border-night-border/15 bg-night-card p-6">
+        <h2 className="text-subheading text-night-text">Basics</h2>
 
         <Field label="Title *">
           <input
@@ -200,14 +201,14 @@ export default function ListingForm({ initial, onSubmit, submitLabel = 'Publish 
             {form.image_url && (
               <img src={form.image_url} alt="Listing preview" className="h-16 w-16 rounded-btn object-cover" />
             )}
-            <input type="file" accept="image/*" onChange={handleImageChange} disabled={uploading} className="text-sm text-text-secondary" />
-            {uploading && <span className="text-xs text-text-muted">Uploading…</span>}
+            <input type="file" accept="image/*" onChange={handleImageChange} disabled={uploading} className="text-sm text-night-muted" />
+            {uploading && <span className="text-xs text-night-muted">Uploading…</span>}
           </div>
         </Field>
       </div>
 
-      <div className="space-y-5 rounded-card border border-line bg-surface p-6">
-        <h2 className="text-subheading text-text-primary">Terms</h2>
+      <div className="space-y-5 rounded-card border border-night-border/15 bg-night-card p-6">
+        <h2 className="text-subheading text-night-text">Terms</h2>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Power source">
@@ -261,12 +262,12 @@ export default function ListingForm({ initial, onSubmit, submitLabel = 'Publish 
         <Field label="Available by">
           <div className="flex flex-wrap gap-3">
             {DURATION_OPTIONS.map((opt) => (
-              <label key={opt.value} className="flex items-center gap-1.5 text-sm text-text-secondary">
+              <label key={opt.value} className="flex items-center gap-1.5 text-sm text-night-muted">
                 <input
                   type="checkbox"
                   checked={form.supported_durations.includes(opt.value)}
                   onChange={() => toggleDuration(opt.value)}
-                  className="h-4 w-4 rounded border-line text-accent focus:ring-accent"
+                  className={checkboxClass}
                 />
                 {opt.label}
               </label>
@@ -276,12 +277,12 @@ export default function ListingForm({ initial, onSubmit, submitLabel = 'Publish 
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium text-text-secondary">
+            <label className="flex items-center gap-2 text-sm font-medium text-night-muted">
               <input
                 type="checkbox"
                 checked={form.deposit_required}
                 onChange={(e) => update('deposit_required', e.target.checked)}
-                className="h-4 w-4 rounded border-line text-accent focus:ring-accent"
+                className={checkboxClass}
               />
               Requires a refundable deposit
             </label>
@@ -297,12 +298,12 @@ export default function ListingForm({ initial, onSubmit, submitLabel = 'Publish 
             )}
           </div>
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium text-text-secondary">
+            <label className="flex items-center gap-2 text-sm font-medium text-night-muted">
               <input
                 type="checkbox"
                 checked={form.accessories_included}
                 onChange={(e) => update('accessories_included', e.target.checked)}
-                className="h-4 w-4 rounded border-line text-accent focus:ring-accent"
+                className={checkboxClass}
               />
               Comes with accessories
             </label>
@@ -319,12 +320,12 @@ export default function ListingForm({ initial, onSubmit, submitLabel = 'Publish 
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-red-400">{error}</p>}
 
       <button
         type="submit"
         disabled={submitting || uploading}
-        className="w-full rounded-btn bg-text-primary py-3 font-semibold text-white hover:opacity-90 disabled:opacity-60"
+        className="w-full rounded-btn bg-white py-3 font-semibold text-black hover:opacity-90 disabled:opacity-60"
       >
         {submitting ? 'Saving…' : submitLabel}
       </button>

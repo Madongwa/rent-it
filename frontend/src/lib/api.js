@@ -97,4 +97,19 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ resolution, outcome }),
     }),
+
+  getAdminUsers: () => request('/admin/users'),
+  updateUserRole: (userId, role) =>
+    request(`/admin/users/${userId}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
+  banUser: (userId) => request(`/admin/users/${userId}/ban`, { method: 'POST' }),
+  unbanUser: (userId) => request(`/admin/users/${userId}/unban`, { method: 'POST' }),
+
+  getAdminListings: () => request('/admin/listings'),
+  updateAdminListingStatus: (listingId, status) =>
+    request(`/admin/listings/${listingId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+
+  getNotifications: () => request('/notifications'),
+  getUnreadNotificationCount: () => request('/notifications/unread-count'),
+  markNotificationRead: (id) => request(`/notifications/${id}/read`, { method: 'PATCH' }),
+  markAllNotificationsRead: () => request('/notifications/read-all', { method: 'POST' }),
 };

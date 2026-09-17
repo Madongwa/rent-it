@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth } from '../middleware/auth.js';
+import { notify } from '../lib/notify.js';
 
 const router = Router();
 
@@ -115,6 +116,17 @@ router.post('/conversations/:id/messages', requireAuth, async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
+
+  const recipientId = participant.owner_id === req.user.id ? participant.renter_id : participant.owner_id;
+  const { data: senderProfile } = await supabase.from('profiles').select('full_name').eq('id', req.user.id).single();
+  notify({
+    userId: recipientId,
+    type: 'new_message',
+    title: `New message from ${senderProfile?.full_name || 'a Rent It user'}`,
+    body: body.trim().slice(0, 140),
+    link: `/messages?c=${req.params.id}`,
+  });
+
   res.status(201).json(data);
 });
 

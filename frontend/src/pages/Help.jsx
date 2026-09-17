@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import HelpChatbot from '../components/HelpChatbot';
+import useSeo from '../hooks/useSeo';
+import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 
 // Real answers, tied to what's actually built - no invented policy details.
 const FAQ_ITEMS = [
@@ -90,11 +92,16 @@ function AccordionItem({ item, isOpen, onToggle, reduceMotion }) {
 }
 
 export default function Help() {
+  useSeo({
+    title: 'Help / FAQ',
+    description: 'Answers to common questions about renting, listing, deposits, cancellations, and disputes on Rent It.',
+    path: '/help',
+  });
   const [openIndex, setOpenIndex] = useState(null);
   const reduceMotion = useReducedMotion();
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-night-bg">
+    <DarkGradientBg className="min-h-[calc(100vh-4rem)]">
       <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
         <h1 className="text-heading-sm text-night-text">Help &amp; FAQ</h1>
         <p className="mt-3 text-body text-night-muted">
@@ -116,6 +123,6 @@ export default function Help() {
       </div>
 
       <HelpChatbot />
-    </div>
+    </DarkGradientBg>
   );
 }

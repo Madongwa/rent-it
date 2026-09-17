@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import useSeo from '../hooks/useSeo';
+import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 6;
 
 export default function Signup() {
+  useSeo({ title: 'Sign Up', description: 'Create a Rent It account to start renting or listing equipment.', path: '/signup' });
   const { signUp, resendConfirmation } = useAuth();
   const navigate = useNavigate();
 
@@ -62,7 +65,8 @@ export default function Signup() {
 
   if (needsConfirmation) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-night-bg px-4 py-16 sm:px-6">
+      <DarkGradientBg className="min-h-[calc(100vh-4rem)]">
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-16 sm:px-6">
         <div className="w-full max-w-md rounded-2xl border border-night-border/15 bg-night-card p-8 text-center sm:p-10">
           <h1 className="text-3xl font-extrabold tracking-tight text-night-text">Check your email</h1>
           <p className="mt-3 text-sm leading-relaxed text-night-muted">
@@ -104,11 +108,13 @@ export default function Signup() {
           </Link>
         </div>
       </div>
+      </DarkGradientBg>
     );
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-night-bg px-4 py-16 sm:px-6">
+    <DarkGradientBg className="min-h-[calc(100vh-4rem)]">
+    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-16 sm:px-6">
       <div className="w-full max-w-md rounded-2xl border border-night-border/15 bg-night-card p-8 sm:p-10">
         <h1 className="text-3xl font-extrabold tracking-tight text-night-text">Create your account</h1>
         <p className="mt-2 text-sm text-night-muted">Start listing or renting equipment in minutes.</p>
@@ -219,6 +225,18 @@ export default function Signup() {
             address before you can log in.
           </p>
 
+          <p className="text-xs leading-relaxed text-night-muted">
+            By signing up, you agree to our{' '}
+            <Link to="/terms" className="font-medium text-homeAccent hover:underline">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link to="/privacy" className="font-medium text-homeAccent hover:underline">
+              Privacy Policy
+            </Link>
+            .
+          </p>
+
           <button
             type="submit"
             disabled={submitting}
@@ -236,5 +254,6 @@ export default function Signup() {
         </p>
       </div>
     </div>
+    </DarkGradientBg>
   );
 }
