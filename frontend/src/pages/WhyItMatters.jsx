@@ -41,7 +41,7 @@ function CtaBar({ text, cta, to }) {
         <p className="text-base text-night-text">{text}</p>
         <Link
           to={to}
-          className="shrink-0 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-homeAccent"
+          className="lm-btn lm-btn-solid shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-homeAccent"
         >
           {cta}
         </Link>
@@ -64,16 +64,19 @@ function Hero() {
   return (
     <motion.div ref={heroRef} style={{ scale, opacity }}>
       <LampContainer>
-        <motion.h1
-          initial={{ opacity: 0.5, y: 100 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.8, ease: 'easeInOut' }}
-          className="mt-20 max-w-4xl text-center text-4xl font-black leading-[0.95] tracking-tight text-night-text sm:text-6xl"
-        >
-          We buy things to use them.
-          <br />
-          Most of the time, we don't.
-        </motion.h1>
+        <span className="lm-badge">The hidden cost of ownership</span>
+        <h1 className="mt-6 max-w-4xl text-center text-4xl font-black leading-[0.95] tracking-tight text-night-text sm:text-6xl">
+          <span className="lm-mask">
+            <span className="lm-mask-i" style={{ '--lm-d': '0.05s' }}>
+              We buy things to use them.
+            </span>
+          </span>
+          <span className="lm-mask">
+            <span className="lm-mask-i" style={{ '--lm-d': '0.16s' }}>
+              Most of the time, we <span className="lm-em">don't</span>.
+            </span>
+          </span>
+        </h1>
         <p className="mt-8 max-w-xl text-center text-lg text-night-muted sm:text-xl">
           That gap — between owning something and actually using it — is bigger, and costs more,
           than most people realize.

@@ -15,3 +15,202 @@ html {
 body {
   @apply bg-canvas text-text-primary;
 }
+
+/* ---------------------------------------------------------------------- */
+/* "Liquid metal" motifs - borrowed (style only, not content) from a
+   reference landing-page spec, for the How It Works / Why It Matters
+   pages: metallic gradient chips/buttons with a shine sweep on hover, an
+   Instrument Serif italic accent word, and a masked-line heading reveal.
+   Prefixed `lm-` so it can't collide with anything else in the app. */
+
+.lm-em {
+  font-family: 'Instrument Serif', 'Times New Roman', Times, serif;
+  font-style: italic;
+  font-weight: 400;
+  color: #9a9a9a;
+  letter-spacing: -0.02em;
+  display: inline-block;
+  animation: lm-em-focus 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
+}
+@keyframes lm-em-focus {
+  from {
+    opacity: 0.35;
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+.lm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #7d7d7d 0%, #2a2a2a 52%, #0a0a0a 100%);
+  color: #f2f2f2;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  animation: lm-pop 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.lm-badge-star {
+  display: inline-flex;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.45));
+  animation: lm-star 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.18s both;
+}
+@keyframes lm-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes lm-star {
+  0% {
+    opacity: 0;
+    transform: scale(0.2) rotate(-50deg);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.2) rotate(8deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+.lm-btn {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 0;
+  transition: background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease, color 0.35s ease;
+}
+.lm-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.45) 48%, transparent 76%);
+  transform: translateX(-130%);
+  transition: transform 0.65s ease;
+  pointer-events: none;
+}
+.lm-btn:hover::after {
+  transform: translateX(130%);
+}
+.lm-btn-solid {
+  background: linear-gradient(180deg, #ffffff 0%, #e7e7e7 48%, #cfcfcf 100%);
+  color: #111;
+  border: 1px solid #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+.lm-btn-solid:hover {
+  background: linear-gradient(180deg, #fff 0%, #f3f6ff 42%, #d5def2 100%);
+  border-color: #f2f6ff;
+  box-shadow: inset 0 1px 0 #fff, 0 0 22px rgba(186, 208, 255, 0.35), 0 8px 18px rgba(255, 255, 255, 0.12);
+}
+.lm-btn-ghost {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.45) 50%, rgba(160, 175, 200, 0.08));
+  color: #fff;
+  border: 1px solid rgba(198, 198, 198, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.lm-btn-ghost:hover {
+  background: linear-gradient(135deg, rgba(210, 225, 255, 0.18), rgba(0, 0, 0, 0.35) 48%, rgba(180, 195, 220, 0.16));
+  border-color: rgba(220, 230, 255, 0.75);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 0 20px rgba(170, 200, 255, 0.22);
+}
+
+/* Masked-line heading reveal: each line sits in an overflow-hidden band
+   and rises into place on mount. Purely a load-once entrance (no scroll
+   trigger), same as the Home hero's headline. */
+.lm-mask {
+  display: block;
+  overflow: hidden;
+  padding-top: 0.12em;
+  margin-top: -0.12em;
+}
+.lm-mask-i {
+  display: block;
+  animation: lm-line-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--lm-d, 0s);
+}
+@keyframes lm-line-rise {
+  from {
+    opacity: 0;
+    transform: translateY(40%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lm-mask-i,
+  .lm-badge,
+  .lm-badge-star,
+  .lm-em {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}
+
+/* Pure-black background with an animated film-grain texture instead of
+   the Starfield canvas (no particle system, no video/WebGL - a self-
+   contained inline SVG noise filter, tiled and blended at very low
+   opacity, whose position jumps between frames for a flickering-film
+   feel). Sized/offset 20% oversize so the position jumps never reveal an
+   edge at the viewport boundary. */
+.lm-grain {
+  position: fixed;
+  top: -10%;
+  left: -10%;
+  width: 120%;
+  height: 120%;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  animation: lm-grain-shift 1.1s steps(8) infinite;
+}
+@keyframes lm-grain-shift {
+  0% { transform: translate(0%, 0%); }
+  12% { transform: translate(-3%, -5%); }
+  25% { transform: translate(-7%, 2%); }
+  37% { transform: translate(4%, -6%); }
+  50% { transform: translate(-4%, 6%); }
+  62% { transform: translate(6%, 4%); }
+  75% { transform: translate(2%, -8%); }
+  87% { transform: translate(-5%, 3%); }
+  100% { transform: translate(0%, 0%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lm-grain {
+    animation: none;
+  }
+}

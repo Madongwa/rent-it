@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import CategoryShowcase from '../components/CategoryShowcase';
-import { LampContainer } from '../components/Lamp';
+import HomeHero from '../components/HomeHero';
 import Starfield from '../components/Starfield';
 
 // ---------------------------------------------------------------------------
@@ -81,36 +80,7 @@ export default function Home() {
 
       <div className="relative z-10">
       {/* SECTION 1 - Hero */}
-      <LampContainer>
-        <motion.h1
-          initial={{ opacity: 0.5, y: 100 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.8, ease: 'easeInOut' }}
-          className="mt-20 max-w-5xl text-center text-4xl font-black leading-[0.88] tracking-tight text-night-text sm:text-6xl lg:text-7xl"
-        >
-          Most tools sit idle
-          <br />
-          355 days a year.
-        </motion.h1>
-        <p className="mt-8 max-w-xl text-center text-lg text-night-muted sm:text-xl">
-          The hidden cost of ownership isn't the price tag — it's everything sitting unused after
-          you've paid it.
-        </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            to="/marketplace"
-            className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-homeAccent"
-          >
-            Browse equipment
-          </Link>
-          <Link
-            to="/list-item"
-            className="rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-homeAccent"
-          >
-            List your equipment
-          </Link>
-        </div>
-      </LampContainer>
+      <HomeHero />
 
       {/* SECTION 2 - Introducing Rent It (moved up to sit right after the
           hero, filling the gap that used to be here before the narrative

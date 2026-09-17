@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import Starfield from '../components/Starfield';
 import { Reveal, StaggerGroup, StaggerItem, IconRevealItem } from '../components/ScrollReveal';
 
 const RENTER_STEPS = [
@@ -109,7 +108,7 @@ function CtaBar({ text, cta, to }) {
         <p className="text-base text-night-text">{text}</p>
         <Link
           to={to}
-          className="shrink-0 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-homeAccent"
+          className="lm-btn lm-btn-solid shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-homeAccent"
         >
           {cta}
         </Link>
@@ -120,22 +119,35 @@ function CtaBar({ text, cta, to }) {
 
 export default function HowItWorks() {
   return (
-    <div className="relative bg-night-bg">
-      {/* Fixed viewport-sized backdrop, same pattern as Home.jsx - keeps the
-          star density consistent as this (long, scrolling) page moves. */}
-      <div className="fixed inset-0 z-0">
-        <Starfield />
-      </div>
+    <div className="relative bg-black">
+      {/* Pure black, no Starfield particles here - a static grain texture
+          instead (see .lm-grain in index.css), matching the flatter,
+          more graphic background language borrowed from the Vesper
+          reference spec. Why It Matters keeps the Starfield/Lamp look. */}
+      <div className="lm-grain" aria-hidden="true"></div>
 
       <div className="relative z-10">
         {/* Hero */}
         <section className="flex min-h-[70vh] flex-col items-center justify-center px-4 py-24 text-center sm:px-6">
-          <Reveal>
-            <h1 className="max-w-3xl text-4xl font-black leading-[0.95] tracking-tight text-night-text sm:text-6xl">
-              How Rent It actually works.
-            </h1>
-          </Reveal>
-          <Reveal delay={0.1}>
+          <span className="lm-badge">
+            <svg className="lm-badge-star" width="14" height="16" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+              <path d="M12 2.6C12.55 2.6 12.88 3.15 13.08 4.7c.62 4.7 1.52 5.6 6.22 6.22 1.55.2 2.1.53 2.1 1.08s-.55.88-2.1 1.08c-4.7.62-5.6 1.52-6.22 6.22-.2 1.55-.53 2.1-1.08 2.1s-.88-.55-1.08-2.1c-.62-4.7-1.52-5.6-6.22-6.22C3.15 12.88 2.6 12.55 2.6 12s.55-.88 2.1-1.08c4.7-.62 5.6-1.52 6.22-6.22C11.12 3.15 11.45 2.6 12 2.6Z" />
+            </svg>
+            From request to return
+          </span>
+          <h1 className="mt-6 max-w-3xl text-4xl font-black leading-[0.95] tracking-tight text-night-text sm:text-6xl">
+            <span className="lm-mask">
+              <span className="lm-mask-i" style={{ '--lm-d': '0.05s' }}>
+                How Rent It
+              </span>
+            </span>
+            <span className="lm-mask">
+              <span className="lm-mask-i" style={{ '--lm-d': '0.16s' }}>
+                <span className="lm-em">actually</span> works.
+              </span>
+            </span>
+          </h1>
+          <Reveal delay={0.3}>
             <p className="mt-6 max-w-xl text-lg text-night-muted">
               Whether you're renting something for the weekend or listing equipment that's been
               sitting idle, here's exactly what happens — for both sides.

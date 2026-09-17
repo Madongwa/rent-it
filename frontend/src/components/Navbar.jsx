@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import '../styles/home-hero.css';
 
 const navLinkClass = ({ isActive }) =>
   `px-2 py-2 rounded-full text-[12.5px] font-medium whitespace-nowrap transition-colors ${
@@ -12,6 +13,27 @@ const mobileNavLinkClass = ({ isActive }) =>
   `block rounded-btn px-3 py-2.5 text-body font-medium transition-colors ${
     isActive ? 'bg-canvas text-text-primary' : 'text-text-secondary hover:bg-canvas hover:text-text-primary'
   }`;
+
+const rhNavLinkClass = ({ isActive }) => `${isActive ? 'is-active' : ''}`;
+const rhMenuLinkClass = ({ isActive }) => (isActive ? 'is-active' : '');
+
+// Rendered on Home only. Extended with Dashboard/Staff via array indices
+// (rather than CSS nth-child) since those two entries are conditional -
+// nth-child can't reliably target a staggered delay when items in front of
+// it come and go.
+function useHomeNavLinks(user, isAdmin) {
+  const links = [
+    { to: '/', label: 'Home', end: true },
+    { to: '/marketplace', label: 'Marketplace' },
+    { to: '/how-it-works', label: 'How It Works' },
+    { to: '/why-it-matters', label: 'Why It Matters' },
+    { to: '/help', label: 'Help / FAQ' },
+    { to: '/about', label: 'About Us' },
+  ];
+  if (user) links.push({ to: '/dashboard', label: 'Dashboard' });
+  if (isAdmin) links.push({ to: '/admin', label: 'Staff' });
+  return links;
+}
 
 function MenuIcon(props) {
   return (
@@ -32,11 +54,25 @@ function CloseIcon(props) {
   );
 }
 
+function Arrow() {
+  return (
+    <svg className="rh-arw" viewBox="0 0 12 10" fill="none" aria-hidden="true">
+      <path d="M0.8 5h10M7.1 1.4 10.9 5l-3.8 3.6" stroke="currentColor"
+        strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function Navbar() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const isHome = pathname === '/';
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const burgerRef = useRef(null);
+  const menuRef = useRef(null);
+  const homeLinks = useHomeNavLinks(user, isAdmin);
 
   useEffect(() => {
     if (!user) {
@@ -46,6 +82,34 @@ export default function Navbar() {
     api.getMyProfile().then((p) => setIsAdmin(p.role === 'admin')).catch(() => setIsAdmin(false));
   }, [user]);
 
+  // Close on outside click / Escape, with focus returned to the burger -
+  // shared by both nav variants since it's behavior, not styling.
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    function onDocClick(e) {
+      if (menuRef.current?.contains(e.target) || burgerRef.current?.contains(e.target)) return;
+      setMobileOpen(false);
+    }
+    function onKeyDown(e) {
+      if (e.key === 'Escape') {
+        setMobileOpen(false);
+        burgerRef.current?.focus();
+      }
+    }
+    document.addEventListener('click', onDocClick);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('click', onDocClick);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [mobileOpen]);
+
+  // Reset the mobile panel when the route (or theme) changes underneath it.
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
   async function handleSignOut() {
     setMobileOpen(false);
     await signOut();
@@ -54,6 +118,86 @@ export default function Navbar() {
 
   function closeMobileMenu() {
     setMobileOpen(false);
+  }
+
+  if (isHome) {
+    return (
+      <header className="rh-nav">
+        <Link to="/" className="rh-logo">
+          <span className="rh-logo-mark" aria-hidden="true">🛠️</span>
+          Rent It
+        </Link>
+
+        <nav className="rh-nav-links" aria-label="Primary">
+          {homeLinks.map((link, i) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              end={link.end}
+              className={rhNavLinkClass}
+              style={{ animationDelay: `${(0.54 + i * 0.035).toFixed(3)}s` }}
+            >
+              {link.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="rh-nav-actions">
+          {user ? (
+            <button type="button" className="rh-btn rh-btn-login" onClick={handleSignOut}>
+              Log out
+            </button>
+          ) : (
+            <Link to="/login" className="rh-btn rh-btn-login">
+              Log in
+            </Link>
+          )}
+          <Link to="/list-item" className="rh-btn rh-btn-nav-start">
+            + List an Item
+            <Arrow />
+          </Link>
+        </div>
+
+        <button
+          ref={burgerRef}
+          type="button"
+          className="rh-burger"
+          onClick={(e) => { e.stopPropagation(); setMobileOpen((o) => !o); }}
+          aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={mobileOpen}
+          aria-controls="rh-mobile-menu"
+        >
+          <span></span>
+        </button>
+
+        <nav
+          id="rh-mobile-menu"
+          ref={menuRef}
+          className={`rh-menu${mobileOpen ? ' open' : ''}`}
+          aria-label="Mobile"
+        >
+          {homeLinks.map((link) => (
+            <NavLink key={link.to} to={link.to} end={link.end} className={rhMenuLinkClass} onClick={closeMobileMenu}>
+              {link.label}
+            </NavLink>
+          ))}
+          <div className="rh-divider"></div>
+          {user ? (
+            <button type="button" className="rh-m-logout" onClick={handleSignOut}>
+              Log out
+            </button>
+          ) : (
+            <NavLink to="/login" className={rhMenuLinkClass} onClick={closeMobileMenu}>
+              Log in
+            </NavLink>
+          )}
+          <Link to="/list-item" className="rh-m-start" onClick={closeMobileMenu}>
+            + List an Item
+            <Arrow />
+          </Link>
+        </nav>
+      </header>
+    );
   }
 
   return (
@@ -66,7 +210,7 @@ export default function Navbar() {
           Rent It
         </Link>
 
-        <div className="hidden xl:flex items-center gap-0.5">
+        <div className="hidden xl:flex items-center gap-2">
           <NavLink to="/" end className={navLinkClass}>
             Home
           </NavLink>
@@ -125,8 +269,9 @@ export default function Navbar() {
               xl (1280px+, where it's guaranteed to fit in one line), so
               this is the only way to reach it under that width. */}
           <button
+            ref={burgerRef}
             type="button"
-            onClick={() => setMobileOpen((o) => !o)}
+            onClick={(e) => { e.stopPropagation(); setMobileOpen((o) => !o); }}
             aria-expanded={mobileOpen}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             className="ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-text-secondary hover:border-text-muted xl:hidden"
@@ -137,7 +282,7 @@ export default function Navbar() {
       </nav>
 
       {mobileOpen && (
-        <div className="border-t border-line bg-surface px-4 py-3 sm:px-6 xl:hidden">
+        <div ref={menuRef} className="border-t border-line bg-surface px-4 py-3 sm:px-6 xl:hidden">
           <div className="mx-auto flex max-w-6xl flex-col gap-1">
             <NavLink to="/" end className={mobileNavLinkClass} onClick={closeMobileMenu}>
               Home

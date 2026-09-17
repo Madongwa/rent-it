@@ -1,0 +1,409 @@
+/*
+ * Home hero design system - ported from the "Sellix" reference spec.
+ * Everything here is prefixed `rh-` (Rent Hero) so it can never collide
+ * with Tailwind utilities or other component CSS (see ListingCardGlass.css
+ * for the same scoping convention used elsewhere in this codebase).
+ *
+ * Two consumers share this one stylesheet, exactly like the original
+ * single-file spec shared one <style> block between its hero and its nav:
+ *   - HomeHero.jsx   (video background, headline, subtitle, CTAs)
+ *   - Navbar.jsx     (the `isHome` dark/transparent nav variant only)
+ * Both are driven by the same html.rh-anim/.rh-go entrance state and the
+ * same --rh-u reference-pixel unit, so a single mount effect in HomeHero
+ * can animate elements that live in a totally different React component.
+ *
+ * Reference render: 1280x800, scaled proportionally by --rh-u. All desktop
+ * measurements below are `calc(N * var(--rh-u))`, never bare rem/px.
+ */
+
+:root{
+  --rh-u: min(calc(100vw / 1280), calc(100dvh / 760));
+
+  --rh-ink:        #ffffff;
+  --rh-ink-muted:  #999999;         /* reuses the site's night.muted token */
+  --rh-panel:      #353535;         /* reuses the site's night.card token */
+  --rh-white-btn:  #ffffff;
+  --rh-btn-ink:    #09090b;         /* reuses the site's text.primary token */
+  --rh-glass-fill: rgba(0,0,0,.78);
+  --rh-glass-line: rgba(255,255,255,.09);
+  --rh-accent:     var(--home-accent);
+
+  /* Hero-content optical offset against the 1280x800 reference render.
+     Positive --rh-dy nudges the block down slightly to re-balance against
+     the nav bar floating over the top of the hero (there is no bottom-edge
+     chrome to balance against here, unlike the source spec). Same ratio to
+     nav height as the original (11/67 ~= 0.164); the nav settled back down
+     to 68u, so this returns to almost exactly its original value. */
+  --rh-dx: 0;
+  --rh-dy: 11;
+
+  --e-reveal: cubic-bezier(.16, 1, .3, 1);
+  --e-soft:   cubic-bezier(.25, .8, .3, 1);
+}
+@supports not (height: 100dvh){
+  :root{ --rh-u: min(calc(100vw / 1280), calc(100vh / 760)); }
+}
+
+/* ---------------------------------------------------------------------- */
+/* HERO STAGE                                                              */
+/* ---------------------------------------------------------------------- */
+.rh-hero{
+  /* 100%, not 100vw: on a scrollable page (Home has a lot below the hero),
+     100vw includes the vertical scrollbar gutter, which made this element
+     wider than the actual document and produced a horizontal scrollbar.
+     100% of its parent (an ordinary in-flow block already exactly as wide
+     as the document) doesn't have that problem. .rh-bg below still bleeds
+     via 100vw on purpose - it's absolutely positioned and clipped by this
+     element's overflow:hidden, so its width never leaks out. */
+  position:relative;width:100%;height:100dvh;overflow:hidden;background:#000;
+}
+@supports not (height: 100dvh){ .rh-hero{height:100vh} }
+
+.rh-bg{
+  position:absolute;left:50%;top:50%;
+  transform:translate(-50%,-50%);
+  width:max(100vw, calc(100dvh * 1.6));
+  height:max(62.5vw, 100dvh);
+  background-color:#000;
+}
+@supports not (height: 100dvh){
+  .rh-bg{width:max(100vw, calc(100vh * 1.6));height:max(62.5vw, 100vh)}
+}
+.rh-bg-video{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  object-fit:cover;
+  object-position:51% 8%; /* framing for the temporary globe placeholder clip - readjust once real footage is in */
+  display:block;
+  background-color:#000;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .9s linear;
+}
+.rh-bg-video.is-active{opacity:1}
+
+/* Dissolves the video into the page's own background color instead of
+   cutting off flat at the hero's bottom edge. #000 matches both this
+   element's own background and the page's night-bg token the section
+   below sits on, so the seam disappears rather than just softening. */
+.rh-fade{
+  position:absolute;left:0;right:0;bottom:0;height:240px;
+  background:linear-gradient(to bottom, transparent, #000);
+  z-index:1;pointer-events:none;
+}
+@media (max-width:552px){ .rh-fade{height:150px} }
+
+.rh-hero-inner{
+  position:absolute;left:50%;top:50%;
+  transform:translate(-50%,-50%) translate(calc(var(--rh-dx) * var(--rh-u)), calc(var(--rh-dy) * var(--rh-u)));
+  width:max-content;max-width:calc(100vw - 48px);text-align:center;z-index:2;
+}
+
+.rh-hero h1{
+  margin:0;font-weight:500;font-size:calc(80 * var(--rh-u));
+  line-height:calc(84 * var(--rh-u));letter-spacing:calc(-1 * var(--rh-u));color:var(--rh-ink);
+}
+.rh-ln{display:block}
+.rh-ln-i{display:block}
+
+.rh-sub{
+  margin:calc(16.1 * var(--rh-u)) auto 0;max-width:calc(560 * var(--rh-u));
+  font-weight:300;font-size:calc(17.4 * var(--rh-u));
+  line-height:calc(27 * var(--rh-u));letter-spacing:calc(-0.30 * var(--rh-u));color:#f6f6f6;
+}
+
+.rh-ctas{
+  margin-top:calc(21.8 * var(--rh-u));display:flex;align-items:center;
+  justify-content:center;flex-wrap:wrap;gap:calc(7 * var(--rh-u));
+}
+
+.rh-btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  font-family:inherit;text-decoration:none;white-space:nowrap;border:0;cursor:pointer;
+}
+.rh-arw{flex:0 0 auto;display:block}
+
+.rh-btn-lg{
+  height:calc(39 * var(--rh-u));border-radius:calc(19.5 * var(--rh-u));
+  font-size:calc(13.3 * var(--rh-u));font-weight:500;
+  letter-spacing:calc(-0.3 * var(--rh-u));gap:calc(9 * var(--rh-u));
+}
+.rh-btn-primary{
+  background:var(--rh-white-btn);color:var(--rh-btn-ink);
+  padding-left:calc(18.2 * var(--rh-u));padding-right:calc(19.2 * var(--rh-u));
+  transition:background .18s ease,transform .18s ease;
+}
+.rh-btn-primary:hover{background:#fff}
+.rh-btn-ghost{
+  background:var(--rh-glass-fill);color:#d9d9d9;padding:0 calc(17.4 * var(--rh-u));
+  border:1px solid var(--rh-glass-line);-webkit-backdrop-filter:blur(2px);
+  backdrop-filter:blur(2px);transition:background .18s ease,border-color .18s ease;
+}
+.rh-btn-ghost:hover{background:rgba(0,0,0,.66);border-color:rgba(255,255,255,.16)}
+.rh-btn-lg .rh-arw{width:calc(13 * var(--rh-u));height:calc(10.8 * var(--rh-u))}
+
+.rh-hero a:focus-visible,.rh-nav a:focus-visible,.rh-nav button:focus-visible{
+  outline:2px solid var(--rh-accent);outline-offset:3px;border-radius:99px;
+}
+
+/* ---------------------------------------------------------------------- */
+/* NAV (Navbar.jsx `isHome` variant only)                                  */
+/* ---------------------------------------------------------------------- */
+/* Now that the buttons are back down to 40u, the original's generous
+   padding ratio (19.5u above/below a 28u button, i.e. padding ~0.7x the
+   content height) would have kept reproducing the "too much empty space
+   above the nav" complaint - that ratio was never really about the
+   button, it was just how tall the original spec's fixed 67u bar
+   happened to be. Sized this one directly off the actual content instead:
+   a tighter ~14u of breathing room above/below the 40u button (its the
+   tallest element in the row) gives 40+2*14=68u total, close to the
+   original 67u since both the buttons (40 vs 28) and link text (15 vs
+   10.6u) only grew modestly this time, not 3x. */
+.rh-nav{
+  position:fixed;top:0;left:0;right:0;height:calc(68 * var(--rh-u));
+  display:flex;align-items:center;
+  padding-left:calc(24.5 * var(--rh-u));padding-right:calc(32 * var(--rh-u));
+  z-index:30;background:transparent;
+}
+
+.rh-logo{
+  font-weight:800;font-size:calc(24 * var(--rh-u));letter-spacing:calc(0.3 * var(--rh-u));
+  transform:translateY(calc(-1.5 * var(--rh-u)));line-height:1;color:var(--rh-ink);
+  text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;gap:calc(7*var(--rh-u));
+}
+.rh-logo-mark{
+  display:inline-flex;align-items:center;justify-content:center;
+  height:calc(30*var(--rh-u));width:calc(30*var(--rh-u));border-radius:999px;
+  background:var(--rh-ink);color:#000;font-size:calc(15*var(--rh-u));flex:0 0 auto;
+}
+
+.rh-nav-links{
+  /* A real flex child (flex:1, centered within its own share of the row)
+     rather than the original's viewport-centered position:absolute. That
+     centering trick assumed roughly symmetric logo/actions widths either
+     side; once the buttons went to 3x they're much wider than the logo,
+     so centering on the viewport put the links well off-center from the
+     actual gap between them, causing this side of the row to overflow
+     into the buttons instead. Centering within the real remaining flex
+     space stays correct no matter how lopsided the logo/actions widths
+     become. Text scaled ~1.7x (not the buttons' 3x) and gap along with it
+     - see the note on .rh-nav-links a below for why. Horizontal padding
+     guarantees a minimum gap from the logo/buttons even when this flex
+     box is nearly as wide as the space it's centered in (without it,
+     "Home" sat almost flush against the logo at ~1440x900). */
+  flex:1 1 auto;min-width:0;padding:0 calc(16 * var(--rh-u));
+  display:flex;align-items:center;justify-content:center;
+  gap:calc(9 * var(--rh-u));white-space:nowrap;
+}
+/* A literal 3x on 6 nav labels (as first tried) measured out to ~1427px
+   wide at 1920x1080 alone, before the two buttons - the whole row didn't
+   fit in one line on ANY common monitor, not even 2560x1440 (it actually
+   gets worse on bigger/taller screens, since --rh-u scales with viewport
+   height too). Settled on ~1.7x instead: still much more prominent than
+   the original 10.6u, but small enough to sit on one line at 1920px+
+   alongside the buttons, which kept their full 3x. */
+.rh-nav-links a{
+  color:var(--rh-ink-muted);text-decoration:none;font-size:calc(15 * var(--rh-u));
+  font-weight:500;letter-spacing:calc(-0.14 * var(--rh-u));line-height:1;
+  transition:color .18s ease;
+}
+.rh-nav-links a:hover,.rh-nav-links a.is-active{color:#fff}
+
+.rh-nav-actions{margin-left:auto;display:flex;align-items:center;gap:calc(10 * var(--rh-u))}
+
+/* Walked back from the literal 3x on the buttons (84u tall, 33-34.5u
+   font) - next to 15u nav-link text that read as wildly mismatched, like
+   a different component dropped into the same bar. Rescaled so button
+   font (16-16.5u) sits close to the link text, just a hair bigger since
+   they're buttons, and height/padding follow from that new font size
+   using the same proportions the buttons always had (height/font ~2.43x,
+   padding/height ~0.46-0.48x, radius = height/2 for a true pill). */
+.rh-btn-login{
+  height:calc(40 * var(--rh-u));padding:0 calc(18 * var(--rh-u));
+  border-radius:calc(20 * var(--rh-u));background:var(--rh-panel);color:#e8e8e8;
+  font-size:calc(16.5 * var(--rh-u));font-weight:500;letter-spacing:calc(-0.22 * var(--rh-u));
+  transition:background .18s ease,color .18s ease;
+}
+.rh-btn-login:hover{background:#454545;color:#fff}
+
+.rh-btn-nav-start{
+  height:calc(40 * var(--rh-u));padding-left:calc(19 * var(--rh-u));
+  padding-right:calc(21 * var(--rh-u));border-radius:calc(20 * var(--rh-u));
+  background:var(--rh-white-btn);color:var(--rh-btn-ink);font-size:calc(16 * var(--rh-u));
+  font-weight:500;letter-spacing:0;gap:calc(10 * var(--rh-u));
+  transition:background .18s ease;
+}
+.rh-btn-nav-start:hover{background:#fff}
+.rh-btn-nav-start .rh-arw,.rh-btn-login .rh-arw{width:calc(16.5 * var(--rh-u));height:calc(13.7 * var(--rh-u))}
+
+.rh-burger{
+  display:none;margin-left:auto;width:calc(40 * var(--rh-u));
+  height:calc(28 * var(--rh-u));align-items:center;justify-content:center;
+  background:var(--rh-panel);border-radius:calc(14 * var(--rh-u));border:0;cursor:pointer;padding:0;
+}
+.rh-burger span{display:block;width:16px;height:1.5px;background:#ededed;border-radius:2px;position:relative}
+.rh-burger span::before,.rh-burger span::after{content:"";position:absolute;left:0;width:16px;height:1.5px;
+  background:#ededed;border-radius:2px}
+.rh-burger span::before{top:-5px}
+.rh-burger span::after{top:5px}
+
+.rh-menu{display:none}
+@keyframes rh-menuIn{from{opacity:0;transform:translateY(-6px) scale(.985)}to{opacity:1;transform:none}}
+.rh-menu.open{display:flex;animation:rh-menuIn .18s ease both}
+.rh-menu a{color:var(--rh-ink-muted);text-decoration:none;font-size:15px;font-weight:500;
+  padding:12px 14px;border-radius:12px;transition:background .18s ease,color .18s ease}
+.rh-menu a:hover{background:rgba(255,255,255,.06);color:#fff}
+.rh-menu .rh-divider{height:1px;background:rgba(255,255,255,.08);margin:8px 14px}
+.rh-menu .rh-m-start{display:flex;align-items:center;justify-content:center;gap:9px;
+  background:var(--rh-white-btn);color:var(--rh-btn-ink);margin:6px 8px 0;padding:13px 16px;
+  border-radius:14px;font-weight:600}
+.rh-menu .rh-m-start:hover{background:#fff;color:var(--rh-btn-ink)}
+.rh-menu .rh-m-start .rh-arw{width:13px;height:11px}
+.rh-menu button.rh-m-logout{all:unset;cursor:pointer;display:block}
+
+/* ---------------------------------------------------------------------- */
+/* ENTRANCE SEQUENCE                                                       */
+/* ---------------------------------------------------------------------- */
+html.rh-anim .rh-ln{overflow:hidden;padding-top:.26em;margin-top:-.26em}
+html.rh-anim .rh-ln-i{transform:translateY(100%)}
+html.rh-anim .rh-logo,html.rh-anim .rh-nav-links a,html.rh-anim .rh-nav-actions .rh-btn,
+html.rh-anim .rh-burger,html.rh-anim .rh-sub,html.rh-anim .rh-ctas .rh-btn{opacity:0}
+.rh-ln-i,.rh-logo,.rh-nav-links a,.rh-nav-actions .rh-btn,.rh-sub,.rh-ctas .rh-btn{
+  will-change:transform,opacity;
+}
+
+@keyframes rh-lineRise{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes rh-subIn{from{opacity:0;transform:translateY(calc(14 * var(--rh-u)));filter:blur(4px)}
+                 to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes rh-subInFlat{from{opacity:0;transform:translateY(calc(12 * var(--rh-u)))}
+                     to{opacity:1;transform:none}}
+@keyframes rh-pillIn{from{opacity:0;transform:translateY(calc(8 * var(--rh-u))) scale(.972)}
+                  to{opacity:1;transform:none}}
+@keyframes rh-liftIn{from{opacity:0;transform:translateY(calc(9 * var(--rh-u)))}
+                  to{opacity:1;transform:none}}
+@keyframes rh-logoIn{
+  from{opacity:0;transform:translateY(calc(-1.5 * var(--rh-u))) translateY(calc(9 * var(--rh-u)))}
+  to  {opacity:1;transform:translateY(calc(-1.5 * var(--rh-u)))}}
+
+html.rh-anim.rh-go .rh-ln-i{animation:rh-lineRise 1.05s var(--e-reveal) both}
+html.rh-anim.rh-go .rh-ln:nth-child(1) .rh-ln-i{animation-delay:.12s}
+html.rh-anim.rh-go .rh-ln:nth-child(2) .rh-ln-i{animation-delay:.22s}
+html.rh-anim.rh-go .rh-logo{animation:rh-logoIn .62s var(--e-soft) .46s both}
+html.rh-anim.rh-go .rh-nav-links a{animation:rh-liftIn .55s var(--e-soft) both}
+html.rh-anim.rh-go .rh-sub{animation:rh-subIn .85s var(--e-reveal) .58s both}
+html.rh-anim.rh-go .rh-btn-login{animation:rh-pillIn .55s var(--e-soft) .68s both}
+html.rh-anim.rh-go .rh-burger{animation:rh-pillIn .55s var(--e-soft) .68s both}
+html.rh-anim.rh-go .rh-btn-nav-start{animation:rh-pillIn .55s var(--e-soft) .73s both}
+html.rh-anim.rh-go .rh-ctas .rh-btn-primary{animation:rh-pillIn .70s var(--e-reveal) .90s both}
+html.rh-anim.rh-go .rh-ctas .rh-btn-ghost{animation:rh-pillIn .70s var(--e-reveal) .97s both}
+
+@media (max-width:552px){
+  html.rh-anim.rh-go .rh-sub{animation-name:rh-subInFlat}
+  html.rh-anim.rh-go .rh-ln-i{animation-duration:.92s}
+  html.rh-anim.rh-go .rh-ctas .rh-btn-primary{animation-delay:.84s}
+  html.rh-anim.rh-go .rh-ctas .rh-btn-ghost{animation-delay:.90s}
+}
+
+@media (prefers-reduced-motion:reduce){
+  html.rh-anim .rh-ln{overflow:visible;padding-top:0;margin-top:0}
+  html.rh-anim .rh-ln-i{transform:none}
+  html.rh-anim .rh-logo,html.rh-anim .rh-nav-links a,html.rh-anim .rh-nav-actions .rh-btn,
+  html.rh-anim .rh-burger,html.rh-anim .rh-sub,html.rh-anim .rh-ctas .rh-btn{opacity:1}
+  .rh-hero *,.rh-nav *{transition:none!important;animation:none!important}
+}
+
+/* ---------------------------------------------------------------------- */
+/* BREAKPOINTS                                                             */
+/* ---------------------------------------------------------------------- */
+
+/* --- TABLET: nav collapses to burger --------------------------------- */
+/* Re-measured after the nav buttons were made 3x bigger and the nav
+   links ~1.4x bigger (font 15u, was 10.6u - see .rh-nav-links a). This
+   time the constraint really is collision, not legibility: nav-links is
+   now a flex:1 child centered in the actual remaining space between the
+   logo and the buttons (rather than the original's viewport-centered
+   position:absolute, which assumed roughly symmetric widths either side
+   - no longer true once the buttons got much wider than the logo).
+   Measured the REAL rendered gap (logo-to-first-link /
+   last-link-to-actions, not scrollWidth vs clientWidth - that comparison
+   turned out unreliable on a flex row with overflow:visible, since a
+   non-scrolling element's scrollWidth doesn't reliably grow past
+   clientWidth even when children visually spill past its padding).
+   Comfortable positive gaps (20px+) held at forced-desktop-formula
+   widths down to ~1000px; picked 1200px for a clean number with healthy
+   margin above that floor. */
+@media (max-width:1200px){
+  :root{ --rh-u: min(
+      max(0.9px, min(calc(100vw / 1280), calc(100dvh / 760))),
+      calc((100vw - 72px) / 575),
+      calc(100dvh / 620)
+    ); }
+  .rh-nav{height:max(58px, calc(67 * var(--rh-u)));
+       padding-left:max(24px, calc(28 * var(--rh-u)));
+       padding-right:max(24px, calc(28 * var(--rh-u)))}
+  .rh-nav-links,.rh-nav-actions{display:none}
+  .rh-burger{display:flex;width:max(46px, calc(48 * var(--rh-u)));
+          height:max(38px, calc(34 * var(--rh-u)));border-radius:999px}
+  .rh-hero-inner{max-width:calc(100vw - 48px)}
+  .rh-sub{font-size:max(16px, calc(17.4 * var(--rh-u)));line-height:max(25px, calc(27 * var(--rh-u)))}
+  .rh-ctas{margin-top:max(26px, calc(21.8 * var(--rh-u)));gap:max(10px, calc(7 * var(--rh-u)))}
+  .rh-btn-lg{height:max(44px, calc(39 * var(--rh-u)));border-radius:max(22px, calc(19.5 * var(--rh-u)));
+          font-size:max(15px, calc(13.3 * var(--rh-u)));gap:max(10px, calc(9 * var(--rh-u)))}
+  .rh-btn-primary{padding-left:max(21px, calc(18.2 * var(--rh-u)));
+               padding-right:max(22px, calc(19.2 * var(--rh-u)))}
+  .rh-btn-ghost{padding-left:max(20px, calc(17.4 * var(--rh-u)));
+             padding-right:max(21px, calc(18.4 * var(--rh-u)))}
+  .rh-btn-lg .rh-arw{width:max(14px, calc(13 * var(--rh-u)));height:max(11.6px, calc(10.8 * var(--rh-u)))}
+  .rh-menu{position:fixed;top:calc(max(58px, calc(67 * var(--rh-u))) - 6px);
+        right:max(24px, calc(28 * var(--rh-u)));width:min(320px, calc(100vw - 48px));
+        background:rgba(10,10,12,.86);-webkit-backdrop-filter:blur(22px);
+        backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.09);
+        border-radius:20px;padding:10px 8px 12px;flex-direction:column;
+        box-shadow:0 24px 60px rgba(0,0,0,.55);transform-origin:top right;z-index:31}
+}
+
+/* --- MOBILE: fluid subtitle, headline sized from available width ------ */
+@media (max-width:552px){
+  .rh-nav{height:56px;padding:0 20px}
+  .rh-logo{font-size:22px;letter-spacing:-.4px}
+  .rh-burger{width:42px;height:36px}
+  .rh-hero-inner{left:0;right:0;width:auto;max-width:none;
+              padding:0 20px;transform:translateY(-47%)}
+  /* 10 = measured width/font-size ratio of our longer headline line
+     ("right when you need it.", 9.32x - measured via Range.getBoundingClientRect
+     on the text node, not the block element, since a block span stretches
+     to its container regardless of text length) plus ~7% headroom, the
+     same method the source spec used for "Cross-border" (which measured
+     6.46x for very different text - this ratio is copy-specific and was
+     re-derived, not reused). */
+  .rh-hero h1{font-size:min(74px, calc((100vw - 44px) / 10));line-height:1.06;letter-spacing:-.02em}
+  .rh-sub{margin-top:16px;font-size:clamp(15.5px, 4vw, 16.5px);line-height:1.6;
+       letter-spacing:0;max-width:42ch;margin-left:auto;margin-right:auto}
+  .rh-ctas{margin-top:24px;gap:10px;flex-wrap:wrap}
+  .rh-btn-lg{height:46px;border-radius:23px;font-size:15px;gap:9px}
+  .rh-btn-primary{padding-left:20px;padding-right:21px}
+  .rh-btn-ghost{padding-left:19px;padding-right:20px}
+  .rh-btn-lg .rh-arw{width:13px;height:11px}
+  .rh-menu{top:50px;left:16px;right:16px;width:auto}
+  .rh-menu a{font-size:15.5px;padding:13px 14px}
+  .rh-menu .rh-m-start{padding:14px 16px}
+}
+
+/* --- NARROW PHONES: CTAs stack vertically ------------------------------ */
+/* Measured combined width of "Browse the Marketplace" + "List Your
+   Equipment" at mobile pill sizing: ~426px + 10px gap. The source spec's
+   own logic was threshold = combined width + 40px (20px side padding on
+   each side); 426 + 40 = 466, well past its 354px (its combined width was
+   only 314px for much shorter labels). */
+@media (max-width:466px){
+  .rh-ctas{flex-direction:column;align-items:center}
+  .rh-btn-lg{width:min(100%,320px)}
+}
+
+/* --- SHORT LANDSCAPE ---------------------------------------------------- */
+@media (max-width:552px) and (max-height:460px){
+  .rh-hero h1{font-size:min(44px, calc((100vw - 44px) / 10))}
+  .rh-sub{margin-top:12px;font-size:15px;line-height:1.5}
+  .rh-ctas{margin-top:18px}
+  .rh-hero-inner{transform:translateY(-44%)}
+}
