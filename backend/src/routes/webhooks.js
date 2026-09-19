@@ -1,28 +1,22 @@
-// Inbound webhooks from third-party verification vendors. Currently just
-// Digio - see services/idVerification.js for the outbound half of this
-// integration.
-//
-// This route is INACTIVE until real Digio credentials exist and a webhook
-// URL is registered in Digio's dashboard pointing at it - there is
-// nothing for Digio to call yet. Scaffolded now so turning it on later is
-// a credentials + URL-registration step, not a rewrite.
+// Inbound webhooks from third parties. Digio's ID Card Verification API
+// (see services/idVerification.js) turned out to be synchronous - the
+// result comes back in the same HTTP response, no callback involved - so
+// there's no Digio webhook here despite what an earlier version of this
+// file assumed. Razorpay's payment webhook below is the real one.
 //
 // Mounted in app.js with express.raw() BEFORE the global express.json()
 // middleware, deliberately - signature verification needs the exact raw
-// request bytes Digio signed, not a re-serialized JSON.parse(...) of them
-// (whitespace/key-order differences would break the HMAC check).
+// request bytes the sender signed, which a re-serialized JSON.parse(...)
+// of them can't guarantee byte-for-byte (whitespace/key-order differences
+// would break the HMAC check).
 import { Router } from 'express';
 import crypto from 'crypto';
-import { supabase } from '../lib/supabaseClient.js';
+import { recordRentalPayment } from '../lib/recordPayment.js';
 
 const router = Router();
 
-// Generic HMAC-SHA256-over-the-raw-body check - the same shape most
-// webhook providers (Razorpay, Stripe, etc.) use. NOT confirmed against
-// Digio's actual current webhook signing scheme, since I don't have
-// verified access to their current docs - confirm the header name and
-// algorithm there once you have an account, and adjust this if they
-// differ.
+// Generic HMAC-SHA256-over-the-raw-body check - the shape Razorpay (and
+// most webhook providers) use.
 function verifySignature(rawBody, signatureHeader, secret) {
   if (!signatureHeader || !secret) return false;
   const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
@@ -32,19 +26,21 @@ function verifySignature(rawBody, signatureHeader, secret) {
   return crypto.timingSafeEqual(expectedBuf, givenBuf);
 }
 
-// POST /api/webhooks/digio
-router.post('/digio', async (req, res) => {
-  const secret = process.env.DIGIO_WEBHOOK_SECRET;
-  if (!secret) {
-    // Not configured - this integration isn't live. Reject rather than
-    // silently accept (and trust) an unverifiable request body.
-    return res.status(503).json({ error: 'Digio webhook not configured' });
-  }
+// POST /api/webhooks/razorpay - fallback path for recording a payment: the
+// frontend's own POST /api/rentals/:id/verify-payment (rentals.js) is the
+// primary path and fires the instant a checkout succeeds, but if the
+// renter's tab closes/crashes before that call completes, this webhook
+// still lands the payment. recordRentalPayment() upserts on rental_id, so
+// whichever of the two gets there first wins and the other is a no-op.
+// Razorpay's signature scheme (HMAC-SHA256 over the raw body, header
+// `x-razorpay-signature`) is the documented, stable one - unlike the Digio
+// guess above, this isn't a placeholder.
+router.post('/razorpay', async (req, res) => {
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  if (!secret) return res.status(503).json({ error: 'Razorpay webhook not configured' });
 
   const rawBody = req.body; // Buffer - see the express.raw() mount in app.js
-  // TODO(digio): confirm the actual header name Digio sends the
-  // signature in - this is a placeholder guess, not a confirmed value.
-  const signature = req.headers['x-digio-signature'];
+  const signature = req.headers['x-razorpay-signature'];
 
   if (!verifySignature(rawBody, signature, secret)) {
     return res.status(401).json({ error: 'Invalid signature' });
@@ -57,36 +53,22 @@ router.post('/digio', async (req, res) => {
     return res.status(400).json({ error: 'Invalid JSON body' });
   }
 
-  // TODO(digio): map these to Digio's actual webhook payload field names
-  // once confirmed - `id` and `status` are placeholders, not verified.
-  const providerReference = payload?.id;
-  const outcome = payload?.status; // expected: something like 'approved' | 'rejected'
-
-  if (!providerReference) {
-    return res.status(400).json({ error: 'Missing verification reference in payload' });
+  if (payload?.event !== 'payment.captured') {
+    // Not an event this app acts on (e.g. payment.failed, order.paid,
+    // refund.*) - acknowledge so Razorpay doesn't keep retrying it.
+    return res.status(200).json({ received: true });
   }
 
-  const { data: submission, error: findError } = await supabase
-    .from('kyc_submissions')
-    .select('user_id')
-    .eq('verification_provider_reference', providerReference)
-    .maybeSingle();
+  const payment = payload?.payload?.payment?.entity;
+  const rentalId = payment?.notes?.rental_id;
+  if (!rentalId || !payment?.order_id || !payment?.id) {
+    return res.status(400).json({ error: 'Missing rental_id/order_id/payment_id in webhook payload' });
+  }
 
-  if (findError) return res.status(500).json({ error: findError.message });
-  if (!submission) return res.status(404).json({ error: 'No submission matches that reference' });
-
-  // Anything other than a clear approve/reject from the vendor lands in
-  // the same staff queue as a manual submission, rather than guessing.
-  const status = outcome === 'approved' ? 'approved' : outcome === 'rejected' ? 'rejected' : 'manual_review';
-
-  const { error: updateError } = await supabase
-    .from('kyc_submissions')
-    .update({ status, reviewed_at: new Date().toISOString() })
-    .eq('user_id', submission.user_id);
-  if (updateError) return res.status(500).json({ error: updateError.message });
-
-  if (status === 'approved' || status === 'rejected') {
-    await supabase.from('profiles').update({ seller_status: status }).eq('id', submission.user_id);
+  try {
+    await recordRentalPayment({ rentalId, razorpayOrderId: payment.order_id, razorpayPaymentId: payment.id });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
 
   res.status(200).json({ received: true });

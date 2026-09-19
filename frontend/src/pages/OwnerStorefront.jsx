@@ -27,7 +27,7 @@ export default function OwnerStorefront() {
     Promise.all([api.getPublicProfile(id), api.getListings({ ownerId: id })])
       .then(([profile, listingData]) => {
         setOwner(profile);
-        setListings(listingData);
+        setListings(listingData.data);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));

@@ -25,10 +25,8 @@ const MULTI_VALUE_FILTERS = {
 // Max km for each "Within X km" distance-filter option.
 const DISTANCE_BUCKET_KM = { '2': 2, '5': 5, '10': 10, '25': 25 };
 
-// Hard cap on how many rows a single request can pull back - the previous
-// version had no limit at all (fine at 30 seed rows, not fine once real
-// listings accumulate). Not full page-by-page pagination (the frontend
-// doesn't have page controls yet), just a ceiling.
+// Page size cap - the previous version had no limit at all (fine at 30 seed
+// rows, not fine once real listings accumulate).
 const DEFAULT_LIMIT = 60;
 const MAX_LIMIT = 120;
 
@@ -36,11 +34,11 @@ const MAX_LIMIT = 120;
 //   &condition=Good,Fair&powerSource=electric,battery&delivery=either
 //   &deposit=true|false&ownerType=individual,business&accessories=true|false
 //   &distance=10&duration=daily,weekly&minRating=4&minRentalPeriod=1_day
-//   &availability=today,week&ownerId=<uuid>&limit=60
+//   &availability=today,week&ownerId=<uuid>&limit=60&page=1
 router.get('/', async (req, res) => {
   const {
     category, q, minPrice, maxPrice, sort, deposit, accessories,
-    distance, duration, minRating, minRentalPeriod, availability, ownerId, limit,
+    distance, duration, minRating, minRentalPeriod, availability, ownerId, limit, page,
   } = req.query;
 
   let query = supabase.from('listings').select(LISTING_SELECT).eq('status', 'available');
@@ -52,7 +50,7 @@ router.get('/', async (req, res) => {
       .eq('slug', category)
       .single();
     if (cat) query = query.eq('category_id', cat.id);
-    else return res.json([]); // unknown category slug -> no results
+    else return res.json({ data: [], page: 1, pageSize: DEFAULT_LIMIT, hasMore: false }); // unknown category slug -> no results
   }
 
   if (ownerId) query = query.eq('owner_id', ownerId);
@@ -87,10 +85,19 @@ router.get('/', async (req, res) => {
   else query = query.order('created_at', { ascending: false }); // 'relevance'/'newest' default
 
   const limitNum = Math.min(Number(limit) || DEFAULT_LIMIT, MAX_LIMIT);
-  query = query.limit(limitNum);
+  const pageNum = Math.max(Number(page) || 1, 1);
+  const from = (pageNum - 1) * limitNum;
+  // Fetch one extra row past the page size so we can tell the frontend
+  // whether a next page exists, without a separate count query (a count
+  // would double the DB round-trips, and wouldn't account for the
+  // availability post-filter below anyway).
+  query = query.range(from, from + limitNum);
 
   let { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
+
+  const hasMore = data.length > limitNum;
+  data = data.slice(0, limitNum);
 
   // Availability isn't a listings column - it's derived by checking whether
   // any rental_history row for a listing overlaps the requested window(s),
@@ -125,7 +132,7 @@ router.get('/', async (req, res) => {
     });
   }
 
-  res.json(data);
+  res.json({ data, page: pageNum, pageSize: limitNum, hasMore });
 });
 
 // GET /api/listings/mine - listings owned by the logged-in user (any status)

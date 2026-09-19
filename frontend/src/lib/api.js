@@ -49,6 +49,9 @@ export const api = {
   getIncomingRentals: () => request('/rentals/incoming'),
   updateRentalStatus: (id, status) =>
     request(`/rentals/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  checkoutRental: (id) => request(`/rentals/${id}/checkout`, { method: 'POST' }),
+  verifyRentalPayment: (id, payload) =>
+    request(`/rentals/${id}/verify-payment`, { method: 'POST', body: JSON.stringify(payload) }),
 
   getMyProfile: () => request('/profiles/me'),
   getPublicProfile: (id) => request(`/profiles/${id}`),
@@ -56,6 +59,7 @@ export const api = {
     request('/profiles/me', { method: 'PATCH', body: JSON.stringify(payload) }),
 
   createReview: (payload) => request('/reviews', { method: 'POST', body: JSON.stringify(payload) }),
+  flagReview: (id, reason) => request(`/reviews/${id}/flag`, { method: 'POST', body: JSON.stringify({ reason }) }),
 
   getFavorites: () => request('/favorites'),
   getFavoriteIds: () => request('/favorites/ids'),
@@ -112,4 +116,11 @@ export const api = {
   getUnreadNotificationCount: () => request('/notifications/unread-count'),
   markNotificationRead: (id) => request(`/notifications/${id}/read`, { method: 'PATCH' }),
   markAllNotificationsRead: () => request('/notifications/read-all', { method: 'POST' }),
+
+  getAdminOverview: () => request('/admin/overview'),
+  getAdminRentals: (status) => request(`/admin/rentals${status ? `?status=${status}` : ''}`),
+  getAdminReviews: (flagged) => request(`/admin/reviews${flagged ? `?flagged=${flagged}` : ''}`),
+  unflagReview: (id) => request(`/admin/reviews/${id}/unflag`, { method: 'POST' }),
+  deleteAdminReview: (id) => request(`/admin/reviews/${id}`, { method: 'DELETE' }),
+  getActivityLog: (page = 1) => request(`/admin/activity-log?page=${page}`),
 };

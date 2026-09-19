@@ -8,7 +8,7 @@ const router = Router();
 // mirrors exactly what seed-marketplace-buildout.js does for seed data, so
 // a real submitted review updates the same fields the Marketplace filters
 // and card badges already read.
-async function recomputeListingRating(listingId) {
+export async function recomputeListingRating(listingId) {
   const { data: reviews, error } = await supabase.from('reviews').select('rating').eq('listing_id', listingId);
   if (error) throw error;
 
@@ -74,6 +74,24 @@ router.post('/', requireAuth, async (req, res) => {
 
   const { avgRating, reviewCount } = await recomputeListingRating(listing_id);
   res.status(201).json({ ...data, listing_avg_rating: avgRating, listing_review_count: reviewCount });
+});
+
+// POST /api/reviews/:id/flag - any signed-in user can report a review for
+// staff attention (e.g. abusive language, spam) - body: { reason }. Shows
+// up in the admin Reviews Moderation tab, and feeds the Dispute Center.
+router.post('/:id/flag', requireAuth, async (req, res) => {
+  const { reason } = req.body;
+  if (!reason) return res.status(400).json({ error: 'reason is required' });
+
+  const { data, error } = await supabase
+    .from('reviews')
+    .update({ flagged: true, flag_reason: reason, flagged_by: req.user.id, flagged_at: new Date().toISOString() })
+    .eq('id', req.params.id)
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
 });
 
 export default router;

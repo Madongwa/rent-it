@@ -11,7 +11,7 @@ import EditListing from './pages/EditListing';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-import ComingSoon from './pages/ComingSoon';
+import About from './pages/About';
 import HowItWorks from './pages/HowItWorks';
 import WhyItMatters from './pages/WhyItMatters';
 import Profile from './pages/Profile';
@@ -117,7 +117,7 @@ export default function App() {
           <Route path="/help" element={<Help />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
-          <Route path="/about" element={<ComingSoon title="About Us" path="/about" />} />
+          <Route path="/about" element={<About />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

@@ -1,6 +1,9 @@
 import 'dotenv/config';
+import { Sentry } from './lib/sentry.js';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 
 import categoriesRouter from './routes/categories.js';
 import listingsRouter from './routes/listings.js';
@@ -18,6 +21,31 @@ import webhooksRouter from './routes/webhooks.js';
 // The Express app itself, with no app.listen() call. Shared between the
 // local dev server (server.js) and the Vercel serverless entry (api/index.js).
 const app = express();
+
+// Vercel sits in front of this as a single reverse-proxy hop - without this,
+// express-rate-limit can't tell real client IPs apart (everyone behind
+// Vercel's edge would share one bucket) and, on newer versions, refuses to
+// start rather than silently trust a spoofable X-Forwarded-For header.
+app.set('trust proxy', 1);
+
+app.use(helmet({
+  // This is a JSON-only API with no HTML views of its own, so a
+  // browser-page policy like CSP has nothing to protect here. The frontend
+  // (a different origin) is expected to fetch these responses, so relax
+  // the default same-origin resource policy accordingly.
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
+
+// Coarse, app-wide abuse guard - individual routes (e.g. chat.js) layer
+// tighter, endpoint-specific limits on top of this where it matters more.
+const globalRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 600, // ~40 req/min per IP sustained - generous for normal browsing
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+});
 
 const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
   .split(',')
@@ -52,6 +80,10 @@ app.use(express.json());
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'rent-it-backend' }));
 
+// Applied after /api/webhooks (mounted above) and /api/health, so Razorpay's
+// webhook calls and uptime pings are never at risk of tripping it.
+app.use('/api', globalRateLimiter);
+
 app.use('/api/categories', categoriesRouter);
 app.use('/api/listings', listingsRouter);
 app.use('/api/rentals', rentalsRouter);
@@ -63,6 +95,11 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/kyc', kycRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/chat', chatRouter);
+
+// Reports any error thrown or passed to next() below to Sentry - a no-op if
+// SENTRY_DSN isn't set. Must be registered after every route and before the
+// fallback error handler below, which still owns sending the response.
+if (process.env.SENTRY_DSN) Sentry.setupExpressErrorHandler(app);
 
 // Fallback error handler
 app.use((err, _req, res, _next) => {

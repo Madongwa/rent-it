@@ -22,11 +22,11 @@ router.get('/me', requireAuth, async (req, res) => {
 // kyc-documents bucket first (same pattern as listing image uploads), so
 // this only ever receives the resulting storage URLs, never a file.
 router.post('/submit', requireAuth, async (req, res) => {
-  const { full_name, phone, address, id_document_url, address_proof_url } = req.body;
+  const { full_name, phone, address, id_document_url, id_document_back_url, address_proof_url } = req.body;
 
-  if (!full_name || !phone || !address || !id_document_url) {
+  if (!full_name || !phone || !address || !id_document_url || !id_document_back_url) {
     return res.status(400).json({
-      error: 'full_name, phone, address and id_document_url are required',
+      error: 'full_name, phone, address, id_document_url and id_document_back_url are required',
     });
   }
 
@@ -35,16 +35,16 @@ router.post('/submit', requireAuth, async (req, res) => {
   // approved and the seller is updating their details.
   //
   // verifyIdentity() is the only thing that decides manual vs. automated
-  // here - with no DIGIO_API_KEY set it always returns the manual-review
-  // result below, so this behaves exactly as before that function
-  // existed. See services/idVerification.js.
+  // here - with no DIGIO_CLIENT_ID/SECRET set it always returns the
+  // manual-review result below, so this behaves exactly as before that
+  // function existed. See services/idVerification.js.
   const verification = await verifyIdentity({
     userId: req.user.id,
     fullName: full_name,
     phone,
     address,
-    idDocumentUrl: id_document_url,
-    addressProofUrl: address_proof_url || null,
+    idDocumentFrontPath: id_document_url,
+    idDocumentBackPath: id_document_back_url,
   });
 
   const { data, error } = await supabase
@@ -56,10 +56,12 @@ router.post('/submit', requireAuth, async (req, res) => {
         phone,
         address,
         id_document_url,
+        id_document_back_url,
         address_proof_url: address_proof_url || null,
         status: verification.status,
         verification_method: verification.method,
         verification_provider_reference: verification.providerReference,
+        verification_details: verification.details,
         rejection_reason: null,
         reviewed_by: null,
         reviewed_at: null,
@@ -72,10 +74,14 @@ router.post('/submit', requireAuth, async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
 
-  // profiles.seller_status only ever needs 'pending' here (both 'pending'
-  // and 'manual_review' mean "not decided yet, can't list") - the finer
-  // distinction lives on kyc_submissions.status for the staff dashboard.
-  await supabase.from('profiles').update({ seller_status: 'pending' }).eq('id', req.user.id);
+  // 'pending' and 'manual_review' both mean "not decided yet, can't list" -
+  // the finer distinction lives on kyc_submissions.status for the staff
+  // dashboard. 'approved' is new: Digio's automated check can clear a
+  // submission outright (central-database verification actually passed,
+  // not just OCR) without a human ever looking at it - see
+  // idVerification.js's decision policy.
+  const profileSellerStatus = verification.status === 'approved' ? 'approved' : 'pending';
+  await supabase.from('profiles').update({ seller_status: profileSellerStatus }).eq('id', req.user.id);
 
   res.status(201).json(data);
 });

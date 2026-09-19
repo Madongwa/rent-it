@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
+import { logAdminAction } from '../lib/adminLog.js';
+import { recomputeListingRating } from './reviews.js';
 
 const router = Router();
 
@@ -42,6 +44,7 @@ router.post('/kyc/:userId/approve', async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
 
   await supabase.from('profiles').update({ seller_status: 'approved' }).eq('id', userId);
+  await logAdminAction(req.user.id, 'kyc.approve', 'user', userId);
 
   res.json(data);
 });
@@ -68,6 +71,7 @@ router.post('/kyc/:userId/reject', async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
 
   await supabase.from('profiles').update({ seller_status: 'rejected' }).eq('id', userId);
+  await logAdminAction(req.user.id, 'kyc.reject', 'user', userId, reason);
 
   res.json(data);
 });
@@ -122,6 +126,7 @@ router.patch('/users/:id/role', async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
+  await logAdminAction(req.user.id, 'user.role_change', 'user', req.params.id, `role -> ${role}`);
   res.json(data);
 });
 
@@ -135,6 +140,7 @@ router.post('/users/:id/ban', async (req, res) => {
 
   const { data, error } = await supabase.auth.admin.updateUserById(req.params.id, { ban_duration: '876000h' });
   if (error) return res.status(500).json({ error: error.message });
+  await logAdminAction(req.user.id, 'user.ban', 'user', req.params.id);
   res.json({ id: data.user.id, banned: true });
 });
 
@@ -142,6 +148,7 @@ router.post('/users/:id/ban', async (req, res) => {
 router.post('/users/:id/unban', async (req, res) => {
   const { data, error } = await supabase.auth.admin.updateUserById(req.params.id, { ban_duration: 'none' });
   if (error) return res.status(500).json({ error: error.message });
+  await logAdminAction(req.user.id, 'user.unban', 'user', req.params.id);
   res.json({ id: data.user.id, banned: false });
 });
 
@@ -177,6 +184,7 @@ router.patch('/listings/:id/status', async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
+  await logAdminAction(req.user.id, 'listing.status_change', 'listing', req.params.id, `status -> ${status}`);
   res.json(data);
 });
 
@@ -197,9 +205,14 @@ router.get('/disputes', async (req, res) => {
 // POST /api/admin/disputes/:id/resolve - body: { resolution, outcome }
 // outcome: 'completed' (side with the owner - normal payout proceeds) or
 // 'cancelled' (side with the renter - rental fee refunds, no owner payout).
-// This only records the decision; it does not itself move money yet, since
-// that depends on the still-unwired Razorpay/RazorpayX integration - see
-// rental_payments in schema.sql.
+// This only records the decision; it does not itself move money. Renter
+// payment collection is wired (see rentals.js /checkout, /verify-payment),
+// but owner payouts and refunds still happen manually outside the app for
+// now - automating those needs RazorpayX Route with each owner KYC'd as a
+// linked sub-merchant, which is real compliance infrastructure this app
+// doesn't have yet. Staff use the amounts recorded in rental_payments
+// (owner_stage1/2_amount, deposit_amount) as the reference for whatever
+// they pay/refund outside the platform.
 router.post('/disputes/:id/resolve', async (req, res) => {
   const { resolution, outcome } = req.body;
 
@@ -245,7 +258,150 @@ router.post('/disputes/:id/resolve', async (req, res) => {
     await supabase.from('listings').update({ status: 'available' }).eq('id', rental.listing_id);
   }
 
+  await logAdminAction(req.user.id, 'dispute.resolve', 'rental_dispute', req.params.id, `${outcome}: ${resolution}`);
+
   res.json(data);
+});
+
+// GET /api/admin/overview - top-line counts for the dashboard landing tab.
+// Every query here is a `head: true, count: 'exact'` - Postgres can answer
+// a row count without ever returning matching rows, so this stays cheap
+// even as each table grows well past what the moderation-queue endpoints
+// above are willing to return in full.
+router.get('/overview', async (req, res) => {
+  const countOf = async (table, filters = {}) => {
+    let query = supabase.from(table).select('*', { count: 'exact', head: true });
+    for (const [column, value] of Object.entries(filters)) query = query.eq(column, value);
+    const { count, error } = await query;
+    if (error) throw error;
+    return count;
+  };
+
+  try {
+    const [
+      totalUsers,
+      totalListings,
+      activeRentals,
+      pendingKyc,
+      openDisputes,
+      flaggedReviews,
+      totalReviews,
+    ] = await Promise.all([
+      countOf('profiles'),
+      countOf('listings'),
+      countOf('rentals', { status: 'approved' }),
+      countOf('kyc_submissions', { status: 'pending' }),
+      countOf('rental_disputes', { status: 'open' }),
+      countOf('reviews', { flagged: true }),
+      countOf('reviews'),
+    ]);
+
+    res.json({
+      total_users: totalUsers,
+      total_listings: totalListings,
+      active_rentals: activeRentals,
+      pending_kyc: pendingKyc,
+      open_disputes: openDisputes,
+      flagged_reviews: flaggedReviews,
+      total_reviews: totalReviews,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/admin/rentals?status=pending - every rental request regardless
+// of status (the renter/owner-facing routes in rentals.js only ever show
+// a user their own side of a rental). Read-only visibility for staff;
+// unlike Disputes, there's no admin action here - the renter/owner already
+// own that workflow, this is oversight, not a takeover.
+router.get('/rentals', async (req, res) => {
+  const { status } = req.query;
+  let query = supabase
+    .from('rentals')
+    .select(
+      'id, start_date, end_date, status, created_at, listing:listings(id, title, owner:profiles(id, full_name)), renter:profiles!rentals_renter_id_fkey(id, full_name)'
+    )
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (status) query = query.eq('status', status);
+
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// GET /api/admin/reviews?flagged=true - every review, for the Reviews
+// Moderation tab. Capped at 200, same as the other moderation queues above.
+router.get('/reviews', async (req, res) => {
+  const { flagged } = req.query;
+  let query = supabase
+    .from('reviews')
+    .select('*, listing:listings(id, title), flagged_by_user:profiles!reviews_flagged_by_fkey(id, full_name)')
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (flagged) query = query.eq('flagged', flagged === 'true');
+
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// POST /api/admin/reviews/:id/unflag - dismiss a flag without removing the
+// review (staff looked at it and it's fine).
+router.post('/reviews/:id/unflag', async (req, res) => {
+  const { data, error } = await supabase
+    .from('reviews')
+    .update({ flagged: false, flag_reason: null, flagged_by: null, flagged_at: null })
+    .eq('id', req.params.id)
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  await logAdminAction(req.user.id, 'review.unflag', 'review', req.params.id);
+  res.json(data);
+});
+
+// DELETE /api/admin/reviews/:id - remove a review that violates policy.
+// Recomputes the listing's avg_rating/review_count the same way a real
+// review submission does, so the listing card/detail page stay in sync.
+router.delete('/reviews/:id', async (req, res) => {
+  const { data: existing, error: findError } = await supabase
+    .from('reviews')
+    .select('id, listing_id')
+    .eq('id', req.params.id)
+    .single();
+  if (findError || !existing) return res.status(404).json({ error: 'Review not found' });
+
+  const { error } = await supabase.from('reviews').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+
+  await recomputeListingRating(existing.listing_id);
+  await logAdminAction(req.user.id, 'review.delete', 'review', req.params.id);
+
+  res.status(204).send();
+});
+
+// GET /api/admin/activity-log?page=1&limit=50 - staff action history, most
+// recent first. Same page/hasMore shape as GET /api/listings, for the same
+// reason (a real total-count query would need a second round-trip).
+router.get('/activity-log', async (req, res) => {
+  const limitNum = Math.min(Number(req.query.limit) || 50, 200);
+  const pageNum = Math.max(Number(req.query.page) || 1, 1);
+  const from = (pageNum - 1) * limitNum;
+
+  const { data, error } = await supabase
+    .from('admin_actions_log')
+    .select('*, admin:profiles(id, full_name)')
+    .order('created_at', { ascending: false })
+    .range(from, from + limitNum);
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  const hasMore = data.length > limitNum;
+  res.json({ data: data.slice(0, limitNum), page: pageNum, pageSize: limitNum, hasMore });
 });
 
 export default router;

@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import RentalPhotoSection from '../components/RentalPhotos';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
+import { useAuth } from '../context/AuthContext';
+import { loadRazorpayCheckout } from '../lib/loadRazorpay';
 
 // Condition photos are only meaningful once a handoff has actually
 // happened (or is being disputed) - hidden for 'pending'/'rejected'/
@@ -96,6 +98,7 @@ function RentalPhotosPanel({ rental, onChange }) {
 }
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const VALID_TABS = TABS.map((t) => t.key);
   const [tab, setTabState] = useState(() => {
@@ -116,6 +119,7 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
   const [expandedId, setExpandedId] = useState(null);
+  const [payingId, setPayingId] = useState(null);
 
   function loadAll() {
     setLoading(true);
@@ -139,6 +143,54 @@ export default function Dashboard() {
       loadAll();
     } catch (err) {
       setActionError(err.message);
+    }
+  }
+
+  async function payNow(rental) {
+    setActionError('');
+    setPayingId(rental.id);
+    try {
+      const order = await api.checkoutRental(rental.id);
+      const Razorpay = await loadRazorpayCheckout();
+      const rzp = new Razorpay({
+        key: order.key_id,
+        amount: order.amount,
+        currency: order.currency,
+        order_id: order.order_id,
+        name: 'Rent It',
+        description: order.listing_title,
+        prefill: { name: user?.user_metadata?.full_name || '', email: user?.email || '' },
+        theme: { color: '#2e7d32' },
+        handler: async (response) => {
+          try {
+            await api.verifyRentalPayment(rental.id, {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            loadAll();
+          } catch (err) {
+            // Money already moved at this point (Razorpay called our
+            // success handler) - this is "couldn't record it," not "the
+            // payment failed," so surface the payment ID rather than a
+            // generic retry prompt.
+            setActionError(
+              `Payment went through but couldn't be recorded (${err.message}). Contact support with payment ID ${response.razorpay_payment_id}.`
+            );
+          } finally {
+            setPayingId(null);
+          }
+        },
+        modal: { ondismiss: () => setPayingId(null) },
+      });
+      rzp.on('payment.failed', (resp) => {
+        setActionError(`Payment failed: ${resp.error?.description || 'unknown error'}`);
+        setPayingId(null);
+      });
+      rzp.open();
+    } catch (err) {
+      setActionError(err.message);
+      setPayingId(null);
     }
   }
 
@@ -256,6 +308,20 @@ export default function Dashboard() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {r.status === 'approved' && !r.payment && (
+                    <button
+                      onClick={() => payNow(r)}
+                      disabled={payingId === r.id}
+                      className="rounded-btn bg-white px-3 py-1.5 text-sm font-medium text-black hover:opacity-90 disabled:opacity-60"
+                    >
+                      {payingId === r.id ? 'Opening payment…' : 'Pay now'}
+                    </button>
+                  )}
+                  {r.payment && (
+                    <span className="rounded-badge bg-emerald-500/15 px-2.5 py-1 text-caption font-medium text-emerald-400">
+                      Paid ₹{Number(r.payment.total_amount).toLocaleString('en-IN')}
+                    </span>
+                  )}
                   {['pending', 'approved'].includes(r.status) && (
                     <button onClick={() => respond(r.id, 'cancelled')} className="text-sm font-medium text-red-400 hover:text-red-300">
                       Cancel
@@ -311,6 +377,15 @@ export default function Dashboard() {
                     </>
                   ) : r.status === 'approved' ? (
                     <>
+                      {r.payment ? (
+                        <span className="rounded-badge bg-emerald-500/15 px-2.5 py-1 text-caption font-medium text-emerald-400">
+                          Paid
+                        </span>
+                      ) : (
+                        <span className="rounded-badge bg-amber-500/15 px-2.5 py-1 text-caption font-medium text-amber-400">
+                          Awaiting payment
+                        </span>
+                      )}
                       <button
                         onClick={() => respond(r.id, 'completed')}
                         className="rounded-btn bg-white px-3 py-1.5 text-sm font-medium text-black hover:opacity-90"

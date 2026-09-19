@@ -28,6 +28,7 @@ const CLEARABLE_PARAMS = [
   'duration',
   'minRating',
   'minRentalPeriod',
+  'page',
 ];
 
 function readFilters(searchParams) {
@@ -123,6 +124,8 @@ export default function Marketplace() {
   const [error, setError] = useState('');
   const [searchInput, setSearchInput] = useState(q);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const page = Math.max(Number(searchParams.get('page')) || 1, 1);
 
   useEffect(() => {
     api.getCategories().then(setCategories).catch(() => {});
@@ -137,8 +140,26 @@ export default function Marketplace() {
   const maxPrice = filters.customMax || bucket?.max || '';
 
   const multiParams = MULTI_KEYS.map((k) => filters[k].join(',')).join('|');
+  const filterKey = [
+    filters.category, q, filters.sort, minPrice, maxPrice, multiParams, filters.deposit,
+    filters.accessories, filters.maxDistance, filters.minRating, filters.minRentalPeriod,
+  ].join('::');
+  // Tracks the previous filterKey so a filter change (as opposed to a plain
+  // page change) can snap the page back to 1 - browsing page 4 of one filter
+  // set shouldn't carry over as "page 4" of a completely different one.
+  const prevFilterKeyRef = useRef(filterKey);
 
   useEffect(() => {
+    const filtersChanged = prevFilterKeyRef.current !== filterKey;
+    prevFilterKeyRef.current = filterKey;
+
+    if (filtersChanged && page !== 1) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('page');
+      setSearchParams(next);
+      return; // the resulting param change re-triggers this effect at page 1
+    }
+
     setLoading(true);
     setError('');
     api
@@ -160,15 +181,16 @@ export default function Marketplace() {
         duration: filters.duration.join(','),
         minRating: filters.minRating,
         minRentalPeriod: filters.minRentalPeriod,
+        page,
       })
-      .then(setListings)
+      .then((result) => {
+        setListings(result.data);
+        setHasMore(result.hasMore);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    filters.category, q, filters.sort, minPrice, maxPrice, multiParams, filters.deposit, filters.accessories,
-    filters.maxDistance, filters.minRating, filters.minRentalPeriod,
-  ]);
+  }, [filterKey, page]);
 
   function updateParam(key, value) {
     const next = new URLSearchParams(searchParams);
@@ -206,6 +228,14 @@ export default function Marketplace() {
     if (nextArr.length) next.set(key, nextArr.join(','));
     else next.delete(key);
     setSearchParams(next);
+  }
+
+  function goToPage(p) {
+    const next = new URLSearchParams(searchParams);
+    if (p <= 1) next.delete('page');
+    else next.set('page', String(p));
+    setSearchParams(next);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function clearAll() {
@@ -452,6 +482,28 @@ export default function Marketplace() {
                 />
               ))}
             </div>
+
+            {!loading && !error && (page > 1 || hasMore) && (
+              <div className="mt-10 flex items-center justify-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => goToPage(page - 1)}
+                  disabled={page <= 1}
+                  className="rounded-btn border border-night-border/20 px-4 py-2 text-sm font-medium text-night-text disabled:cursor-not-allowed disabled:opacity-30 hover:border-night-border/40"
+                >
+                  Previous
+                </button>
+                <span className="text-sm text-night-muted">Page {page}</span>
+                <button
+                  type="button"
+                  onClick={() => goToPage(page + 1)}
+                  disabled={!hasMore}
+                  className="rounded-btn border border-night-border/20 px-4 py-2 text-sm font-medium text-night-text disabled:cursor-not-allowed disabled:opacity-30 hover:border-night-border/40"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

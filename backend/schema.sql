@@ -440,8 +440,8 @@ create table if not exists public.kyc_submissions (
 );
 
 -- ---------------------------------------------------------------------------
--- Automated eKYC scaffolding (Digio, once wired up) - see
--- backend/src/services/idVerification.js. Additive to the manual-review
+-- Automated eKYC (Digio's ID Card OCR + Verification API - see
+-- backend/src/services/idVerification.js). Additive to the manual-review
 -- flow above, not a replacement: every submission still lands here, this
 -- just records which path checked it and adds a "checked by the vendor
 -- but inconclusive, needs a human" state distinct from "just submitted,
@@ -450,7 +450,16 @@ create table if not exists public.kyc_submissions (
 alter table public.kyc_submissions
   add column if not exists verification_method text
     check (verification_method in ('manual', 'automated')),
-  add column if not exists verification_provider_reference text;
+  add column if not exists verification_provider_reference text,
+  -- Digio's ID Card API wants both sides of the ID as separate uploads
+  -- (front_part/back_part) - id_document_url above is the front.
+  add column if not exists id_document_back_url text,
+  -- Trimmed copy of Digio's response (image-quality check results, and
+  -- verification_result.verified when the detected ID type supports
+  -- central-database cross-checking) - shown to staff reviewing a
+  -- 'manual_review' submission so they know *why* it wasn't auto-approved,
+  -- rather than just that it wasn't.
+  add column if not exists verification_details jsonb;
 
 alter table public.kyc_submissions drop constraint if exists kyc_submissions_status_check;
 alter table public.kyc_submissions
@@ -700,3 +709,42 @@ begin
   exception when duplicate_object then null;
   end;
 end $$;
+
+-- ---------------------------------------------------------------------------
+-- Admin Console foundation: an audit trail for every staff action, and a
+-- way for a review to be flagged for moderation (surfaced in the Reviews
+-- Moderation tab, and aggregated into the Dispute Center alongside disputed
+-- rentals/escrow records).
+-- ---------------------------------------------------------------------------
+create table if not exists public.admin_actions_log (
+  id uuid primary key default uuid_generate_v4(),
+  admin_id uuid references public.profiles (id) on delete set null,
+  action text not null,
+  target_type text not null,
+  target_id text not null,
+  note text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists admin_actions_log_created_idx on public.admin_actions_log (created_at desc);
+
+alter table public.admin_actions_log enable row level security;
+
+-- No insert/update policy - like rental_payments, this is only ever written
+-- by the backend (service_role) right after a real staff action, never by a
+-- client directly.
+drop policy if exists "Admins can view the activity log" on public.admin_actions_log;
+create policy "Admins can view the activity log" on public.admin_actions_log
+  for select using (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin'));
+
+alter table public.reviews
+  add column if not exists flagged boolean not null default false,
+  add column if not exists flag_reason text,
+  add column if not exists flagged_by uuid references public.profiles (id) on delete set null,
+  add column if not exists flagged_at timestamptz;
+
+create index if not exists reviews_flagged_idx on public.reviews (flagged) where flagged;
+
+drop policy if exists "Signed-in users can flag a review" on public.reviews;
+create policy "Signed-in users can flag a review" on public.reviews
+  for update using (auth.uid() is not null);

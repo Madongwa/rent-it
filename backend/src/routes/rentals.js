@@ -1,12 +1,15 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth } from '../middleware/auth.js';
 import { notify } from '../lib/notify.js';
+import { razorpay, computeRentalCharges } from '../lib/razorpay.js';
+import { recordRentalPayment } from '../lib/recordPayment.js';
 
 const router = Router();
 
 const RENTAL_SELECT =
-  '*, listing:listings(id, title, image_url, price_per_day, owner_id, owner:profiles(id, full_name))';
+  '*, listing:listings(id, title, image_url, price_per_day, owner_id, owner:profiles(id, full_name)), payment:rental_payments(total_amount, deposit_amount, platform_fee_amount, razorpay_payment_id, owner_stage1_paid_at, owner_stage2_paid_at, deposit_refunded_at)';
 
 // POST /api/rentals - request to rent a listing
 router.post('/', requireAuth, async (req, res) => {
@@ -101,7 +104,9 @@ router.get('/incoming', requireAuth, async (req, res) => {
 
   const { data, error } = await supabase
     .from('rentals')
-    .select(`*, listing:listings(id, title, image_url, price_per_day), renter:profiles!rentals_renter_id_fkey(id, full_name)`)
+    .select(
+      `*, listing:listings(id, title, image_url, price_per_day), renter:profiles!rentals_renter_id_fkey(id, full_name), payment:rental_payments(total_amount, deposit_amount, platform_fee_amount, razorpay_payment_id, owner_stage1_paid_at, owner_stage2_paid_at, deposit_refunded_at)`
+    )
     .in('listing_id', listingIds)
     .order('created_at', { ascending: false });
 
@@ -190,6 +195,106 @@ router.patch('/:id', requireAuth, async (req, res) => {
   }
 
   res.json(data);
+});
+
+// POST /api/rentals/:id/checkout - renter creates a Razorpay order to pay
+// for an approved rental. Only ever called by the renter, only once per
+// rental (a second call while unpaid just returns a fresh order for the
+// same amount - Razorpay orders don't expire on their own, but re-creating
+// is simpler than tracking staleness).
+router.post('/:id/checkout', requireAuth, async (req, res) => {
+  if (!razorpay) return res.status(503).json({ error: 'Payments are not configured yet.' });
+
+  const { data: rental, error: findError } = await supabase
+    .from('rentals')
+    .select(
+      'id, renter_id, status, start_date, end_date, listing:listings(id, title, price_per_day, deposit_required, deposit_amount)'
+    )
+    .eq('id', req.params.id)
+    .single();
+
+  if (findError || !rental) return res.status(404).json({ error: 'Rental request not found' });
+  if (rental.renter_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+  if (rental.status !== 'approved') {
+    return res.status(400).json({ error: `Cannot pay for a "${rental.status}" rental - it must be approved first.` });
+  }
+
+  const { data: existingPayment } = await supabase
+    .from('rental_payments')
+    .select('rental_id')
+    .eq('rental_id', rental.id)
+    .maybeSingle();
+  if (existingPayment) return res.status(400).json({ error: 'This rental has already been paid for.' });
+
+  const days = Math.round((new Date(rental.end_date) - new Date(rental.start_date)) / (24 * 60 * 60 * 1000)) + 1;
+  const charges = computeRentalCharges({
+    pricePerDay: rental.listing.price_per_day,
+    days,
+    depositAmount: rental.listing.deposit_required ? rental.listing.deposit_amount || 0 : 0,
+  });
+
+  let order;
+  try {
+    order = await razorpay.orders.create({
+      amount: Math.round(charges.totalAmount * 100), // paise
+      currency: 'INR',
+      receipt: `rental_${rental.id}`,
+      notes: { rental_id: rental.id, renter_id: req.user.id },
+    });
+  } catch (err) {
+    return res.status(502).json({ error: `Could not start payment: ${err.message || 'Razorpay error'}` });
+  }
+
+  res.json({
+    order_id: order.id,
+    amount: order.amount,
+    currency: order.currency,
+    key_id: process.env.RAZORPAY_KEY_ID,
+    listing_title: rental.listing.title,
+    charges,
+  });
+});
+
+// POST /api/rentals/:id/verify-payment - called by the frontend right after
+// Razorpay Checkout succeeds, with the three fields it hands back. Verifying
+// the signature (rather than trusting the client's "it worked" call) is the
+// whole point - anyone can POST a fake success here, only someone who knows
+// RAZORPAY_KEY_SECRET can produce a signature that matches.
+router.post('/:id/verify-payment', requireAuth, async (req, res) => {
+  if (!razorpay) return res.status(503).json({ error: 'Payments are not configured yet.' });
+
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+  if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+    return res.status(400).json({ error: 'razorpay_order_id, razorpay_payment_id and razorpay_signature are required' });
+  }
+
+  const expected = crypto
+    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+    .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+    .digest('hex');
+  if (expected !== razorpay_signature) {
+    return res.status(400).json({ error: 'Payment signature verification failed.' });
+  }
+
+  const { data: rental, error: findError } = await supabase
+    .from('rentals')
+    .select('id, renter_id, status')
+    .eq('id', req.params.id)
+    .single();
+
+  if (findError || !rental) return res.status(404).json({ error: 'Rental request not found' });
+  if (rental.renter_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+
+  try {
+    const data = await recordRentalPayment({
+      rentalId: rental.id,
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
+    });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST /api/rentals/:id/photos - record pickup or return condition photos.
