@@ -439,6 +439,48 @@ router.patch('/settings', async (req, res) => {
   res.json(data);
 });
 
+// GET /api/admin/stats/users - total registered users, how many joined
+// today/this week (calendar week starting Monday), and the user/admin role
+// split, for the Total Users widget.
+router.get('/stats/users', async (req, res) => {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfWeek = new Date(startOfToday);
+  const daysSinceMonday = (startOfWeek.getDay() + 6) % 7;
+  startOfWeek.setDate(startOfWeek.getDate() - daysSinceMonday);
+
+  try {
+    const [{ count: total, error: totalError }, { count: newToday, error: todayError }, { count: newThisWeek, error: weekError }, { data: roleRows, error: roleError }] =
+      await Promise.all([
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', startOfToday.toISOString()),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', startOfWeek.toISOString()),
+        supabase.from('profiles').select('role'),
+      ]);
+    if (totalError) throw totalError;
+    if (todayError) throw todayError;
+    if (weekError) throw weekError;
+    if (roleError) throw roleError;
+
+    const roleCounts = roleRows.reduce((acc, r) => {
+      acc[r.role] = (acc[r.role] || 0) + 1;
+      return acc;
+    }, {});
+
+    res.json({
+      total,
+      new_today: newToday,
+      new_this_week: newThisWeek,
+      roles: [
+        { role: 'user', count: roleCounts.user || 0 },
+        { role: 'admin', count: roleCounts.admin || 0 },
+      ],
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/admin/stats/activity - listings + rental requests created over
 // the last 5 days, bucketed into 4-hour slots, for the Site Activity
 // widget's heatmap. Real counts from `created_at`, no simulated data.
@@ -500,25 +542,6 @@ router.get('/stats/escrow', async (req, res) => {
     .reduce((sum, row) => sum + Number(row.deposit_amount), 0);
 
   res.json({ held_total });
-});
-
-// GET /api/admin/stats/requests-by-category - rental request counts grouped
-// by the requested listing's category, for the Requests by Category widget.
-router.get('/stats/requests-by-category', async (req, res) => {
-  const { data, error } = await supabase
-    .from('rentals')
-    .select('listing:listings(category:categories(name))')
-    .limit(2000);
-
-  if (error) return res.status(500).json({ error: error.message });
-
-  const counts = new Map();
-  for (const row of data) {
-    const name = row.listing?.category?.name || 'Uncategorized';
-    counts.set(name, (counts.get(name) || 0) + 1);
-  }
-
-  res.json([...counts.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count));
 });
 
 // GET /api/admin/stats/listings-by-category - listing counts and share of

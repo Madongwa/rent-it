@@ -12,17 +12,26 @@ const rhMenuLinkClass = ({ isActive }) => (isActive ? 'is-active' : '');
 // (rather than CSS nth-child) since those two entries are conditional -
 // nth-child can't reliably target a staggered delay when items in front of
 // it come and go.
+//
+// Dashboard/Staff are marked `metal: false` - metal-fx keeps one shared
+// WebGL context + draw loop across every mounted <MetalFx> on the page, and
+// an instance that mounts well after the initial page load (as these two
+// always do, since they wait on an async profile fetch) never gets drawn:
+// it ends up permanently `visibility: hidden` with nothing rendered in its
+// place. The other 6 links mount at first paint and are unaffected, so they
+// keep the metal ring; these two render as plain (still fully styled, see
+// metal-nav-link.jsx's comment) NavLinks instead.
 function useNavLinks(user, isAdmin) {
   const links = [
-    { to: '/', label: 'Home', end: true },
-    { to: '/marketplace', label: 'Marketplace' },
-    { to: '/how-it-works', label: 'How It Works' },
-    { to: '/why-it-matters', label: 'Why It Matters' },
-    { to: '/help', label: 'Help / FAQ' },
-    { to: '/about', label: 'About Us' },
+    { to: '/', label: 'Home', end: true, metal: true },
+    { to: '/marketplace', label: 'Marketplace', metal: true },
+    { to: '/how-it-works', label: 'How It Works', metal: true },
+    { to: '/why-it-matters', label: 'Why It Matters', metal: true },
+    { to: '/help', label: 'Help / FAQ', metal: true },
+    { to: '/about', label: 'About Us', metal: true },
   ];
-  if (user) links.push({ to: '/dashboard', label: 'Dashboard' });
-  if (isAdmin) links.push({ to: '/admin', label: 'Staff' });
+  if (user) links.push({ to: '/dashboard', label: 'Dashboard', metal: false });
+  if (isAdmin) links.push({ to: '/admin', label: 'Staff', metal: false });
   return links;
 }
 
@@ -98,18 +107,30 @@ export default function Navbar() {
       </Link>
 
       <nav className="rh-nav-links" aria-label="Primary">
-        {links.map((link, i) => (
-          <MetalNavLink
-            key={link.to}
-            to={link.to}
-            end={link.end}
-            size="sm"
-            preset="chromatic"
-            style={{ animationDelay: `${(0.54 + i * 0.035).toFixed(3)}s` }}
-          >
-            {link.label}
-          </MetalNavLink>
-        ))}
+        {links.map((link, i) =>
+          link.metal ? (
+            <MetalNavLink
+              key={link.to}
+              to={link.to}
+              end={link.end}
+              size="sm"
+              preset="chromatic"
+              style={{ animationDelay: `${(0.54 + i * 0.035).toFixed(3)}s` }}
+            >
+              {link.label}
+            </MetalNavLink>
+          ) : (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              end={link.end}
+              style={{ animationDelay: `${(0.54 + i * 0.035).toFixed(3)}s` }}
+              className={({ isActive }) => `inline-flex h-8 items-center justify-center rounded-full px-3 ${isActive ? 'is-active' : ''}`}
+            >
+              {link.label}
+            </NavLink>
+          )
+        )}
       </nav>
 
       <div className="rh-nav-actions">

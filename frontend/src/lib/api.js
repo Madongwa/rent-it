@@ -127,8 +127,8 @@ export const api = {
   getAdminSettings: () => request('/admin/settings'),
   updateAdminSettings: (maintenance_mode) =>
     request('/admin/settings', { method: 'PATCH', body: JSON.stringify({ maintenance_mode }) }),
+  getAdminUserStats: () => request('/admin/stats/users'),
   getAdminActivityStats: () => request('/admin/stats/activity'),
   getAdminEscrowStats: () => request('/admin/stats/escrow'),
-  getAdminRequestsByCategory: () => request('/admin/stats/requests-by-category'),
   getAdminListingsByCategory: () => request('/admin/stats/listings-by-category'),
 };

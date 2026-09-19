@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
+import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
 import { DraggableWidgetGrid } from '../ui/draggable-widget-grid';
@@ -158,45 +159,53 @@ function SiteActivity() {
 }
 
 /* ------------------------------------------------------------------ *
- * 2. System status - real maintenance-mode flag, toggleable
+ * 2. Total users - real headcount, growth, and a role-split donut
  * ------------------------------------------------------------------ */
 
-function SystemStatus() {
-  const { data, error } = usePolledData(api.getAdminSettings);
-  const [pending, setPending] = useState(false);
-  const [localError, setLocalError] = useState('');
+// Matches this dashboard's own existing role/status color convention
+// (ROLE_BADGE's admin=emerald in AdminDashboard.jsx, DOT_TONE.ok above) -
+// no new arbitrary colors introduced.
+const ROLE_CHART_COLORS = { admin: '#10b981', user: '#71717a' };
 
-  async function toggle() {
-    if (!data || pending) return;
-    setPending(true);
-    setLocalError('');
-    try {
-      await api.updateAdminSettings(!data.maintenance_mode);
-    } catch (err) {
-      setLocalError(err.message);
-    } finally {
-      setPending(false);
-    }
-  }
+function TotalUsers() {
+  const { data, error } = usePolledData(api.getAdminUserStats);
+  if (error) return <LoadFailed title="Total users" />;
+  if (!data) return <Loading title="Total users" />;
 
-  if (error) return <LoadFailed title="System status" />;
-  if (!data) return <Loading title="System status" />;
+  const chartData = data.roles.map((r) => ({ name: r.role, value: r.count }));
 
-  const maintenance = data.maintenance_mode;
   return (
-    <Shell title="System status">
-      <p className={`flex items-center gap-2 text-[13px] ${maintenance ? 'text-amber-400' : 'text-foreground'}`}>
-        <Dot tone={maintenance ? 'warn' : 'ok'} />
-        {maintenance ? 'Maintenance mode active' : 'All systems operational'}
-      </p>
-      <button
-        onClick={toggle}
-        disabled={pending}
-        className="mt-auto self-start rounded-btn border border-border/20 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-border/40 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {pending ? 'Saving…' : maintenance ? 'Turn off maintenance mode' : 'Turn on maintenance mode'}
-      </button>
-      {localError && <p className="mt-1 text-xs text-rose-400">{localError}</p>}
+    <Shell title="Total users">
+      <Big>{data.total}</Big>
+      <dl className="mt-2 space-y-2">
+        <Row value={data.new_today}>New today</Row>
+        <Row value={data.new_this_week}>New this week</Row>
+      </dl>
+      <div className="mt-auto flex items-center gap-3">
+        <div className="h-14 w-14 shrink-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={chartData} dataKey="value" nameKey="name" innerRadius={16} outerRadius={28} paddingAngle={2} strokeWidth={0} isAnimationActive={false}>
+                {chartData.map((entry) => (
+                  <Cell key={entry.name} fill={ROLE_CHART_COLORS[entry.name] || ROLE_CHART_COLORS.user} />
+                ))}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        <dl className="space-y-1 text-[12px]">
+          {chartData.map((entry) => (
+            <div key={entry.name} className="flex items-center gap-1.5">
+              <span
+                className="size-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: ROLE_CHART_COLORS[entry.name] || ROLE_CHART_COLORS.user }}
+              />
+              <span className="capitalize text-foreground">{entry.name}</span>
+              <span className="text-muted-foreground">{entry.value}</span>
+            </div>
+          ))}
+        </dl>
+      </div>
     </Shell>
   );
 }
@@ -312,27 +321,25 @@ function ApprovalRate() {
 }
 
 /* ------------------------------------------------------------------ *
- * 7. Requests by category
+ * 7. Pending verifications - real seller ID verification queue
  * ------------------------------------------------------------------ */
 
-function RequestsByCategory() {
-  const { data, error } = usePolledData(api.getAdminRequestsByCategory);
-  if (error) return <LoadFailed title="Requests by category" />;
-  if (!data) return <Loading title="Requests by category" />;
+function PendingVerifications() {
+  const { data, error } = usePolledData(api.getKycQueue);
+  if (error) return <LoadFailed title="Pending verifications" />;
+  if (!data) return <Loading title="Pending verifications" />;
 
-  const total = data.reduce((sum, c) => sum + c.count, 0);
-  const max = Math.max(1, ...data.map((c) => c.count));
+  const recent = [...data].sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at)).slice(0, 5);
+
   return (
-    <Shell title="Requests by category" meta={`${total} total`}>
-      {data.length === 0 && <p className="text-sm text-muted-foreground">No requests yet.</p>}
+    <Shell title="Pending verifications" meta="seller ID checks">
+      <Big>{data.length}</Big>
+      {recent.length === 0 && <p className="text-sm text-muted-foreground">No pending submissions.</p>}
       <ol className="mt-auto space-y-2 text-[13px]">
-        {data.slice(0, 5).map((c) => (
-          <li key={c.name} className="flex items-center gap-3">
-            <span className="w-28 shrink-0 truncate text-foreground">{c.name}</span>
-            <span className="h-[6px] flex-1 rounded-full bg-foreground/10">
-              <span className="block h-full rounded-full bg-blue-500" style={{ width: `${(c.count / max) * 100}%` }} />
-            </span>
-            <span className="w-8 shrink-0 text-right text-muted-foreground tabular-nums">{c.count}</span>
+        {recent.map((k) => (
+          <li key={k.user_id} className="flex items-center gap-3">
+            <span className="min-w-0 flex-1 truncate text-foreground">{k.full_name || k.user?.full_name || 'Unknown'}</span>
+            <span className="shrink-0 text-muted-foreground tabular-nums">{new Date(k.submitted_at).toLocaleDateString()}</span>
           </li>
         ))}
       </ol>
@@ -381,23 +388,23 @@ function ListingsByCategory() {
 
 const WIDGETS = [
   { id: 'site-activity', kind: 'site-activity', size: 'wide', label: 'Site activity' },
-  { id: 'system-status', kind: 'system-status', size: 'sm', label: 'System status' },
+  { id: 'total-users', kind: 'total-users', size: 'sm', label: 'Total users' },
   { id: 'escrow-held', kind: 'escrow-held', size: 'sm', label: 'Escrow held' },
   { id: 'open-disputes', kind: 'open-disputes', size: 'sm', label: 'Open disputes' },
   { id: 'recent-requests', kind: 'recent-requests', size: 'wide', label: 'Recent requests' },
   { id: 'approval-rate', kind: 'approval-rate', size: 'sm', label: 'Approval rate' },
-  { id: 'requests-by-category', kind: 'requests-by-category', size: 'wide', label: 'Requests by category' },
+  { id: 'pending-verifications', kind: 'pending-verifications', size: 'wide', label: 'Pending verifications' },
   { id: 'listings-by-category', kind: 'listings-by-category', size: 'wide', label: 'Listings by category' },
 ];
 
 const VIEWS = {
   'site-activity': SiteActivity,
-  'system-status': SystemStatus,
+  'total-users': TotalUsers,
   'escrow-held': EscrowHeld,
   'open-disputes': OpenDisputes,
   'recent-requests': RecentRequests,
   'approval-rate': ApprovalRate,
-  'requests-by-category': RequestsByCategory,
+  'pending-verifications': PendingVerifications,
   'listings-by-category': ListingsByCategory,
 };
 
