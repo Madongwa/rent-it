@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { api } from '../lib/api';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
+import AdminOverviewGrid from '../components/admin/AdminOverviewGrid';
 
 const TABS = [
   { key: 'overview', label: 'Overview' },
@@ -30,15 +31,6 @@ const RENTAL_STATUS_BADGE = {
 
 const RENTAL_STATUSES = ['pending', 'approved', 'rejected', 'completed', 'cancelled', 'disputed'];
 
-function StatTile({ label, value }) {
-  return (
-    <div className="rounded-card border border-night-border/15 p-4">
-      <p className="text-2xl font-bold text-night-text">{value}</p>
-      <p className="text-sm text-night-muted">{label}</p>
-    </div>
-  );
-}
-
 // Signed URLs for the private kyc-documents bucket - createSignedUrl works
 // here because the viewer is an admin, and the storage RLS policy on that
 // bucket explicitly allows admins to read every path, not just their own.
@@ -65,7 +57,6 @@ function DocLink({ path, children }) {
 
 export default function AdminDashboard() {
   const [tab, setTab] = useState('overview');
-  const [overview, setOverview] = useState(null);
   const [kycQueue, setKycQueue] = useState([]);
   const [disputes, setDisputes] = useState([]);
   const [users, setUsers] = useState([]);
@@ -91,7 +82,6 @@ export default function AdminDashboard() {
   function loadAll() {
     setLoading(true);
     Promise.all([
-      api.getAdminOverview(),
       api.getKycQueue(),
       api.getDisputeQueue(),
       api.getAdminUsers(),
@@ -99,8 +89,7 @@ export default function AdminDashboard() {
       api.getAdminRentals(),
       api.getAdminReviews(),
     ])
-      .then(([overviewData, kyc, disputeList, userList, listingList, rentalList, reviewList]) => {
-        setOverview(overviewData);
+      .then(([kyc, disputeList, userList, listingList, rentalList, reviewList]) => {
         setKycQueue(kyc);
         setDisputes(disputeList);
         setUsers(userList);
@@ -250,15 +239,9 @@ export default function AdminDashboard() {
       {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
       {actionError && <p className="mt-4 text-sm text-red-400">{actionError}</p>}
 
-      {!loading && tab === 'overview' && overview && (
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          <StatTile label="Total users" value={overview.total_users} />
-          <StatTile label="Total listings" value={overview.total_listings} />
-          <StatTile label="Active rentals" value={overview.active_rentals} />
-          <StatTile label="Pending KYC" value={overview.pending_kyc} />
-          <StatTile label="Open disputes" value={overview.open_disputes} />
-          <StatTile label="Flagged reviews" value={overview.flagged_reviews} />
-          <StatTile label="Total reviews" value={overview.total_reviews} />
+      {!loading && tab === 'overview' && (
+        <div className="mt-6">
+          <AdminOverviewGrid />
         </div>
       )}
 

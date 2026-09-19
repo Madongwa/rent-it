@@ -123,4 +123,12 @@ export const api = {
   unflagReview: (id) => request(`/admin/reviews/${id}/unflag`, { method: 'POST' }),
   deleteAdminReview: (id) => request(`/admin/reviews/${id}`, { method: 'DELETE' }),
   getActivityLog: (page = 1) => request(`/admin/activity-log?page=${page}`),
+
+  getAdminSettings: () => request('/admin/settings'),
+  updateAdminSettings: (maintenance_mode) =>
+    request('/admin/settings', { method: 'PATCH', body: JSON.stringify({ maintenance_mode }) }),
+  getAdminActivityStats: () => request('/admin/stats/activity'),
+  getAdminEscrowStats: () => request('/admin/stats/escrow'),
+  getAdminRequestsByCategory: () => request('/admin/stats/requests-by-category'),
+  getAdminListingsByCategory: () => request('/admin/stats/listings-by-category'),
 };

@@ -748,3 +748,27 @@ create index if not exists reviews_flagged_idx on public.reviews (flagged) where
 drop policy if exists "Signed-in users can flag a review" on public.reviews;
 create policy "Signed-in users can flag a review" on public.reviews
   for update using (auth.uid() is not null);
+
+-- ---------------------------------------------------------------------------
+-- Platform settings: a single-row table of site-wide flags staff can toggle
+-- from the Admin Console (currently just maintenance mode). Singleton via
+-- `id int primary key default 1 check (id = 1)` - there is exactly one row,
+-- ever.
+-- ---------------------------------------------------------------------------
+create table if not exists public.platform_settings (
+  id int primary key default 1 check (id = 1),
+  maintenance_mode boolean not null default false,
+  updated_by uuid references public.profiles (id) on delete set null,
+  updated_at timestamptz not null default now()
+);
+
+insert into public.platform_settings (id) values (1) on conflict (id) do nothing;
+
+alter table public.platform_settings enable row level security;
+
+-- No insert/update policy - like rental_payments and admin_actions_log
+-- above, this is only ever written by the backend (service_role) after a
+-- real staff action, never by a client directly.
+drop policy if exists "Admins can view platform settings" on public.platform_settings;
+create policy "Admins can view platform settings" on public.platform_settings
+  for select using (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin'));

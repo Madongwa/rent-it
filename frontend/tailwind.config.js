@@ -34,6 +34,22 @@ export default {
         // index.css) so swapping it later - e.g. to green - is a one-line
         // change instead of hunting through components.
         homeAccent: 'var(--home-accent)',
+        // shadcn-style semantic aliases for the `night` palette above, so
+        // components written against shadcn conventions (bg-card,
+        // text-foreground, ring-border, text-muted-foreground) drop in
+        // without inventing new colors. No light/dark split needed - the
+        // whole site is dark-only (see index.css `body`).
+        background: '#000000', // night.bg
+        foreground: '#ffffff', // night.text
+        card: {
+          DEFAULT: '#353535', // night.card
+          foreground: '#ffffff', // night.text
+        },
+        muted: {
+          foreground: '#999999', // night.muted
+        },
+        border: '#e5e5e5', // night.border - always used at low opacity, e.g. border-border/15
+        ring: '#2e7d32', // accent
       },
       fontFamily: {
         sans: ['"DM Sans"', 'ui-sans-serif', 'sans-serif'],

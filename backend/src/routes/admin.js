@@ -404,4 +404,139 @@ router.get('/activity-log', async (req, res) => {
   res.json({ data: data.slice(0, limitNum), page: pageNum, pageSize: limitNum, hasMore });
 });
 
+// GET /api/admin/settings - platform-wide flags (currently just maintenance
+// mode) shown/toggled from the Overview dashboard's System Status widget.
+router.get('/settings', async (req, res) => {
+  const { data, error } = await supabase
+    .from('platform_settings')
+    .select('maintenance_mode, updated_at')
+    .eq('id', 1)
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// PATCH /api/admin/settings - body: { maintenance_mode }
+router.patch('/settings', async (req, res) => {
+  const { maintenance_mode } = req.body;
+  if (typeof maintenance_mode !== 'boolean') {
+    return res.status(400).json({ error: 'maintenance_mode must be a boolean' });
+  }
+
+  const { data, error } = await supabase
+    .from('platform_settings')
+    .update({ maintenance_mode, updated_by: req.user.id, updated_at: new Date().toISOString() })
+    .eq('id', 1)
+    .select('maintenance_mode, updated_at')
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  await logAdminAction(req.user.id, 'settings.maintenance_mode', 'platform_settings', 1, `maintenance_mode -> ${maintenance_mode}`);
+  res.json(data);
+});
+
+// GET /api/admin/stats/activity - listings + rental requests created over
+// the last 5 days, bucketed into 4-hour slots, for the Site Activity
+// widget's heatmap. Real counts from `created_at`, no simulated data.
+router.get('/stats/activity', async (req, res) => {
+  const DAYS = 5;
+  const SLOTS_PER_DAY = 6;
+  const HOURS_PER_SLOT = 24 / SLOTS_PER_DAY;
+
+  const dayStart = new Date();
+  dayStart.setHours(0, 0, 0, 0);
+  dayStart.setDate(dayStart.getDate() - (DAYS - 1));
+
+  try {
+    const [{ data: listingRows, error: listingsError }, { data: rentalRows, error: rentalsError }] =
+      await Promise.all([
+        supabase.from('listings').select('created_at').gte('created_at', dayStart.toISOString()),
+        supabase.from('rentals').select('created_at').gte('created_at', dayStart.toISOString()),
+      ]);
+    if (listingsError) throw listingsError;
+    if (rentalsError) throw rentalsError;
+
+    const buckets = Array.from({ length: DAYS }, () => new Array(SLOTS_PER_DAY).fill(0));
+    const addToBucket = (createdAt) => {
+      const t = new Date(createdAt);
+      const dayIndex = Math.floor((t - dayStart) / (24 * 60 * 60 * 1000));
+      if (dayIndex < 0 || dayIndex >= DAYS) return;
+      const slot = Math.min(SLOTS_PER_DAY - 1, Math.floor(t.getHours() / HOURS_PER_SLOT));
+      buckets[dayIndex][slot] += 1;
+    };
+    listingRows.forEach((row) => addToBucket(row.created_at));
+    rentalRows.forEach((row) => addToBucket(row.created_at));
+
+    res.json({
+      days: DAYS,
+      slotsPerDay: SLOTS_PER_DAY,
+      buckets,
+      today_total: buckets[DAYS - 1].reduce((sum, n) => sum + n, 0),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/admin/stats/escrow - total currently-held renter deposits (paid
+// in, not yet refunded, on a rental that wasn't cancelled), for the Escrow
+// Held widget. No day-over-day delta - there's no historical snapshot of
+// this balance to compare against, so the widget omits that rather than
+// fake it.
+router.get('/stats/escrow', async (req, res) => {
+  const { data, error } = await supabase
+    .from('rental_payments')
+    .select('deposit_amount, rental:rentals(status)')
+    .is('deposit_refunded_at', null);
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  const held_total = data
+    .filter((row) => row.rental?.status !== 'cancelled')
+    .reduce((sum, row) => sum + Number(row.deposit_amount), 0);
+
+  res.json({ held_total });
+});
+
+// GET /api/admin/stats/requests-by-category - rental request counts grouped
+// by the requested listing's category, for the Requests by Category widget.
+router.get('/stats/requests-by-category', async (req, res) => {
+  const { data, error } = await supabase
+    .from('rentals')
+    .select('listing:listings(category:categories(name))')
+    .limit(2000);
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  const counts = new Map();
+  for (const row of data) {
+    const name = row.listing?.category?.name || 'Uncategorized';
+    counts.set(name, (counts.get(name) || 0) + 1);
+  }
+
+  res.json([...counts.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count));
+});
+
+// GET /api/admin/stats/listings-by-category - listing counts and share of
+// total, grouped by category, for the Listings by Category widget.
+router.get('/stats/listings-by-category', async (req, res) => {
+  const { data, error } = await supabase.from('listings').select('category:categories(name)').limit(2000);
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  const counts = new Map();
+  for (const row of data) {
+    const name = row.category?.name || 'Uncategorized';
+    counts.set(name, (counts.get(name) || 0) + 1);
+  }
+
+  const total = data.length;
+  res.json(
+    [...counts.entries()]
+      .map(([name, count]) => ({ name, count, share: total ? count / total : 0 }))
+      .sort((a, b) => b.count - a.count)
+  );
+});
+
 export default router;
