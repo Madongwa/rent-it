@@ -406,11 +406,14 @@ router.get('/activity-log', async (req, res) => {
 
 // GET /api/admin/settings - platform-wide flags (currently just maintenance
 // mode) shown/toggled from the Overview dashboard's System Status widget.
+// Upserts the singleton row on read - the schema.sql seed insert only runs
+// once per database, so any environment that missed it (or a fresh one)
+// self-heals here instead of 500ing on a missing row.
 router.get('/settings', async (req, res) => {
   const { data, error } = await supabase
     .from('platform_settings')
+    .upsert({ id: 1 }, { onConflict: 'id' })
     .select('maintenance_mode, updated_at')
-    .eq('id', 1)
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
