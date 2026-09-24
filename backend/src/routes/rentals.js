@@ -238,11 +238,17 @@ router.post('/:id/checkout', requireAuth, async (req, res) => {
     order = await razorpay.orders.create({
       amount: Math.round(charges.totalAmount * 100), // paise
       currency: 'INR',
-      receipt: `rental_${rental.id}`,
+      // Razorpay caps receipt at 40 chars - "rental_" + a dashed UUID is 43,
+      // so strip the dashes (r_ + 32 hex = 34). The full id is in notes.
+      receipt: `r_${rental.id.replace(/-/g, '')}`,
       notes: { rental_id: rental.id, renter_id: req.user.id },
     });
   } catch (err) {
-    return res.status(502).json({ error: `Could not start payment: ${err.message || 'Razorpay error'}` });
+    // The Razorpay SDK rejects with { statusCode, error: { code, description } }
+    // rather than an Error, so err.message is usually undefined.
+    const reason = err?.error?.description || err?.message || 'Razorpay error';
+    console.error('[checkout] Razorpay order create failed:', err?.statusCode, err?.error || err);
+    return res.status(502).json({ error: `Could not start payment: ${reason}` });
   }
 
   res.json({
