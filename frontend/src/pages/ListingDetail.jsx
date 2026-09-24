@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { MessageCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useFavorites } from '../hooks/useFavorites';
@@ -358,7 +359,7 @@ export default function ListingDetail() {
         ← Back to marketplace
       </Link>
 
-      <div className="mt-4 grid gap-8 md:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-8 md:grid-cols-2">
         {/* 1. Image */}
         <div className="relative aspect-[4/3] w-full overflow-hidden rounded-card bg-white/5">
           {listing.image_url ? (
@@ -471,9 +472,10 @@ export default function ListingDetail() {
               type="button"
               onClick={handleMessageOwner}
               disabled={messaging}
-              className="mt-3 text-sm font-medium text-accent hover:underline disabled:opacity-60"
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-btn border border-night-border/25 bg-white/5 px-4 py-2.5 text-sm font-semibold text-night-text transition-colors hover:border-night-border/40 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
             >
-              {messaging ? 'Starting conversation…' : '💬 Message the owner'}
+              <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {messaging ? 'Starting conversation…' : 'Message the owner'}
             </button>
           )}
           {messageError && <p className="mt-1 text-sm text-red-500">{messageError}</p>}
@@ -500,7 +502,7 @@ export default function ListingDetail() {
               <form onSubmit={handleRequestRent} className="space-y-3">
                 <h2 className="font-semibold text-night-text">Request to rent</h2>
                 <div className="flex gap-3">
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1">
                     <label className="mb-1 block text-xs font-medium text-night-muted">Start date</label>
                     <input
                       type="date"
@@ -510,7 +512,7 @@ export default function ListingDetail() {
                       required
                     />
                   </div>
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1">
                     <label className="mb-1 block text-xs font-medium text-night-muted">End date</label>
                     <input
                       type="date"
