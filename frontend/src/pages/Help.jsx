@@ -44,6 +44,10 @@ const FAQ_ITEMS = [
     a: 'Farming, Construction, Household & DIY, Events, Moving, and Medical — everything from tillers and mini excavators to tents, dollies, and mobility aids.',
   },
   {
+    q: 'Can I send photos, documents or my location in chat?',
+    a: 'Yes — tap the + next to Send. You can send photos (or take one with your camera), documents such as a PDF rental agreement, and a location: either where you are right now, or any place you search for or pin on the map, like a pickup gate. Only the person you are chatting with (and Rent It staff, if there is a dispute) can open them. Never send OTPs, UPI PINs or an unmasked Aadhaar.',
+  },
+  {
     q: 'Can I message an owner before booking?',
     a: 'Yes — every listing has a "Message the owner" option, so you can ask about condition, pickup logistics, or anything else before you send a request.',
   },

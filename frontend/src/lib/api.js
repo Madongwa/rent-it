@@ -55,6 +55,8 @@ export const api = {
 
   getMyProfile: () => request('/profiles/me'),
   getPublicProfile: (id) => request(`/profiles/${id}`),
+  acceptTerms: (version) =>
+    request('/profiles/me/accept-terms', { method: 'POST', body: JSON.stringify({ version }) }),
   updateMyProfile: (payload) =>
     request('/profiles/me', { method: 'PATCH', body: JSON.stringify(payload) }),
 
@@ -71,6 +73,11 @@ export const api = {
   startConversation: (listing_id) =>
     request('/messages/conversations', { method: 'POST', body: JSON.stringify({ listing_id }) }),
   getMessages: (conversationId) => request(`/messages/conversations/${conversationId}/messages`),
+  sendAttachment: (conversationId, kind, attachment) =>
+    request(`/messages/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ kind, attachment }),
+    }),
   markConversationRead: (conversationId) =>
     request(`/messages/conversations/${conversationId}/read`, { method: 'POST' }),
   getUnreadMessageCount: () => request('/messages/unread-count'),

@@ -59,6 +59,12 @@ Pickup only, owner delivers, or either — shown on the listing before you reque
 --- Pricing and bargaining ---
 Owners set their own daily rate. Rent It does not publish a platform-wide price list — prices vary by item, condition, and owner. The listed rate is a starting point: renters can offer a different price per day when they send a request, and both sides can counter-offer in chat until one accepts. Only one offer is open at a time, and whoever didn't make it is the one who responds.
 
+--- Chat features ---
+In Messages, the + button next to Send lets users send photos (from the gallery or camera), documents such as PDF or Word rental agreements, and a location - their current location or any place they search for or pin on a map. Attachments can only be opened by the two people in the chat, and by Rent It staff when reviewing a dispute. Remind users never to send OTPs, UPI PINs or unmasked Aadhaar numbers.
+
+--- Terms ---
+Everyone must accept the Terms of Service and Privacy Policy before using the site (visitors each visit, account holders once). They're on the /terms and /privacy pages. Do not paraphrase them as legal advice - point users to the pages.
+
 --- Payments and fees ---
 Rent It does not process payments and charges no fees. The renter pays the owner directly, usually at pickup, using whatever method they both agree on (cash, UPI, bank transfer). Rent It can't refund, reverse, or guarantee those payments. Safety tip: pay only once you've seen the item in person, and never send money in advance to someone you haven't met.
 

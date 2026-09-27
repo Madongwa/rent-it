@@ -2,6 +2,7 @@ import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from './components/ProtectedRoute';
+import TermsGate from './components/TermsGate';
 import AdminRoute from './components/AdminRoute';
 import Home from './pages/Home';
 import Marketplace from './pages/Marketplace';
@@ -40,6 +41,7 @@ export default function App() {
   return (
     <div className={isChat ? 'flex h-[100dvh] flex-col overflow-hidden' : 'min-h-screen flex flex-col'}>
       <ScrollToTop />
+      <TermsGate />
       <Navbar />
       <main className={`flex-1 ${isHome ? '' : 'rh-nav-offset'} ${isChat ? 'flex min-h-0 flex-col' : ''}`}>
         <Routes>

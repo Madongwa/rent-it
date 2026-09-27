@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, IndianRupee, MessageCircle, Search } from 'lucide-react';
 import { api } from '../lib/api';
@@ -6,8 +6,16 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 import OfferForm from '../components/OfferForm';
+import AttachMenu from '../components/chat/AttachMenu';
+import AttachmentMessage from '../components/chat/AttachmentMessage';
+import { checkAttachment, shrinkImage, uploadAttachment } from '../lib/chatAttachments';
 import { MESSAGES_READ_EVENT } from '../hooks/useUnreadMessages';
 import { formatDay, formatInr, priceDifference, rentalDays } from '../lib/offers';
+
+// Leaflet (the map) only downloads when someone opens the location picker.
+const LocationPicker = lazy(() => import('../components/chat/LocationPicker'));
+
+const ATTACHMENT_KINDS = ['image', 'file', 'location'];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -280,6 +288,9 @@ export default function Messages() {
   const [threadError, setThreadError] = useState('');
   const [offerBusy, setOfferBusy] = useState(false);
   const [offerFormOpen, setOfferFormOpen] = useState(false);
+  const [locationOpen, setLocationOpen] = useState(false);
+  // Photos/documents on their way up: { id, name, status: 'uploading' | 'failed', error }
+  const [uploads, setUploads] = useState([]);
   const bottomRef = useRef(null);
 
   function loadConversations() {
@@ -323,6 +334,8 @@ export default function Messages() {
 
   useEffect(() => {
     setOfferFormOpen(false);
+    setLocationOpen(false);
+    setUploads([]);
     setThreadError('');
     setDraft('');
     setMessages([]);
@@ -350,7 +363,7 @@ export default function Messages() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' });
-  }, [messages]);
+  }, [messages, uploads.length]);
 
   // Real-time: RLS on `messages`/`conversations` means Supabase only ever
   // delivers rows from this user's own threads, so no manual filtering by
@@ -364,7 +377,7 @@ export default function Messages() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const incoming = payload.new;
         if (incoming.conversation_id === activeIdRef.current) {
-          if (incoming.kind && incoming.kind !== 'text') {
+          if (incoming.kind === 'offer' || incoming.kind === 'system') {
             // A new offer or status line also changes earlier cards (the
             // offer it replaced is now "Countered"), so reload the thread.
             refreshThread();
@@ -479,6 +492,53 @@ export default function Messages() {
     }
   }
 
+  function addSent(sent) {
+    setMessages((m) => (m.some((x) => x.id === sent.id) ? m : [...m, sent]));
+  }
+
+  // Photos and documents: each file uploads (showing a placeholder bubble
+  // meanwhile) and then becomes its own message, like WhatsApp.
+  async function sendFiles(files, kind) {
+    const conversationId = activeId;
+    setThreadError('');
+    for (const original of files) {
+      const problem = checkAttachment(original, kind);
+      if (problem) {
+        setThreadError(problem);
+        continue;
+      }
+      const id = `${Date.now()}-${Math.random()}`;
+      setUploads((u) => [...u, { id, name: original.name, kind, status: 'uploading' }]);
+      try {
+        const file = kind === 'image' ? await shrinkImage(original) : original;
+        const attachment = await uploadAttachment(conversationId, file);
+        const sent = await api.sendAttachment(conversationId, kind, attachment);
+        if (activeIdRef.current === conversationId) addSent(sent);
+        setUploads((u) => u.filter((x) => x.id !== id));
+      } catch (err) {
+        setUploads((u) => u.map((x) => (x.id === id ? { ...x, status: 'failed', error: err.message } : x)));
+      }
+    }
+    loadConversations();
+  }
+
+  // Throws on failure so the picker can show the error.
+  async function sendLocation(location) {
+    const sent = await api.sendAttachment(activeId, 'location', location);
+    addSent(sent);
+    setLocationOpen(false);
+    loadConversations();
+  }
+
+  // Pasting a screenshot/photo into the message box sends it as a photo.
+  function handlePaste(e) {
+    const images = Array.from(e.clipboardData?.files || []).filter((f) => f.type.startsWith('image/'));
+    if (images.length) {
+      e.preventDefault();
+      sendFiles(images, 'image');
+    }
+  }
+
   function openConversation(id) {
     setSearchParams({ c: id });
   }
@@ -535,7 +595,7 @@ export default function Messages() {
           </aside>
 
           {/* Open chat */}
-          <section className={`${activeId ? 'flex' : 'hidden md:flex'} min-h-0 min-w-0 flex-1 flex-col`}>
+          <section className={`${activeId ? 'flex' : 'hidden md:flex'} relative min-h-0 min-w-0 flex-1 flex-col`}>
             {!activeId ? (
               <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center text-night-muted">
                 <MessageCircle className="h-12 w-12 opacity-40" aria-hidden="true" />
@@ -637,6 +697,22 @@ export default function Messages() {
                           onDecline={() => handleDecline(m.offer)}
                         />
                       );
+                    } else if (ATTACHMENT_KINDS.includes(m.kind) && m.attachment) {
+                      body = (
+                        <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                          <div
+                            className={`max-w-[85%] rounded-2xl p-1.5 text-sm shadow-sm sm:max-w-[65%] ${
+                              mine ? 'rounded-br-md bg-accent text-white' : 'rounded-bl-md bg-night-elevated/90 text-night-text'
+                            }`}
+                          >
+                            <AttachmentMessage message={m} mine={mine} />
+                            <p className={`mt-1 flex items-center justify-end gap-1 px-1.5 text-[10px] ${mine ? 'text-white/70' : 'text-night-muted'}`}>
+                              {formatClock(m.created_at)}
+                              {mine && <Ticks read={!!otherReadAt && otherReadAt >= new Date(m.created_at)} />}
+                            </p>
+                          </div>
+                        </div>
+                      );
                     } else {
                       body = (
                         <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
@@ -662,6 +738,31 @@ export default function Messages() {
                       </div>
                     );
                   })}
+                  {uploads.map((u) => (
+                    <div key={u.id} className="flex justify-end">
+                      <div className="flex max-w-[85%] items-center gap-2 rounded-2xl rounded-br-md bg-accent/60 px-3.5 py-2 text-sm text-white sm:max-w-[65%]">
+                        <span className="truncate">
+                          {u.kind === 'image' ? '📷' : '📄'} {u.name}
+                        </span>
+                        {u.status === 'uploading' ? (
+                          <span className="shrink-0 text-[11px] text-white/80">Sending…</span>
+                        ) : (
+                          <>
+                            <span className="shrink-0 text-[11px] text-red-200" title={u.error}>
+                              Failed{u.error ? `: ${u.error}` : ''}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setUploads((all) => all.filter((x) => x.id !== u.id))}
+                              className="shrink-0 text-[11px] underline"
+                            >
+                              Dismiss
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                   <div ref={bottomRef} />
                 </div>
 
@@ -696,9 +797,15 @@ export default function Messages() {
                     type="text"
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
+                    onPaste={handlePaste}
                     placeholder="Type a message"
                     aria-label="Message"
                     className="h-10 min-w-0 flex-1 rounded-full border border-night-border/20 bg-black/30 px-4 text-sm text-night-text placeholder:text-night-muted/60 focus:outline-none focus:ring-2 focus:ring-accent"
+                  />
+                  <AttachMenu
+                    onImages={(files) => sendFiles(files, 'image')}
+                    onDocument={(files) => sendFiles(files, 'file')}
+                    onLocation={() => setLocationOpen(true)}
                   />
                   <button
                     type="submit"
@@ -708,6 +815,18 @@ export default function Messages() {
                     Send
                   </button>
                 </form>
+
+                {locationOpen && (
+                  <Suspense
+                    fallback={
+                      <div className="absolute inset-0 z-20 flex items-center justify-center bg-night-elevated text-sm text-night-muted">
+                        Loading map…
+                      </div>
+                    }
+                  >
+                    <LocationPicker onSend={sendLocation} onClose={() => setLocationOpen(false)} />
+                  </Suspense>
+                )}
               </>
             )}
           </section>

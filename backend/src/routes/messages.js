@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth } from '../middleware/auth.js';
 import { notify } from '../lib/notify.js';
 import { getOrCreateConversation } from '../lib/conversations.js';
+import { ATTACHMENT_BUCKET, parseAttachmentMessage } from '../lib/attachments.js';
 
 const router = Router();
 
@@ -186,18 +187,38 @@ router.get('/conversations/:id/messages', requireAuth, async (req, res) => {
   res.json(data);
 });
 
-// POST /api/messages/conversations/:id/messages
+// POST /api/messages/conversations/:id/messages - a text message ({ body }),
+// or something from the "+" menu ({ kind: 'image' | 'file' | 'location',
+// attachment }). Photos/documents are already uploaded to the private
+// chat-attachments bucket by the browser; this records the message.
 router.post('/conversations/:id/messages', requireAuth, async (req, res) => {
-  const { body } = req.body;
-  if (!body || !body.trim()) return res.status(400).json({ error: 'Message body is required' });
+  const { body, kind = 'text' } = req.body;
 
   const participant = await assertParticipant(req.params.id, req.user.id);
   if (participant === null) return res.status(404).json({ error: 'Conversation not found' });
   if (participant === false) return res.status(403).json({ error: 'Forbidden' });
 
+  let row;
+  if (kind === 'text') {
+    if (typeof body !== 'string' || !body.trim()) return res.status(400).json({ error: 'Message body is required' });
+    row = { kind: 'text', body: body.trim().slice(0, 4000) };
+  } else {
+    const parsed = parseAttachmentMessage(req.body, req.params.id);
+    if (parsed.error) return res.status(400).json({ error: parsed.error });
+    if (parsed.kind !== 'location') {
+      // The upload has to have actually happened (and landed in this
+      // thread's folder) - a signed URL can only be made for a real file.
+      const { error: fileError } = await supabase.storage
+        .from(ATTACHMENT_BUCKET)
+        .createSignedUrl(parsed.attachment.path, 60);
+      if (fileError) return res.status(400).json({ error: 'Attachment upload not found - try sending it again' });
+    }
+    row = parsed;
+  }
+
   const { data, error } = await supabase
     .from('messages')
-    .insert({ conversation_id: req.params.id, sender_id: req.user.id, body: body.trim(), kind: 'text' })
+    .insert({ conversation_id: req.params.id, sender_id: req.user.id, ...row })
     .select(MESSAGE_SELECT)
     .single();
 
@@ -209,7 +230,7 @@ router.post('/conversations/:id/messages', requireAuth, async (req, res) => {
     userId: recipientId,
     type: 'new_message',
     title: `New message from ${senderProfile?.full_name || 'a Rent It user'}`,
-    body: body.trim().slice(0, 140),
+    body: row.body.slice(0, 140),
     link: `/messages?c=${req.params.id}`,
   });
 

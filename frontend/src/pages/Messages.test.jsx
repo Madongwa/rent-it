@@ -13,9 +13,15 @@ const { api, auth } = vi.hoisted(() => ({
     createRental: vi.fn(),
     sendMessage: vi.fn(),
     markConversationRead: vi.fn(),
+    sendAttachment: vi.fn(),
   },
   auth: { user: null },
 }));
+
+const { uploads } = vi.hoisted(() => ({
+  uploads: { uploadAttachment: vi.fn(), signedAttachmentUrl: vi.fn(), shrinkImage: vi.fn() },
+}));
+vi.mock('../lib/chatAttachments', async (importOriginal) => ({ ...(await importOriginal()), ...uploads }));
 
 vi.mock('../lib/api', () => ({ api }));
 vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: auth.user }) }));
@@ -74,6 +80,9 @@ function renderAs(user, messages) {
 beforeEach(() => {
   Object.values(api).forEach((fn) => fn.mockReset());
   api.markConversationRead.mockResolvedValue({});
+  Object.values(uploads).forEach((fn) => fn.mockReset());
+  uploads.shrinkImage.mockImplementation(async (f) => f);
+  uploads.signedAttachmentUrl.mockResolvedValue('https://signed.example/file');
   Element.prototype.scrollIntoView = vi.fn();
   localStorage.clear();
 });
@@ -289,5 +298,87 @@ describe('Messages - WhatsApp-style chat list and receipts', () => {
     renderChat(RENTER, { messages: [] });
     await userEvent.click(await screen.findByRole('button', { name: 'Back to chats' }));
     expect(await screen.findByText('Pick a chat to start messaging.')).toBeInTheDocument();
+  });
+});
+
+describe('Messages - the + menu (photos, documents, location)', () => {
+  function renderChat(messages = []) {
+    auth.user = RENTER;
+    api.getConversations.mockResolvedValue([conversation]);
+    api.getMessages.mockResolvedValue(messages);
+    return render(
+      <MemoryRouter initialEntries={['/messages?c=conv-1']}>
+        <Messages />
+      </MemoryRouter>
+    );
+  }
+
+  it('opens a menu with Photos, Camera, Document and Location beside Send', async () => {
+    renderChat();
+    await userEvent.click(await screen.findByRole('button', { name: 'Attach' }));
+    for (const name of ['Photos', 'Camera', 'Document', 'Location']) {
+      expect(screen.getByRole('menuitem', { name })).toBeInTheDocument();
+    }
+  });
+
+  it('uploads a chosen photo into the chat folder and sends it', async () => {
+    const attachment = { path: 'conv-1/x-photo.jpg', name: 'photo.jpg', size: 5, mime_type: 'image/jpeg' };
+    uploads.uploadAttachment.mockResolvedValue(attachment);
+    api.sendAttachment.mockResolvedValue({
+      id: 'img1', conversation_id: 'conv-1', sender_id: RENTER.id, kind: 'image', body: '📷 Photo', attachment, created_at: new Date().toISOString(), offer: null,
+    });
+    renderChat();
+    await screen.findByRole('button', { name: 'Attach' });
+
+    const photo = new File(['hello'], 'photo.jpg', { type: 'image/jpeg' });
+    fireEvent.change(screen.getByTestId('attach-photos'), { target: { files: [photo] } });
+
+    await waitFor(() => expect(api.sendAttachment).toHaveBeenCalledWith('conv-1', 'image', attachment));
+    expect(uploads.uploadAttachment).toHaveBeenCalledWith('conv-1', photo);
+    expect(await screen.findByAltText('photo.jpg')).toHaveAttribute('src', 'https://signed.example/file');
+  });
+
+  it('sends a PDF as a document', async () => {
+    const attachment = { path: 'conv-1/x-lease.pdf', name: 'lease.pdf', size: 5, mime_type: 'application/pdf' };
+    uploads.uploadAttachment.mockResolvedValue(attachment);
+    api.sendAttachment.mockResolvedValue({ id: 'f1', conversation_id: 'conv-1', sender_id: RENTER.id, kind: 'file', body: '📄 lease.pdf', attachment, created_at: new Date().toISOString(), offer: null });
+    renderChat();
+    await screen.findByRole('button', { name: 'Attach' });
+
+    fireEvent.change(screen.getByTestId('attach-document'), { target: { files: [new File(['%PDF'], 'lease.pdf', { type: 'application/pdf' })] } });
+    await waitFor(() => expect(api.sendAttachment).toHaveBeenCalledWith('conv-1', 'file', attachment));
+    expect(await screen.findByText('lease.pdf')).toBeInTheDocument();
+  });
+
+  it("refuses a file type that isn't allowed, without uploading it", async () => {
+    renderChat();
+    await screen.findByRole('button', { name: 'Attach' });
+    fireEvent.change(screen.getByTestId('attach-document'), { target: { files: [new File(['MZ'], 'setup.exe', { type: 'application/x-msdownload' })] } });
+
+    expect(await screen.findByText(/setup\.exe isn't a supported document/)).toBeInTheDocument();
+    expect(uploads.uploadAttachment).not.toHaveBeenCalled();
+  });
+
+  it('shows a failed upload with the reason', async () => {
+    uploads.uploadAttachment.mockRejectedValue(new Error('The object exceeded the maximum allowed size'));
+    renderChat();
+    await screen.findByRole('button', { name: 'Attach' });
+    fireEvent.change(screen.getByTestId('attach-photos'), { target: { files: [new File(['x'], 'big.jpg', { type: 'image/jpeg' })] } });
+
+    expect(await screen.findByText(/Failed: The object exceeded/)).toBeInTheDocument();
+    expect(api.sendAttachment).not.toHaveBeenCalled();
+  });
+
+  it('renders a received document with a download link and a location with a Maps link', async () => {
+    renderChat([
+      { id: 'f', conversation_id: 'conv-1', sender_id: OWNER.id, kind: 'file', body: '📄 Agreement.pdf', attachment: { path: 'conv-1/a.pdf', name: 'Agreement.pdf', size: 245760, mime_type: 'application/pdf' }, created_at: new Date().toISOString(), offer: null },
+      { id: 'l', conversation_id: 'conv-1', sender_id: OWNER.id, kind: 'location', body: '📍 Main gate', attachment: { lat: 28.6129, lng: 77.2295, label: 'Main gate' }, created_at: new Date().toISOString(), offer: null },
+    ]);
+
+    expect(await screen.findByText('Agreement.pdf')).toBeInTheDocument();
+    expect(screen.getByText('PDF · 240 KB')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Download Agreement.pdf' })).toHaveAttribute('href', 'https://signed.example/file');
+    expect(screen.getByText('Main gate')).toBeInTheDocument();
+    expect(screen.getByTitle('Open in Google Maps')).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=28.6129,77.2295');
   });
 });

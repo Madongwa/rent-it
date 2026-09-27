@@ -848,3 +848,127 @@ create policy "Participants can send messages" on public.messages
         and (auth.uid() = c.owner_id or auth.uid() = c.renter_id)
     )
   );
+
+-- ---------------------------------------------------------------------------
+-- Chat attachments: photos, documents (e.g. a rental agreement PDF) and
+-- locations sent from the "+" menu in Messages. Photos/documents are
+-- uploaded straight from the browser into the private chat-attachments
+-- bucket, in a folder named after the conversation (<conversation id>/...),
+-- then the backend records a message pointing at the file. Locations need
+-- no file - just coordinates.
+--
+-- attachment holds the details, by kind:
+--   image/file: { path, name, size, mime_type }
+--   location:   { lat, lng, label }
+-- ---------------------------------------------------------------------------
+alter table public.messages
+  add column if not exists attachment jsonb;
+
+-- kind's check came from `add column ... check (...)` above, so Postgres
+-- named it messages_kind_check - widen it to the attachment kinds.
+alter table public.messages drop constraint if exists messages_kind_check;
+alter table public.messages
+  add constraint messages_kind_check
+    check (kind in ('text', 'offer', 'system', 'image', 'file', 'location'));
+
+-- Private, like rental-photos: chat files can include ID proof, addresses or
+-- signed agreements. 20 MB cap and an allow-list of image/document types,
+-- enforced by Supabase Storage itself on upload.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'chat-attachments',
+  'chat-attachments',
+  false,
+  20971520,
+  array[
+    'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.oasis.opendocument.text',
+    'application/rtf',
+    'text/plain',
+    'text/csv',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ]
+)
+on conflict (id) do update
+  set public = excluded.public,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "Chat participants can upload attachments" on storage.objects;
+create policy "Chat participants can upload attachments" on storage.objects
+  for insert with check (
+    bucket_id = 'chat-attachments'
+    and exists (
+      select 1 from public.conversations c
+      where c.id::text = (storage.foldername(name))[1]
+        and (auth.uid() = c.owner_id or auth.uid() = c.renter_id)
+    )
+  );
+
+-- Staff can open attachments too - a photo or agreement sent in chat is
+-- often the evidence in a dispute.
+drop policy if exists "Chat participants and admins can view attachments" on storage.objects;
+create policy "Chat participants and admins can view attachments" on storage.objects
+  for select using (
+    bucket_id = 'chat-attachments'
+    and (
+      exists (
+        select 1 from public.conversations c
+        where c.id::text = (storage.foldername(name))[1]
+          and (auth.uid() = c.owner_id or auth.uid() = c.renter_id)
+      )
+      or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+    )
+  );
+
+-- ---------------------------------------------------------------------------
+-- Terms acceptance (clickwrap). A signed-in user must accept the current
+-- Terms of Service + Privacy Policy once; the profile holds the version they
+-- last accepted, and terms_acceptances keeps every acceptance as an
+-- evidence trail (which version, when, from what browser). Bumping
+-- TERMS_VERSION in backend/src/lib/terms.js and frontend/src/content/legal.js
+-- asks everyone to accept again - do that only for material changes.
+-- ---------------------------------------------------------------------------
+alter table public.profiles
+  add column if not exists terms_accepted_at timestamptz,
+  add column if not exists terms_version text;
+
+create table if not exists public.terms_acceptances (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  terms_version text not null,
+  accepted_at timestamptz not null default now(),
+  user_agent text
+);
+
+create index if not exists terms_acceptances_user_idx on public.terms_acceptances (user_id, accepted_at desc);
+
+alter table public.terms_acceptances enable row level security;
+
+drop policy if exists "Users and admins can view terms acceptances" on public.terms_acceptances;
+create policy "Users and admins can view terms acceptances" on public.terms_acceptances
+  for select using (
+    auth.uid() = user_id
+    or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+  );
+
+-- ---------------------------------------------------------------------------
+-- Clients never write to public tables directly. The frontend only reads
+-- (and subscribes to realtime) with the anon key - every insert, update and
+-- delete goes through the backend, which uses the service_role key and does
+-- its own authorization. Supabase grants anon/authenticated full table
+-- privileges by default, and several older RLS policies above allowed
+-- client writes they shouldn't have: e.g. "Users can update own profile"
+-- let anyone set their own role to 'admin' or seller_status to 'approved',
+-- "Signed-in users can flag a review" let anyone rewrite any review, and
+-- owners could edit their own listing's avg_rating. Revoking the write
+-- privileges closes all of those at once, whatever the policies say - RLS
+-- policies can only narrow what a role is granted, never widen it. Storage
+-- uploads are unaffected (storage.objects is a separate schema).
+-- ---------------------------------------------------------------------------
+revoke insert, update, delete, truncate on all tables in schema public from anon, authenticated;
+alter default privileges in schema public revoke insert, update, delete, truncate on tables from anon, authenticated;
