@@ -1,36 +1,74 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { IndianRupee } from 'lucide-react';
+import { ArrowLeft, IndianRupee, MessageCircle, Search } from 'lucide-react';
 import { api } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 import OfferForm from '../components/OfferForm';
+import { MESSAGES_READ_EVENT } from '../hooks/useUnreadMessages';
 import { formatDay, formatInr, priceDifference, rentalDays } from '../lib/offers';
 
-function formatTime(iso) {
-  return new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function startOfDay(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
-// Per-conversation "read up to" timestamps, kept in localStorage since
-// there's no read-receipts table - good enough for a personal unread dot,
-// not meant to sync across devices.
-const LAST_READ_KEY = 'rentit_messages_last_read';
-
-function loadLastRead() {
-  try {
-    return JSON.parse(localStorage.getItem(LAST_READ_KEY) || '{}');
-  } catch {
-    return {};
-  }
+function daysAgo(iso) {
+  return Math.round((startOfDay(new Date()) - startOfDay(iso)) / DAY_MS);
 }
 
-function saveLastRead(map) {
-  try {
-    localStorage.setItem(LAST_READ_KEY, JSON.stringify(map));
-  } catch {
-    // Private browsing / storage disabled - unread dots just won't persist across reloads.
+function formatClock(iso) {
+  return new Date(iso).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+}
+
+// Chat list: time today, "Yesterday", weekday this week, else the date.
+function formatListTime(iso) {
+  const ago = daysAgo(iso);
+  if (ago === 0) return formatClock(iso);
+  if (ago === 1) return 'Yesterday';
+  if (ago < 7) return new Date(iso).toLocaleDateString('en-IN', { weekday: 'short' });
+  return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+// Separator between days in a thread.
+function formatDaySeparator(iso) {
+  const ago = daysAgo(iso);
+  if (ago === 0) return 'Today';
+  if (ago === 1) return 'Yesterday';
+  if (ago < 7) return new Date(iso).toLocaleDateString('en-IN', { weekday: 'long' });
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+const AVATAR_COLORS = ['bg-emerald-700', 'bg-sky-700', 'bg-violet-700', 'bg-amber-700', 'bg-rose-700', 'bg-teal-700'];
+
+function Avatar({ name, imageUrl, size = 'h-11 w-11' }) {
+  if (imageUrl) {
+    return <img src={imageUrl} alt="" className={`${size} shrink-0 rounded-full object-cover`} />;
   }
+  const label = (name || '?').trim();
+  const color = AVATAR_COLORS[[...label].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % AVATAR_COLORS.length];
+  return (
+    <span
+      aria-hidden="true"
+      className={`${size} ${color} inline-flex shrink-0 items-center justify-center rounded-full text-base font-semibold uppercase text-white`}
+    >
+      {label.charAt(0)}
+    </span>
+  );
+}
+
+// ✓ sent, ✓✓ read - read means the other person has opened the thread
+// since this message arrived.
+function Ticks({ read }) {
+  return (
+    <span className={read ? 'text-sky-300' : 'opacity-70'} aria-label={read ? 'Read' : 'Sent'}>
+      {read ? '✓✓' : '✓'}
+    </span>
+  );
 }
 
 const OFFER_STATUS_LABEL = {
@@ -59,7 +97,7 @@ function OfferCard({ offer, isFirst, mine, isOwner, otherName, listedPrice, list
 
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-      <div className="w-full max-w-sm rounded-card border border-night-border/20 bg-white/[0.06] p-4">
+      <div className="w-full max-w-sm rounded-card border border-night-border/20 bg-night-elevated/90 p-4">
         <p className="text-caption font-medium uppercase tracking-wide text-night-muted">
           {mine ? 'You' : otherName} {isFirst ? 'sent a request' : 'countered'}
         </p>
@@ -166,8 +204,64 @@ function OfferCard({ offer, isFirst, mine, isOwner, otherName, listedPrice, list
   );
 }
 
+function otherPersonOf(conversation, userId) {
+  return conversation.owner_id === userId ? conversation.renter : conversation.owner;
+}
+
+function ConversationRow({ conversation, userId, active, onOpen }) {
+  const other = otherPersonOf(conversation, userId);
+  const last = conversation.last_message;
+  const mineLast = last && last.sender_id === userId && last.kind !== 'system';
+  const unread = conversation.unread_count || 0;
+  const read =
+    mineLast && conversation.other_last_read_at && new Date(conversation.other_last_read_at) >= new Date(last.created_at);
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/5 ${active ? 'bg-white/10' : ''}`}
+    >
+      <Avatar name={other?.full_name} imageUrl={other?.avatar_url} />
+      <div className="min-w-0 flex-1 border-b border-night-border/10 pb-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className={`truncate text-sm ${unread ? 'font-bold' : 'font-semibold'} text-night-text`}>
+            {other?.full_name || 'Rent It user'}
+          </p>
+          <span className={`shrink-0 text-[11px] ${unread ? 'font-semibold text-emerald-400' : 'text-night-muted'}`}>
+            {(last?.created_at || conversation.created_at) && formatListTime(last?.created_at || conversation.created_at)}
+          </span>
+        </div>
+        <p className="truncate text-xs text-night-muted/80">{conversation.listing?.title}</p>
+        <div className="mt-0.5 flex items-center justify-between gap-2">
+          <p className={`truncate text-[13px] ${unread ? 'text-night-text' : 'text-night-muted'}`}>
+            {mineLast && (
+              <>
+                <Ticks read={read} />{' '}
+              </>
+            )}
+            {last ? last.body : 'No messages yet'}
+          </p>
+          {unread > 0 && (
+            <span
+              className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-semibold text-black"
+              aria-label={`${unread} unread`}
+            >
+              {unread}
+            </span>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}
+
 export default function Messages() {
   const { user } = useAuth();
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeId = searchParams.get('c');
   const activeIdRef = useRef(activeId);
@@ -176,7 +270,8 @@ export default function Messages() {
   }, [activeId]);
 
   const [conversations, setConversations] = useState([]);
-  const [loadingList, setLoadingList] = useState(true);
+  const [listLoaded, setListLoaded] = useState(false);
+  const [query, setQuery] = useState('');
   const [messages, setMessages] = useState([]);
   const [loadingThread, setLoadingThread] = useState(false);
   const [draft, setDraft] = useState('');
@@ -185,33 +280,32 @@ export default function Messages() {
   const [threadError, setThreadError] = useState('');
   const [offerBusy, setOfferBusy] = useState(false);
   const [offerFormOpen, setOfferFormOpen] = useState(false);
-  const [lastRead, setLastRead] = useState(loadLastRead);
   const bottomRef = useRef(null);
 
   function loadConversations() {
-    setLoadingList(true);
-    api
+    return api
       .getConversations()
-      .then((data) => {
-        setConversations(data);
-        // First time this feature runs there's no read history at all -
-        // seed everything as "read" instead of flashing every existing
-        // conversation as unread the moment it ships.
-        setLastRead((prev) => {
-          if (Object.keys(prev).length > 0) return prev;
-          const seeded = {};
-          data.forEach((c) => {
-            seeded[c.id] = c.last_message?.created_at || new Date().toISOString();
-          });
-          saveLastRead(seeded);
-          return seeded;
-        });
-      })
+      .then(setConversations)
       .catch((err) => setError(err.message))
-      .finally(() => setLoadingList(false));
+      .finally(() => setListLoaded(true));
   }
 
-  useEffect(loadConversations, []);
+  useEffect(() => {
+    loadConversations();
+  }, []);
+
+  // Like WhatsApp, a thread only counts as read while it's actually on
+  // screen - not when a message lands in a background tab.
+  const markRead = useCallback((id) => {
+    if (!id || document.visibilityState === 'hidden') return;
+    api
+      .markConversationRead(id)
+      .then(() => {
+        setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, unread_count: 0 } : c)));
+        window.dispatchEvent(new Event(MESSAGES_READ_EVENT));
+      })
+      .catch(() => {});
+  }, []);
 
   // Re-fetches the open thread without the "Loading…" flash - used after an
   // offer action, and when an offer card or status line arrives in real
@@ -230,38 +324,40 @@ export default function Messages() {
   useEffect(() => {
     setOfferFormOpen(false);
     setThreadError('');
+    setDraft('');
+    setMessages([]);
     if (!activeId) return;
     setLoadingThread(true);
     api
       .getMessages(activeId)
-      .then(setMessages)
+      .then((data) => {
+        if (activeIdRef.current !== activeId) return;
+        setMessages(data);
+        markRead(activeId);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoadingThread(false));
-  }, [activeId]);
+  }, [activeId, markRead]);
 
-  // Opening a thread (or receiving a message while it's open) counts as
-  // reading it.
+  // Coming back to the tab reads whatever arrived while it was hidden.
   useEffect(() => {
-    if (!activeId) return;
-    setLastRead((prev) => {
-      const next = { ...prev, [activeId]: new Date().toISOString() };
-      saveLastRead(next);
-      return next;
-    });
-  }, [activeId, messages]);
+    function onVisible() {
+      if (document.visibilityState === 'visible') markRead(activeIdRef.current);
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [markRead]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' });
   }, [messages]);
 
-  // Real-time: RLS on the `messages` table means Supabase only ever
-  // delivers rows this user could already SELECT, so no manual filtering
-  // by participant is needed here - just route each insert to the open
-  // thread if it belongs there, and refresh the sidebar's previews/order.
-  // Requires the `messages`/`conversations` tables to be added to the
-  // `supabase_realtime` publication (see schema.sql) - without that this
-  // subscription connects but never receives anything, and the page
-  // silently falls back to updating only on send/reload.
+  // Real-time: RLS on `messages`/`conversations` means Supabase only ever
+  // delivers rows from this user's own threads, so no manual filtering by
+  // participant is needed. New messages go into the open thread (and mark
+  // it read); a conversation UPDATE is the other person reading, which
+  // turns ✓ into ✓✓. Requires both tables in the `supabase_realtime`
+  // publication (see schema.sql).
   useEffect(() => {
     const channel = supabase
       .channel('messages-inbox')
@@ -275,8 +371,24 @@ export default function Messages() {
           } else {
             setMessages((prev) => (prev.some((m) => m.id === incoming.id) ? prev : [...prev, incoming]));
           }
+          if (incoming.sender_id !== userRef.current?.id) markRead(incoming.conversation_id);
         }
         loadConversations();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversations' }, (payload) => {
+        const row = payload.new;
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === row.id
+              ? {
+                  ...c,
+                  owner_last_read_at: row.owner_last_read_at,
+                  renter_last_read_at: row.renter_last_read_at,
+                  other_last_read_at: c.owner_id === userRef.current?.id ? row.renter_last_read_at : row.owner_last_read_at,
+                }
+              : c
+          )
+        );
       })
       .subscribe();
 
@@ -288,7 +400,8 @@ export default function Messages() {
 
   const active = conversations.find((c) => c.id === activeId);
   const isOwner = active?.owner_id === user?.id;
-  const otherName = (isOwner ? active?.renter : active?.owner)?.full_name || 'Rent It user';
+  const other = active ? otherPersonOf(active, user?.id) : null;
+  const otherName = other?.full_name || 'Rent It user';
 
   // The newest offer card decides the thread's deal state: still being
   // bargained (pending), agreed (approved), or over - in which case the
@@ -306,6 +419,15 @@ export default function Messages() {
     }
   });
   const canMakeOffer = active && !isOwner && !negotiating && active.listing?.status === 'available';
+
+  const q = query.trim().toLowerCase();
+  const visibleConversations = q
+    ? conversations.filter((c) =>
+        [otherPersonOf(c, user?.id)?.full_name, c.listing?.title, c.last_message?.body].some((text) =>
+          (text || '').toLowerCase().includes(q)
+        )
+      )
+    : conversations;
 
   async function runOfferAction(action) {
     setThreadError('');
@@ -351,199 +473,247 @@ export default function Messages() {
       setDraft('');
       loadConversations(); // refresh preview/order
     } catch (err) {
-      setError(err.message);
+      setThreadError(err.message);
     } finally {
       setSending(false);
     }
   }
 
+  function openConversation(id) {
+    setSearchParams({ c: id });
+  }
+
+  function closeConversation() {
+    setSearchParams({});
+  }
+
+  const otherReadAt = active?.other_last_read_at ? new Date(active.other_last_read_at) : null;
+
   return (
-    <DarkGradientBg className="min-h-[calc(100vh-4rem)]">
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-      <h1 className="text-heading-sm text-night-text">Messages</h1>
-      <p className="mt-1 text-body text-night-muted">
-        Chat with owners and renters, send offers, and agree on a price.
-      </p>
-
-      <div className="mt-8 grid gap-4 overflow-hidden rounded-card border border-night-border/15 bg-night-card md:grid-cols-[280px_1fr]">
-        <div className="max-h-[65vh] overflow-y-auto border-b border-night-border/15 md:max-h-[75vh] md:border-b-0 md:border-r">
-          {loadingList && <p className="p-4 text-sm text-night-muted">Loading…</p>}
-          {!loadingList && conversations.length === 0 && (
-            <p className="p-4 text-sm text-night-muted">
-              No conversations yet. Message an owner or send a request from a listing page to start one.
-            </p>
-          )}
-          {conversations.map((c) => {
-            const otherPerson = c.owner_id === user?.id ? c.renter : c.owner;
-            const isUnread =
-              activeId !== c.id &&
-              c.last_message &&
-              c.last_message.sender_id !== user?.id &&
-              new Date(c.last_message.created_at) > new Date(lastRead[c.id] || 0);
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setSearchParams({ c: c.id })}
-                className={`block w-full border-b border-night-border/15 px-4 py-3 text-left last:border-b-0 hover:bg-white/5 ${
-                  activeId === c.id ? 'bg-white/10' : ''
-                }`}
-              >
-                <div className="flex items-center gap-1.5">
-                  {isUnread && <span className="h-2 w-2 shrink-0 rounded-full bg-accent" aria-label="Unread" />}
-                  <p className={`truncate text-sm ${isUnread ? 'font-bold text-night-text' : 'font-semibold text-night-text'}`}>
-                    {c.listing?.title}
-                  </p>
-                </div>
-                <p className="text-xs text-night-muted">with {otherPerson?.full_name || 'Rent It user'}</p>
-                {c.last_message && (
-                  <p className="mt-1 truncate text-xs text-night-muted">{c.last_message.body}</p>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex min-h-[50vh] flex-col md:max-h-[75vh] md:min-h-[75vh]">
-          {!active ? (
-            <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-night-muted">
-              Select a conversation to view it.
+    <DarkGradientBg className="flex min-h-0 flex-1 flex-col" contentClassName="flex min-h-0 flex-1 flex-col">
+      <h1 className="sr-only">Messages</h1>
+      <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 sm:px-4 sm:py-4">
+        <div className="flex min-h-0 flex-1 overflow-hidden border-night-border/15 bg-night-card/60 backdrop-blur sm:rounded-card sm:border">
+          {/* Chat list - the whole screen on phones until a chat is opened */}
+          <aside
+            className={`${activeId ? 'hidden md:flex' : 'flex'} min-h-0 w-full flex-col border-night-border/15 md:w-80 md:shrink-0 md:border-r lg:w-96`}
+          >
+            <div className="border-b border-night-border/15 px-4 pb-3 pt-4">
+              <h2 className="text-lg font-bold text-night-text">Chats</h2>
+              <label className="relative mt-3 block">
+                <span className="sr-only">Search chats</span>
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-night-muted" aria-hidden="true" />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search by name, item or message"
+                  className="w-full rounded-full border border-night-border/15 bg-black/30 py-2 pl-9 pr-3 text-sm text-night-text placeholder:text-night-muted/60 focus:outline-none focus:ring-2 focus:ring-accent"
+                />
+              </label>
             </div>
-          ) : (
-            <>
-              <div className="border-b border-night-border/15 px-4 py-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <Link to={`/listing/${active.listing?.id}`} className="text-sm font-semibold text-night-text hover:underline">
-                      {active.listing?.title}
-                    </Link>
-                    <p className="text-xs text-night-muted">
-                      with {otherName}
-                      {active.listing?.price_per_day != null && <> · listed {formatInr(active.listing.price_per_day)}/day</>}
-                    </p>
-                  </div>
-                  {negotiating && (
-                    <span className="shrink-0 rounded-badge bg-amber-500/15 px-2.5 py-1 text-caption font-medium text-amber-400">
-                      Negotiating · {formatInr(latestOffer.price_per_day)}/day
-                    </span>
-                  )}
-                  {dealStatus === 'approved' && (
-                    <span className="shrink-0 rounded-badge bg-emerald-500/15 px-2.5 py-1 text-caption font-medium text-emerald-400">
-                      Deal agreed · {formatInr(latestOffer.price_per_day)}/day
-                    </span>
-                  )}
-                </div>
-                {latestOffer && (
-                  <p className="mt-2 text-caption text-night-muted">
-                    {isOwner
-                      ? 'The renter pays you directly at pickup. Rent It never asks for payment in chat.'
-                      : "Pay the owner directly at pickup, once you've seen the item. Never send money in advance."}
-                  </p>
-                )}
-              </div>
-
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-                {loadingThread && <p className="text-sm text-night-muted">Loading…</p>}
-                {!loadingThread && messages.length === 0 && (
-                  <p className="text-sm text-night-muted">
-                    {isOwner ? 'No messages yet - say hello.' : 'No messages yet - say hello, or make an offer below.'}
-                  </p>
-                )}
-                {messages.map((m) => {
-                  const mine = m.sender_id === user?.id;
-                  if (m.kind === 'system') {
-                    return (
-                      <div key={m.id} className="flex justify-center">
-                        <p className="max-w-[90%] rounded-card bg-white/5 px-3 py-2 text-center text-xs text-night-muted">
-                          {m.body}
-                          <span className="ml-1.5 text-[10px] opacity-70">{formatTime(m.created_at)}</span>
-                        </p>
-                      </div>
-                    );
-                  }
-                  if (m.kind === 'offer' && m.offer) {
-                    return (
-                      <OfferCard
-                        key={m.id}
-                        offer={m.offer}
-                        isFirst={firstOfferIds.has(m.offer.id)}
-                        mine={m.offer.proposed_by === user?.id}
-                        isOwner={isOwner}
-                        otherName={otherName}
-                        listedPrice={m.offer.rental?.listed_price_per_day ?? active.listing?.price_per_day}
-                        listing={active.listing}
-                        busy={offerBusy}
-                        onAccept={() => handleAccept(m.offer)}
-                        onCounter={(terms) => handleCounter(m.offer, terms)}
-                        onDecline={() => handleDecline(m.offer)}
-                      />
-                    );
-                  }
-                  return (
-                    <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                      <div
-                        className={`max-w-[75%] rounded-card px-3.5 py-2 text-sm ${
-                          mine ? 'bg-accent text-white' : 'bg-white/10 text-night-text'
-                        }`}
-                      >
-                        <p className="whitespace-pre-line">{m.body}</p>
-                        <p className={`mt-1 text-[10px] ${mine ? 'text-white/60' : 'text-night-muted'}`}>{formatTime(m.created_at)}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div ref={bottomRef} />
-              </div>
-
-              {threadError && <p className="px-4 pb-2 text-sm text-red-400">{threadError}</p>}
-
-              {offerFormOpen && canMakeOffer && (
-                <div className="border-t border-night-border/15 p-4">
-                  <p className="mb-3 text-sm font-semibold text-night-text">Make an offer</p>
-                  <OfferForm
-                    listedPrice={active.listing?.price_per_day}
-                    depositRequired={active.listing?.deposit_required}
-                    depositAmount={active.listing?.deposit_amount}
-                    onSubmit={handleNewOffer}
-                    onCancel={() => setOfferFormOpen(false)}
-                  />
-                </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {!listLoaded && <p className="p-4 text-sm text-night-muted">Loading…</p>}
+              {listLoaded && conversations.length === 0 && (
+                <p className="p-4 text-sm text-night-muted">
+                  No chats yet. Tap "Message the owner" or send a request on any listing to start one.
+                </p>
               )}
+              {listLoaded && conversations.length > 0 && visibleConversations.length === 0 && (
+                <p className="p-4 text-sm text-night-muted">No chats match "{query.trim()}".</p>
+              )}
+              {visibleConversations.map((c) => (
+                <ConversationRow
+                  key={c.id}
+                  conversation={c}
+                  userId={user?.id}
+                  active={c.id === activeId}
+                  onOpen={() => openConversation(c.id)}
+                />
+              ))}
+            </div>
+          </aside>
 
-              <form onSubmit={handleSend} className="flex gap-2 border-t border-night-border/15 p-3">
-                {canMakeOffer && !offerFormOpen && (
-                  <button
-                    type="button"
-                    onClick={() => setOfferFormOpen(true)}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-btn border border-night-border/25 px-3 text-sm font-medium text-night-text hover:bg-white/5"
-                  >
-                    <IndianRupee className="h-4 w-4" aria-hidden="true" />
-                    <span className="hidden sm:inline">Make an offer</span>
-                    <span className="sm:hidden">Offer</span>
+          {/* Open chat */}
+          <section className={`${activeId ? 'flex' : 'hidden md:flex'} min-h-0 min-w-0 flex-1 flex-col`}>
+            {!activeId ? (
+              <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center text-night-muted">
+                <MessageCircle className="h-12 w-12 opacity-40" aria-hidden="true" />
+                <p className="text-sm">Pick a chat to start messaging.</p>
+              </div>
+            ) : !active ? (
+              <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center text-sm text-night-muted">
+                {listLoaded ? 'This chat could not be found.' : 'Loading…'}
+                {listLoaded && (
+                  <button type="button" onClick={closeConversation} className="font-medium text-night-text hover:underline">
+                    Back to chats
                   </button>
                 )}
-                <input
-                  type="text"
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  placeholder="Type a message…"
-                  className="min-w-0 flex-1 rounded-btn border border-night-border/20 bg-black/20 px-3 py-2 text-sm text-night-text placeholder:text-night-muted/60 focus:outline-none focus:ring-2 focus:ring-accent"
-                />
-                <button
-                  type="submit"
-                  disabled={sending || !draft.trim()}
-                  className="shrink-0 rounded-btn bg-white px-4 text-sm font-medium text-black hover:opacity-90 disabled:opacity-60"
-                >
-                  Send
-                </button>
-              </form>
-            </>
-          )}
+              </div>
+            ) : (
+              <>
+                <header className="border-b border-night-border/15 bg-night-elevated/60 px-3 py-2.5 sm:px-4">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={closeConversation}
+                      aria-label="Back to chats"
+                      className="-ml-1 rounded-full p-1.5 text-night-text hover:bg-white/10 md:hidden"
+                    >
+                      <ArrowLeft className="h-5 w-5" />
+                    </button>
+                    <Avatar name={otherName} imageUrl={other?.avatar_url} size="h-10 w-10" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-night-text">{otherName}</p>
+                      <p className="truncate text-xs text-night-muted">
+                        <Link to={`/listing/${active.listing?.id}`} className="hover:underline">
+                          {active.listing?.title}
+                        </Link>
+                        {active.listing?.price_per_day != null && <> · listed {formatInr(active.listing.price_per_day)}/day</>}
+                      </p>
+                    </div>
+                    {negotiating && (
+                      <span className="hidden shrink-0 rounded-badge bg-amber-500/15 px-2.5 py-1 text-caption font-medium text-amber-400 sm:inline">
+                        Negotiating · {formatInr(latestOffer.price_per_day)}/day
+                      </span>
+                    )}
+                    {dealStatus === 'approved' && (
+                      <span className="hidden shrink-0 rounded-badge bg-emerald-500/15 px-2.5 py-1 text-caption font-medium text-emerald-400 sm:inline">
+                        Deal agreed · {formatInr(latestOffer.price_per_day)}/day
+                      </span>
+                    )}
+                  </div>
+                  {latestOffer && (
+                    <p className="mt-2 text-caption text-night-muted">
+                      {isOwner
+                        ? 'The renter pays you directly at pickup. Rent It never asks for payment in chat.'
+                        : "Pay the owner directly at pickup, once you've seen the item. Never send money in advance."}
+                    </p>
+                  )}
+                </header>
+
+                <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-4 sm:px-6">
+                  {loadingThread && <p className="text-center text-sm text-night-muted">Loading…</p>}
+                  {!loadingThread && messages.length === 0 && (
+                    <p className="mx-auto max-w-sm rounded-card bg-white/5 px-4 py-3 text-center text-sm text-night-muted">
+                      {isOwner ? 'No messages yet - say hello.' : 'No messages yet - say hello, or make an offer below.'}
+                    </p>
+                  )}
+                  {messages.map((m, i) => {
+                    const mine = m.sender_id === user?.id;
+                    const prev = messages[i - 1];
+                    const newDay = !prev || startOfDay(prev.created_at).getTime() !== startOfDay(m.created_at).getTime();
+                    const separator = newDay && (
+                      <div className="flex justify-center py-2">
+                        <span className="rounded-full bg-night-elevated/90 px-3 py-1 text-[11px] font-medium text-night-muted">
+                          {formatDaySeparator(m.created_at)}
+                        </span>
+                      </div>
+                    );
+
+                    let body;
+                    if (m.kind === 'system') {
+                      body = (
+                        <div className="flex justify-center">
+                          <p className="max-w-[90%] rounded-card bg-white/5 px-3 py-2 text-center text-xs text-night-muted">
+                            {m.body}
+                            <span className="ml-1.5 text-[10px] opacity-70">{formatClock(m.created_at)}</span>
+                          </p>
+                        </div>
+                      );
+                    } else if (m.kind === 'offer' && m.offer) {
+                      body = (
+                        <OfferCard
+                          offer={m.offer}
+                          isFirst={firstOfferIds.has(m.offer.id)}
+                          mine={m.offer.proposed_by === user?.id}
+                          isOwner={isOwner}
+                          otherName={otherName}
+                          listedPrice={m.offer.rental?.listed_price_per_day ?? active.listing?.price_per_day}
+                          listing={active.listing}
+                          busy={offerBusy}
+                          onAccept={() => handleAccept(m.offer)}
+                          onCounter={(terms) => handleCounter(m.offer, terms)}
+                          onDecline={() => handleDecline(m.offer)}
+                        />
+                      );
+                    } else {
+                      body = (
+                        <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                          <div
+                            className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm shadow-sm sm:max-w-[65%] ${
+                              mine ? 'rounded-br-md bg-accent text-white' : 'rounded-bl-md bg-night-elevated/90 text-night-text'
+                            }`}
+                          >
+                            <p className="whitespace-pre-line break-words">{m.body}</p>
+                            <p className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${mine ? 'text-white/70' : 'text-night-muted'}`}>
+                              {formatClock(m.created_at)}
+                              {mine && <Ticks read={!!otherReadAt && otherReadAt >= new Date(m.created_at)} />}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={m.id}>
+                        {separator}
+                        {body}
+                      </div>
+                    );
+                  })}
+                  <div ref={bottomRef} />
+                </div>
+
+                {threadError && <p className="px-4 pb-2 text-sm text-red-400">{threadError}</p>}
+
+                {offerFormOpen && canMakeOffer && (
+                  <div className="max-h-[60%] overflow-y-auto border-t border-night-border/15 bg-night-elevated/60 p-4">
+                    <p className="mb-3 text-sm font-semibold text-night-text">Make an offer</p>
+                    <OfferForm
+                      listedPrice={active.listing?.price_per_day}
+                      depositRequired={active.listing?.deposit_required}
+                      depositAmount={active.listing?.deposit_amount}
+                      onSubmit={handleNewOffer}
+                      onCancel={() => setOfferFormOpen(false)}
+                    />
+                  </div>
+                )}
+
+                <form onSubmit={handleSend} className="flex items-center gap-2 border-t border-night-border/15 bg-night-elevated/60 p-2.5 sm:p-3">
+                  {canMakeOffer && !offerFormOpen && (
+                    <button
+                      type="button"
+                      onClick={() => setOfferFormOpen(true)}
+                      className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-night-border/25 px-3 text-sm font-medium text-night-text hover:bg-white/5"
+                    >
+                      <IndianRupee className="h-4 w-4" aria-hidden="true" />
+                      <span className="hidden sm:inline">Make an offer</span>
+                      <span className="sm:hidden">Offer</span>
+                    </button>
+                  )}
+                  <input
+                    type="text"
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    placeholder="Type a message"
+                    aria-label="Message"
+                    className="h-10 min-w-0 flex-1 rounded-full border border-night-border/20 bg-black/30 px-4 text-sm text-night-text placeholder:text-night-muted/60 focus:outline-none focus:ring-2 focus:ring-accent"
+                  />
+                  <button
+                    type="submit"
+                    disabled={sending || !draft.trim()}
+                    className="h-10 shrink-0 rounded-full bg-white px-4 text-sm font-medium text-black hover:opacity-90 disabled:opacity-60"
+                  >
+                    Send
+                  </button>
+                </form>
+              </>
+            )}
+          </section>
         </div>
       </div>
-
-      {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
-    </div>
+      {error && <p className="px-4 pb-3 text-center text-sm text-red-400">{error}</p>}
     </DarkGradientBg>
   );
 }

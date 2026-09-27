@@ -1,4 +1,4 @@
-import { Link, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -11,7 +11,6 @@ import EditListing from './pages/EditListing';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-import About from './pages/About';
 import HowItWorks from './pages/HowItWorks';
 import WhyItMatters from './pages/WhyItMatters';
 import Profile from './pages/Profile';
@@ -33,12 +32,16 @@ export default function App() {
   // page content doesn't start underneath it. See .rh-nav-offset.
   const pathname = useLocation().pathname;
   const isHome = pathname === '/';
+  // Messages is a full-screen chat app (like WhatsApp Web): the page is
+  // exactly one screen tall, the chat panes scroll on their own, and
+  // there's no footer underneath.
+  const isChat = pathname === '/messages';
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className={isChat ? 'flex h-[100dvh] flex-col overflow-hidden' : 'min-h-screen flex flex-col'}>
       <ScrollToTop />
       <Navbar />
-      <main className={`flex-1 ${isHome ? '' : 'rh-nav-offset'}`}>
+      <main className={`flex-1 ${isHome ? '' : 'rh-nav-offset'} ${isChat ? 'flex min-h-0 flex-col' : ''}`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/marketplace" element={<Marketplace />} />
@@ -117,21 +120,24 @@ export default function App() {
           <Route path="/help" element={<Help />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
-          <Route path="/about" element={<About />} />
+          {/* The About page was replaced by Messages in the nav - keep old links working. */}
+          <Route path="/about" element={<Navigate to="/why-it-matters" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      <footer className="border-t border-night-border/15 bg-night-bg py-6 text-center text-caption text-night-muted">
-        <p>© {new Date().getFullYear()} Rent It. Rent smarter, not harder.</p>
-        <p className="mt-1 space-x-3">
-          <Link to="/terms" className="hover:underline">
-            Terms
-          </Link>
-          <Link to="/privacy" className="hover:underline">
-            Privacy
-          </Link>
-        </p>
-      </footer>
+      {!isChat && (
+        <footer className="border-t border-night-border/15 bg-night-bg py-6 text-center text-caption text-night-muted">
+          <p>© {new Date().getFullYear()} Rent It. Rent smarter, not harder.</p>
+          <p className="mt-1 space-x-3">
+            <Link to="/terms" className="hover:underline">
+              Terms
+            </Link>
+            <Link to="/privacy" className="hover:underline">
+              Privacy
+            </Link>
+          </p>
+        </footer>
+      )}
     </div>
   );
 }

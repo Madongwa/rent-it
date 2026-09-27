@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { notify } from '../lib/notify.js';
 import { getOrCreateConversation, postMessage } from '../lib/conversations.js';
 import { parseOfferTerms, describeTerms, formatInr, whoseTurn } from '../lib/offers.js';
+import { releaseListingIfIdle } from '../lib/listingStatus.js';
 
 // A rental request carries the renter's own per-day price, and the two
 // sides bargain in the listing's chat thread: every offer/counter-offer is
@@ -48,14 +49,19 @@ function threadLink(conversationId, dashboardTab) {
   return conversationId ? `/messages?c=${conversationId}` : `/dashboard?tab=${dashboardTab}`;
 }
 
-// Only approved rentals actually block dates - two ranges [a,b] and [c,d]
-// overlap iff a<=d and c<=b.
+// Only approved (or disputed) rentals actually block dates - two ranges
+// [a,b] and [c,d] overlap iff a<=d and c<=b. This is the friendly early
+// check; the rentals_no_overlapping_bookings constraint in schema.sql is
+// what guarantees it when two accepts race.
+const BOOKED_STATUSES = ['approved', 'disputed'];
+const BOOKED_ERROR = 'This item is already booked for part of those dates';
+
 async function hasBookingConflict({ listingId, startDate, endDate, excludeRentalId }) {
   let query = supabase
     .from('rentals')
     .select('id')
     .eq('listing_id', listingId)
-    .eq('status', 'approved')
+    .in('status', BOOKED_STATUSES)
     .lte('start_date', endDate)
     .gte('end_date', startDate)
     .limit(1);
@@ -107,7 +113,7 @@ router.post('/', requireAuth, async (req, res) => {
     endDate: terms.end_date,
   });
   if (conflictError) return res.status(500).json({ error: conflictError.message });
-  if (conflict) return res.status(409).json({ error: 'This item is already booked for part of those dates' });
+  if (conflict) return res.status(409).json({ error: BOOKED_ERROR });
 
   const { data: conversation, error: conversationError } = await getOrCreateConversation({
     listingId: listing_id,
@@ -152,7 +158,7 @@ router.post('/', requireAuth, async (req, res) => {
     offerId: offer.id,
   });
 
-  notify({
+  await notify({
     userId: listing.owner_id,
     type: 'rental_request',
     title: `New offer on "${listing.title}"`,
@@ -246,8 +252,20 @@ router.post('/:id/offers', requireAuth, async (req, res) => {
     return res.status(500).json({ error: offerError.message });
   }
 
-  const { data, error } = await supabase.from('rentals').update(terms).eq('id', rental.id).select(RENTAL_SELECT).single();
+  // Only while still pending - if the other side withdrew or declined in
+  // the meantime, this counter never counted, so close it again.
+  const { data, error } = await supabase
+    .from('rentals')
+    .update(terms)
+    .eq('id', rental.id)
+    .eq('status', 'pending')
+    .select(RENTAL_SELECT)
+    .maybeSingle();
   if (error) return res.status(500).json({ error: error.message });
+  if (!data) {
+    await supabase.from('rental_offers').update({ status: 'withdrawn' }).eq('id', offer.id).eq('status', 'open');
+    return res.status(409).json({ error: 'This request was just closed - refresh to see the latest.' });
+  }
 
   const summary = describeTerms(terms, rental.listed_price_per_day ?? rental.listing.price_per_day);
   await postMessage({
@@ -258,7 +276,7 @@ router.post('/:id/offers', requireAuth, async (req, res) => {
     offerId: offer.id,
   });
 
-  notify({
+  await notify({
     userId: isOwner ? rental.renter_id : rental.listing.owner_id,
     type: 'rental_counter_offer',
     title: `New counter-offer on "${rental.listing.title}"`,
@@ -303,7 +321,24 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
     excludeRentalId: rental.id,
   });
   if (conflictError) return res.status(500).json({ error: conflictError.message });
-  if (conflict) return res.status(409).json({ error: 'This item is already booked for part of those dates' });
+  if (conflict) return res.status(409).json({ error: BOOKED_ERROR });
+
+  // Claim the rental first (compare-and-set on status). A withdraw or
+  // decline racing this one does the same on its side, so exactly one of
+  // them wins - and the loser changes nothing.
+  const { data: claimed, error: claimError } = await supabase
+    .from('rentals')
+    .update({ status: 'approved', ...terms })
+    .eq('id', rental.id)
+    .eq('status', 'pending')
+    .select('id');
+  // 23P01 = exclusion_violation: another offer on overlapping dates was
+  // accepted in the instant since the check above.
+  if (claimError?.code === '23P01') return res.status(409).json({ error: BOOKED_ERROR });
+  if (claimError) return res.status(500).json({ error: claimError.message });
+  if (claimed.length === 0) {
+    return res.status(409).json({ error: 'This request was just withdrawn or answered - refresh to see the latest.' });
+  }
 
   if (openOffer) {
     const { data: accepted, error: acceptError } = await supabase
@@ -312,23 +347,26 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
       .eq('id', openOffer.id)
       .eq('status', 'open')
       .select('id');
-    if (acceptError) return res.status(500).json({ error: acceptError.message });
-    if (accepted.length === 0) {
-      return res.status(409).json({ error: 'This offer was just answered - refresh to see the latest.' });
+    if (acceptError || accepted.length === 0) {
+      // The offer changed under us (a counter landed first) - put the
+      // rental back the way it was.
+      await supabase
+        .from('rentals')
+        .update({ status: 'pending', price_per_day: rental.price_per_day, start_date: rental.start_date, end_date: rental.end_date })
+        .eq('id', rental.id)
+        .eq('status', 'approved');
+      if (acceptError) return res.status(500).json({ error: acceptError.message });
+      return res.status(409).json({ error: 'This offer was just countered - refresh to see the latest.' });
     }
   }
 
-  const { data, error } = await supabase
-    .from('rentals')
-    .update({ status: 'approved', ...terms })
-    .eq('id', rental.id)
-    .eq('status', 'pending')
-    .select(RENTAL_SELECT)
-    .maybeSingle();
-  if (error) return res.status(500).json({ error: error.message });
-  if (!data) return res.status(409).json({ error: 'This request was just cancelled - refresh to see the latest.' });
-
   await supabase.from('listings').update({ status: 'rented' }).eq('id', rental.listing_id);
+
+  const { data, error } = await supabase.from('rentals').select(RENTAL_SELECT).eq('id', rental.id).single();
+  if (error) return res.status(500).json({ error: error.message });
+  // Cancelled in the instant after it was approved - don't leave the
+  // listing marked rented for a booking that no longer exists.
+  if (data.status !== 'approved') await releaseListingIfIdle(rental.listing_id);
 
   const summary = describeTerms(terms, rental.listed_price_per_day ?? rental.listing.price_per_day);
   const deposit = rental.listing.deposit_required
@@ -343,7 +381,7 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
     kind: 'system',
   });
 
-  notify({
+  await notify({
     userId: isOwner ? rental.renter_id : rental.listing.owner_id,
     type: 'rental_approved',
     title: `Deal agreed on "${rental.listing.title}"`,
@@ -415,11 +453,10 @@ router.patch('/:id', requireAuth, async (req, res) => {
     }
   }
 
-  // Only an approved rental ever marked the listing as rented - declining
-  // or withdrawing a pending request mustn't free up a listing that a
-  // different, approved rental is still using.
+  // Only an approved rental ever marked the listing as rented, and the
+  // listing stays rented while any other approved rental still holds it.
   if (rental.status === 'approved') {
-    await supabase.from('listings').update({ status: 'available' }).eq('id', rental.listing_id);
+    await releaseListingIfIdle(rental.listing_id);
   }
 
   const actorName = await profileName(req.user.id);
@@ -436,7 +473,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
     completed: { title: 'Rental marked complete', body: `Your rental of "${data.listing.title}" is marked complete.` },
     cancelled: { title: 'Rental cancelled', body: `The rental for "${data.listing.title}" was cancelled.` },
   };
-  notify({
+  await notify({
     userId: isOwner ? rental.renter_id : data.listing.owner_id,
     type: `rental_${status}`,
     ...NOTIFY_COPY[status],
@@ -529,7 +566,7 @@ router.post('/:id/dispute', requireAuth, async (req, res) => {
   });
 
   const otherPartyId = req.user.id === rental.renter_id ? rental.listing.owner_id : rental.renter_id;
-  notify({
+  await notify({
     userId: otherPartyId,
     type: 'rental_disputed',
     title: 'A problem was reported',

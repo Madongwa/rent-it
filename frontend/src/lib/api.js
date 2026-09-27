@@ -71,6 +71,9 @@ export const api = {
   startConversation: (listing_id) =>
     request('/messages/conversations', { method: 'POST', body: JSON.stringify({ listing_id }) }),
   getMessages: (conversationId) => request(`/messages/conversations/${conversationId}/messages`),
+  markConversationRead: (conversationId) =>
+    request(`/messages/conversations/${conversationId}/read`, { method: 'POST' }),
+  getUnreadMessageCount: () => request('/messages/unread-count'),
   sendMessage: (conversationId, body) =>
     request(`/messages/conversations/${conversationId}/messages`, {
       method: 'POST',

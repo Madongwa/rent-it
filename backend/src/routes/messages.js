@@ -7,7 +7,7 @@ import { getOrCreateConversation } from '../lib/conversations.js';
 const router = Router();
 
 const CONVERSATION_SELECT =
-  '*, listing:listings(id, title, image_url, status, price_per_day, deposit_required, deposit_amount), owner:profiles!conversations_owner_id_fkey(id, full_name), renter:profiles!conversations_renter_id_fkey(id, full_name)';
+  '*, listing:listings(id, title, image_url, status, price_per_day, deposit_required, deposit_amount), owner:profiles!conversations_owner_id_fkey(id, full_name, avatar_url), renter:profiles!conversations_renter_id_fkey(id, full_name, avatar_url)';
 
 // Offer cards (kind 'offer') carry their offer, plus the rental's current
 // status and the price the listing had when the request was made, so the
@@ -26,8 +26,22 @@ async function assertParticipant(conversationId, userId) {
   return data;
 }
 
+// Each thread has exactly two sides - which read-receipt column is "mine"
+// and which is the other person's.
+function readColumns(conversation, userId) {
+  const mine = conversation.owner_id === userId ? 'owner_last_read_at' : 'renter_last_read_at';
+  const theirs = mine === 'owner_last_read_at' ? 'renter_last_read_at' : 'owner_last_read_at';
+  return { mine, theirs };
+}
+
+function isUnread(message, userId, lastReadAt) {
+  return message.sender_id !== userId && new Date(message.created_at) > new Date(lastReadAt);
+}
+
 // GET /api/messages/conversations - every thread I'm part of, plus the most
-// recent message in each (for a preview line), newest activity first.
+// recent message in each (for a preview line), how many messages I haven't
+// read yet, and how far the other person has read (for ✓✓ ticks) - newest
+// activity first.
 router.get('/conversations', requireAuth, async (req, res) => {
   const { data, error } = await supabase
     .from('conversations')
@@ -35,25 +49,97 @@ router.get('/conversations', requireAuth, async (req, res) => {
     .or(`owner_id.eq.${req.user.id},renter_id.eq.${req.user.id}`);
   if (error) return res.status(500).json({ error: error.message });
 
-  const conversationIds = data.map((c) => c.id);
-  let lastByConversation = {};
-  if (conversationIds.length > 0) {
+  const byId = Object.fromEntries(data.map((c) => [c.id, c]));
+  const lastByConversation = {};
+  const unreadByConversation = {};
+  if (data.length > 0) {
     const { data: recent, error: recentError } = await supabase
       .from('messages')
       .select('conversation_id, body, kind, sender_id, created_at')
-      .in('conversation_id', conversationIds)
+      .in('conversation_id', Object.keys(byId))
       .order('created_at', { ascending: false });
     if (recentError) return res.status(500).json({ error: recentError.message });
     for (const m of recent) {
       if (!lastByConversation[m.conversation_id]) lastByConversation[m.conversation_id] = m;
+      const c = byId[m.conversation_id];
+      if (isUnread(m, req.user.id, c[readColumns(c, req.user.id).mine])) {
+        unreadByConversation[m.conversation_id] = (unreadByConversation[m.conversation_id] || 0) + 1;
+      }
     }
   }
 
   const withPreview = data
-    .map((c) => ({ ...c, last_message: lastByConversation[c.id] || null }))
+    .map((c) => ({
+      ...c,
+      last_message: lastByConversation[c.id] || null,
+      unread_count: unreadByConversation[c.id] || 0,
+      other_last_read_at: c[readColumns(c, req.user.id).theirs],
+    }))
     .sort((a, b) => new Date(b.last_message?.created_at || b.created_at) - new Date(a.last_message?.created_at || a.created_at));
 
   res.json(withPreview);
+});
+
+// GET /api/messages/unread-count - for the navbar badge: how many chats
+// have messages I haven't read, and how many messages that is in total.
+router.get('/unread-count', requireAuth, async (req, res) => {
+  const { data: conversations, error } = await supabase
+    .from('conversations')
+    .select('id, owner_id, renter_id, owner_last_read_at, renter_last_read_at')
+    .or(`owner_id.eq.${req.user.id},renter_id.eq.${req.user.id}`);
+  if (error) return res.status(500).json({ error: error.message });
+  if (conversations.length === 0) return res.json({ count: 0, conversations: 0 });
+
+  const byId = Object.fromEntries(conversations.map((c) => [c.id, c]));
+  // Nothing older than the earliest read point can be unread, so there's
+  // no need to pull every message ever sent.
+  const oldestReadAt = conversations
+    .map((c) => c[readColumns(c, req.user.id).mine])
+    .reduce((min, t) => (new Date(t) < new Date(min) ? t : min));
+
+  const { data: incoming, error: messagesError } = await supabase
+    .from('messages')
+    .select('conversation_id, sender_id, created_at')
+    .in('conversation_id', Object.keys(byId))
+    .neq('sender_id', req.user.id)
+    .gt('created_at', oldestReadAt);
+  if (messagesError) return res.status(500).json({ error: messagesError.message });
+
+  const unread = incoming.filter((m) => {
+    const c = byId[m.conversation_id];
+    return isUnread(m, req.user.id, c[readColumns(c, req.user.id).mine]);
+  });
+  res.json({ count: unread.length, conversations: new Set(unread.map((m) => m.conversation_id)).size });
+});
+
+// POST /api/messages/conversations/:id/read - I've seen everything in this
+// thread so far. Marks it read up to its newest message (the database's own
+// timestamp, so a server clock slightly off can't skip or re-flag one).
+router.post('/conversations/:id/read', requireAuth, async (req, res) => {
+  const participant = await assertParticipant(req.params.id, req.user.id);
+  if (participant === null) return res.status(404).json({ error: 'Conversation not found' });
+  if (participant === false) return res.status(403).json({ error: 'Forbidden' });
+
+  const { data: newest, error: newestError } = await supabase
+    .from('messages')
+    .select('created_at')
+    .eq('conversation_id', req.params.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (newestError) return res.status(500).json({ error: newestError.message });
+  if (!newest) return res.json({ read_up_to: null });
+
+  const column = readColumns(participant, req.user.id).mine;
+  // Only ever moves forward - an older tab catching up late can't un-read
+  // messages a newer one already marked.
+  const { error } = await supabase
+    .from('conversations')
+    .update({ [column]: newest.created_at })
+    .eq('id', req.params.id)
+    .lt(column, newest.created_at);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ read_up_to: newest.created_at });
 });
 
 // POST /api/messages/conversations - start (or fetch the existing) thread
@@ -119,7 +205,7 @@ router.post('/conversations/:id/messages', requireAuth, async (req, res) => {
 
   const recipientId = participant.owner_id === req.user.id ? participant.renter_id : participant.owner_id;
   const { data: senderProfile } = await supabase.from('profiles').select('full_name').eq('id', req.user.id).single();
-  notify({
+  await notify({
     userId: recipientId,
     type: 'new_message',
     title: `New message from ${senderProfile?.full_name || 'a Rent It user'}`,

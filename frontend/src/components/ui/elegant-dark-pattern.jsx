@@ -19,7 +19,9 @@
 
 import { cn } from '../../lib/utils';
 
-export function DarkGradientBg({ children, className }) {
+// contentClassName styles the content layer - e.g. the full-height Messages
+// page makes it a flex column so the chat can fill the screen.
+export function DarkGradientBg({ children, className, contentClassName }) {
   return (
     <div className={cn('relative min-h-screen w-full bg-black overflow-hidden', className)}>
       <div className="absolute inset-0">
@@ -101,7 +103,7 @@ export function DarkGradientBg({ children, className }) {
           control, a forgotten label - falls back to this instead of
           silently inheriting the site's light-theme near-black body color
           and disappearing against the dark background. */}
-      <div className="relative z-10 text-night-text">{children}</div>
+      <div className={cn('relative z-10 text-night-text', contentClassName)}>{children}</div>
     </div>
   );
 }

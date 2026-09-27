@@ -1,0 +1,69 @@
+import { describe, it, expect, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import OfferForm from './OfferForm.jsx';
+
+function setDates(container, start, end) {
+  const [startInput, endInput] = container.querySelectorAll('input[type="date"]');
+  fireEvent.change(startInput, { target: { value: start } });
+  fireEvent.change(endInput, { target: { value: end } });
+}
+
+describe('OfferForm', () => {
+  it('starts at the listed price and shows it alongside', () => {
+    render(<OfferForm listedPrice={600} onSubmit={vi.fn()} />);
+    expect(screen.getByLabelText('Your price per day')).toHaveValue(600);
+    expect(screen.getByText('Listed ₹600/day')).toBeInTheDocument();
+    expect(screen.getByText('Listed price')).toBeInTheDocument();
+  });
+
+  it('shows how far the offer is from the listed price, the total, and the deposit', async () => {
+    const { container } = render(
+      <OfferForm listedPrice={600} depositRequired depositAmount={2000} onSubmit={vi.fn()} />
+    );
+    const price = screen.getByLabelText('Your price per day');
+    await userEvent.clear(price);
+    await userEvent.type(price, '450');
+    setDates(container, '2099-10-12', '2099-10-15');
+
+    expect(screen.getByText('₹150/day below listed')).toBeInTheDocument();
+    expect(screen.getByText('₹450 × 4 days')).toBeInTheDocument();
+    expect(screen.getByText('₹1,800')).toBeInTheDocument();
+    expect(screen.getByText(/₹2,000 refundable deposit, paid to the owner at pickup/)).toBeInTheDocument();
+  });
+
+  it('submits the dates and price as numbers', async () => {
+    const onSubmit = vi.fn().mockResolvedValue();
+    const { container } = render(<OfferForm listedPrice={600} onSubmit={onSubmit} />);
+    const price = screen.getByLabelText('Your price per day');
+    await userEvent.clear(price);
+    await userEvent.type(price, '525');
+    setDates(container, '2099-10-12', '2099-10-15');
+    await userEvent.click(screen.getByRole('button', { name: 'Send request' }));
+
+    expect(onSubmit).toHaveBeenCalledWith({ start_date: '2099-10-12', end_date: '2099-10-15', price_per_day: 525 });
+  });
+
+  it("won't submit without dates or with a zero price", async () => {
+    const onSubmit = vi.fn();
+    const { container } = render(<OfferForm listedPrice={600} onSubmit={onSubmit} />);
+
+    fireEvent.submit(container.querySelector('form'));
+    expect(await screen.findByText('Please choose a start and end date.')).toBeInTheDocument();
+
+    setDates(container, '2099-10-12', '2099-10-15');
+    fireEvent.change(screen.getByLabelText('Your price per day'), { target: { value: '0' } });
+    fireEvent.submit(container.querySelector('form'));
+    expect(await screen.findByText('Enter the price you want to pay per day.')).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('shows an error thrown by the request inline', async () => {
+    const onSubmit = vi.fn().mockRejectedValue(new Error('This item is already booked for part of those dates'));
+    const { container } = render(<OfferForm listedPrice={600} onSubmit={onSubmit} />);
+    setDates(container, '2099-10-12', '2099-10-15');
+    await userEvent.click(screen.getByRole('button', { name: 'Send request' }));
+
+    expect(await screen.findByText('This item is already booked for part of those dates')).toBeInTheDocument();
+  });
+});

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { logAdminAction } from '../lib/adminLog.js';
+import { releaseListingIfIdle } from '../lib/listingStatus.js';
 import { recomputeListingRating } from './reviews.js';
 
 const router = Router();
@@ -249,7 +250,7 @@ router.post('/disputes/:id/resolve', async (req, res) => {
   // rentals.js - a disputed rental staying stuck as 'rented' forever would
   // just reintroduce the original stuck-listing bug in a new shape.
   if (rental) {
-    await supabase.from('listings').update({ status: 'available' }).eq('id', rental.listing_id);
+    await releaseListingIfIdle(rental.listing_id);
   }
 
   await logAdminAction(req.user.id, 'dispute.resolve', 'rental_dispute', req.params.id, `${outcome}: ${resolution}`);

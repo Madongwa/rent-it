@@ -808,6 +808,31 @@ alter table public.messages
     check (kind in ('text', 'offer', 'system')),
   add column if not exists offer_id uuid references public.rental_offers (id) on delete set null;
 
+-- No double bookings: two rentals on the same listing can't both hold
+-- overlapping dates (inclusive of both end days) while approved or frozen
+-- in a dispute. rentals.js checks this before accepting an offer too, for
+-- a friendly error - this constraint is what makes it hold when two offers
+-- on the same dates are accepted at the same instant. btree_gist lets the
+-- GiST index compare listing_id (a uuid) with = alongside the date range.
+create extension if not exists btree_gist with schema extensions;
+
+alter table public.rentals drop constraint if exists rentals_no_overlapping_bookings;
+alter table public.rentals
+  add constraint rentals_no_overlapping_bookings
+    exclude using gist (listing_id with =, daterange(start_date, end_date, '[]') with &&)
+    where (status in ('approved', 'disputed'));
+
+-- Read receipts: how far each side has read a thread, up to the newest
+-- message they've seen. Drives the unread counts (chat list + the navbar
+-- badge) and the ✓✓ ticks, and follows the user across devices - the old
+-- unread dots lived in one browser's localStorage. Written only by the
+-- backend (POST /api/messages/conversations/:id/read). Existing threads
+-- start as "read up to now", so shipping this doesn't light up every old
+-- conversation as unread.
+alter table public.conversations
+  add column if not exists owner_last_read_at timestamptz not null default now(),
+  add column if not exists renter_last_read_at timestamptz not null default now();
+
 -- Replaces the policy from the messaging block above: a client may only
 -- ever insert a plain text message, never an offer card or a "Deal agreed"
 -- line of its own - those are written by the backend.

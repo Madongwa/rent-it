@@ -4,9 +4,23 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { MetalNavLink } from './ui/metal-nav-link';
 import NotificationBell from './NotificationBell';
+import useUnreadMessages from '../hooks/useUnreadMessages';
 import '../styles/home-hero.css';
 
 const rhMenuLinkClass = ({ isActive }) => (isActive ? 'is-active' : '');
+
+// Unread-chats count next to a nav label, WhatsApp-style.
+function NavBadge({ count }) {
+  if (!count) return null;
+  return (
+    <span
+      className="ml-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold leading-none text-white"
+      aria-label={`${count} unread chat${count === 1 ? '' : 's'}`}
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
 
 // One nav, every route. Extended with Dashboard/Staff via array indices
 // (rather than CSS nth-child) since those two entries are conditional -
@@ -21,14 +35,18 @@ const rhMenuLinkClass = ({ isActive }) => (isActive ? 'is-active' : '');
 // place. The other 6 links mount at first paint and are unaffected, so they
 // keep the metal ring; these two render as plain (still fully styled, see
 // metal-nav-link.jsx's comment) NavLinks instead.
-function useNavLinks(user, isAdmin) {
+//
+// Messages is shown to everyone, logged in or not, for the same reason -
+// it has to mount at first paint to keep its metal ring. Logged-out
+// visitors who click it are sent to log in by ProtectedRoute.
+function useNavLinks(user, isAdmin, unreadChats) {
   const links = [
     { to: '/', label: 'Home', end: true, metal: true },
     { to: '/marketplace', label: 'Marketplace', metal: true },
     { to: '/how-it-works', label: 'How It Works', metal: true },
     { to: '/why-it-matters', label: 'Why It Matters', metal: true },
     { to: '/help', label: 'Help / FAQ', metal: true },
-    { to: '/about', label: 'About Us', metal: true },
+    { to: '/messages', label: 'Messages', metal: true, badge: unreadChats },
   ];
   if (user) links.push({ to: '/dashboard', label: 'Dashboard', metal: false });
   if (isAdmin) links.push({ to: '/admin', label: 'Staff', metal: false });
@@ -52,7 +70,8 @@ export default function Navbar() {
   const [isAdmin, setIsAdmin] = useState(false);
   const burgerRef = useRef(null);
   const menuRef = useRef(null);
-  const links = useNavLinks(user, isAdmin);
+  const unreadChats = useUnreadMessages();
+  const links = useNavLinks(user, isAdmin, unreadChats);
 
   useEffect(() => {
     if (!user) {
@@ -118,6 +137,7 @@ export default function Navbar() {
               style={{ animationDelay: `${(0.54 + i * 0.035).toFixed(3)}s` }}
             >
               {link.label}
+              <NavBadge count={link.badge} />
             </MetalNavLink>
           ) : (
             <NavLink
@@ -171,6 +191,7 @@ export default function Navbar() {
         {links.map((link) => (
           <NavLink key={link.to} to={link.to} end={link.end} className={rhMenuLinkClass} onClick={closeMobileMenu}>
             {link.label}
+            <NavBadge count={link.badge} />
           </NavLink>
         ))}
         <div className="rh-divider"></div>
