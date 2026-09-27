@@ -1,6 +1,6 @@
 // Email via Resend's plain REST API - no SDK dependency needed, it's one
 // POST. Same graceful-degradation pattern as every other optional
-// integration in this app (Groq, Digio, Razorpay): if RESEND_API_KEY isn't
+// integration in this app (Groq, Digio): if RESEND_API_KEY isn't
 // set, sendEmail() just no-ops instead of throwing, so nothing that calls
 // it needs its own "is this configured" check.
 //

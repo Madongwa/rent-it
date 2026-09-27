@@ -18,8 +18,7 @@
     "express": "^4.19.2",
     "express-rate-limit": "^8.7.0",
     "helmet": "^8.3.0",
-    "openai": "^7.15.0",
-    "razorpay": "^2.9.8"
+    "openai": "^7.15.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.4",

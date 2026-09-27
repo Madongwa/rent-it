@@ -16,7 +16,6 @@ import notificationsRouter from './routes/notifications.js';
 import kycRouter from './routes/kyc.js';
 import adminRouter from './routes/admin.js';
 import chatRouter from './routes/chat.js';
-import webhooksRouter from './routes/webhooks.js';
 
 // The Express app itself, with no app.listen() call. Shared between the
 // local dev server (server.js) and the Vercel serverless entry (api/index.js).
@@ -71,17 +70,11 @@ app.use(
   })
 );
 
-// Mounted before express.json() below, deliberately - webhook signature
-// verification needs the exact raw bytes the sender signed, which a
-// JSON.parse()'d-then-reserialized body can't guarantee byte-for-byte.
-app.use('/api/webhooks', express.raw({ type: '*/*' }), webhooksRouter);
-
 app.use(express.json());
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'rent-it-backend' }));
 
-// Applied after /api/webhooks (mounted above) and /api/health, so Razorpay's
-// webhook calls and uptime pings are never at risk of tripping it.
+// Applied after /api/health, so uptime pings are never at risk of tripping it.
 app.use('/api', globalRateLimiter);
 
 app.use('/api/categories', categoriesRouter);

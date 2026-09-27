@@ -49,9 +49,9 @@ export const api = {
   getIncomingRentals: () => request('/rentals/incoming'),
   updateRentalStatus: (id, status) =>
     request(`/rentals/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-  checkoutRental: (id) => request(`/rentals/${id}/checkout`, { method: 'POST' }),
-  verifyRentalPayment: (id, payload) =>
-    request(`/rentals/${id}/verify-payment`, { method: 'POST', body: JSON.stringify(payload) }),
+  counterOffer: (id, terms) =>
+    request(`/rentals/${id}/offers`, { method: 'POST', body: JSON.stringify(terms) }),
+  acceptOffer: (id) => request(`/rentals/${id}/accept`, { method: 'POST' }),
 
   getMyProfile: () => request('/profiles/me'),
   getPublicProfile: (id) => request(`/profiles/${id}`),
@@ -129,6 +129,5 @@ export const api = {
     request('/admin/settings', { method: 'PATCH', body: JSON.stringify({ maintenance_mode }) }),
   getAdminUserStats: () => request('/admin/stats/users'),
   getAdminActivityStats: () => request('/admin/stats/activity'),
-  getAdminEscrowStats: () => request('/admin/stats/escrow'),
   getAdminListingsByCategory: () => request('/admin/stats/listings-by-category'),
 };

@@ -9,20 +9,20 @@ const RENTER_STEPS = [
     body: "Filter by category, price, distance, and condition until you're looking at equipment that actually fits the job. Photos, condition notes, ratings, and rental history are right there on every listing.",
   },
   {
-    title: 'Send a request',
-    body: 'Pick your dates and send a rental request straight to the owner. No phone tag, no back-and-forth over text.',
+    title: 'Name your price',
+    body: "Pick your dates and offer what you'd like to pay per day — the listed price, or your own. It goes straight to the owner's chat, no phone tag.",
   },
   {
-    title: 'Get approved',
-    body: 'The owner reviews your request and confirms the dates. Once approved, the rental is locked in.',
+    title: 'Agree on a deal',
+    body: 'The owner can accept, decline, or counter with a different price or dates, and so can you. As soon as one of you accepts, the rental is locked in at those terms.',
   },
   {
-    title: 'Pick up and check the condition',
-    body: 'Meet the owner (or arrange delivery, where that option exists), and confirm the condition together before you take it.',
+    title: 'Pick up, check, and pay',
+    body: 'Meet the owner (or arrange delivery, where that option exists), confirm the condition together, and pay the owner directly — cash, UPI, whatever you agreed.',
   },
   {
     title: 'Return it and get your deposit back',
-    body: "Bring it back in the shape you got it in. Once the owner confirms everything checks out, any deposit held is released.",
+    body: "Bring it back in the shape you got it in. Once the owner confirms everything checks out, they give back any deposit you paid.",
   },
   {
     title: 'Leave a review',
@@ -40,16 +40,16 @@ const OWNER_STEPS = [
     body: "You decide the daily rate, minimum rental period, deposit, and cancellation policy. It's your equipment, your terms.",
   },
   {
-    title: 'Review requests',
-    body: 'When someone wants to rent it, you see their requested dates and decide whether to approve or decline.',
+    title: 'Review offers',
+    body: "When someone wants to rent it, you see their dates and the price they're offering next to yours. Accept, decline, or counter right in the chat.",
   },
   {
     title: 'Hand it off',
-    body: "Meet the renter and walk through the equipment's condition together, so there's a shared record of what state it left in.",
+    body: "Meet the renter, walk through the equipment's condition together so there's a shared record of what state it left in, and collect payment directly.",
   },
   {
     title: 'Get it back',
-    body: 'When the rental period ends, you get your equipment back and confirm its condition before any deposit is released.',
+    body: 'When the rental period ends, you get your equipment back and confirm its condition before returning any deposit.',
   },
   {
     title: 'Build your reputation',
@@ -64,9 +64,9 @@ const TRUST_FEATURES = [
     body: 'Every listing shows its condition, and both sides confirm it again at pickup and return — a shared record of what changed hands.',
   },
   {
-    icon: '🔒',
-    title: 'Deposits held, not just promised',
-    body: "Where a deposit applies, it's held until the rental is confirmed complete — not just a line in the listing description.",
+    icon: '🤝',
+    title: 'Prices agreed in writing',
+    body: "Every offer, counter-offer, and the final deal is recorded on the rental — so there's no \"but you said…\" at pickup.",
   },
   {
     icon: '⭐',

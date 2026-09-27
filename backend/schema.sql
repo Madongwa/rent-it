@@ -245,16 +245,13 @@ create policy "Renters and owners can view relevant rentals" on public.rentals
     or auth.uid() = (select owner_id from public.listings where listings.id = rentals.listing_id)
   );
 
+-- No insert/update policy - rentals carry the agreed price (see the
+-- rental_offers block at the end of this file), so every create/status
+-- change goes through the backend, which checks whose turn it is. The two
+-- drops remove the client-write policies earlier versions of this file
+-- created.
 drop policy if exists "Users can create rentals as themselves" on public.rentals;
-create policy "Users can create rentals as themselves" on public.rentals
-  for insert with check (auth.uid() = renter_id);
-
 drop policy if exists "Renter or owner can update a rental" on public.rentals;
-create policy "Renter or owner can update a rental" on public.rentals
-  for update using (
-    auth.uid() = renter_id
-    or auth.uid() = (select owner_id from public.listings where listings.id = rentals.listing_id)
-  );
 
 -- ---------------------------------------------------------------------------
 -- Real review submission. `reviews` already existed (seed content, plain
@@ -396,14 +393,13 @@ create policy "Users can delete their own listing images" on storage.objects
   for delete using (bucket_id = 'listing-images' and auth.uid()::text = (storage.foldername(name))[1]);
 
 -- ---------------------------------------------------------------------------
--- Trust & safety: platform roles, seller verification (KYC), rental
--- disputes, and the escrow/payout ledger.
+-- Trust & safety: platform roles, seller verification (KYC), and rental
+-- disputes.
 --
--- Payment collection itself (Razorpay/RazorpayX) and automated identity
--- verification (a KYC vendor) aren't wired up yet - both need real API keys
--- the backend doesn't have. This block lays the data model + a manual-review
--- workflow so staff can review submitted documents and approve/reject
--- sellers by hand today; the same tables are what an automated vendor check
+-- Automated identity verification (a KYC vendor) isn't wired up here - it
+-- needs real API keys (see the eKYC block below). This block lays the data
+-- model + a manual-review workflow so staff can review submitted documents
+-- and approve/reject sellers by hand today; the same tables are what an automated vendor check
 -- would write into later without changing the shape of anything downstream.
 -- ---------------------------------------------------------------------------
 
@@ -611,43 +607,14 @@ create policy "Rental participants and admins can view condition photos" on stor
   );
 
 -- ---------------------------------------------------------------------------
--- Escrow ledger: one row per rental that has been paid for, recording the
--- full breakdown (platform fee, deposit, the two owner payout stages) so
--- "whose money is where" is always a plain read, never recomputed.
---
--- No insert/update policy below is intentional: this table only ever gets
--- written by the backend after a real Razorpay event (payment captured, a
--- payout sent), never directly by a client, so there's no legitimate
--- client-side write path to defend even as a fallback.
+-- The app no longer collects payments - renters pay owners directly on the
+-- price they agreed in chat (see the rental_offers block below). The old
+-- Razorpay escrow ledger, public.rental_payments, is no longer created or
+-- read by anything. It's left alone here rather than dropped automatically,
+-- since re-running this file shouldn't silently delete data - once you've
+-- confirmed nothing in it is needed, remove it by hand with:
+--   drop table if exists public.rental_payments;
 -- ---------------------------------------------------------------------------
-create table if not exists public.rental_payments (
-  rental_id uuid primary key references public.rentals (id) on delete cascade,
-  total_amount numeric(10, 2) not null check (total_amount >= 0),
-  platform_fee_amount numeric(10, 2) not null check (platform_fee_amount >= 0),
-  deposit_amount numeric(10, 2) not null default 0 check (deposit_amount >= 0),
-  owner_stage1_amount numeric(10, 2) not null check (owner_stage1_amount >= 0),
-  owner_stage1_paid_at timestamptz,
-  owner_stage2_amount numeric(10, 2) not null check (owner_stage2_amount >= 0),
-  owner_stage2_paid_at timestamptz,
-  deposit_refunded_at timestamptz,
-  razorpay_order_id text,
-  razorpay_payment_id text,
-  created_at timestamptz not null default now()
-);
-
-alter table public.rental_payments enable row level security;
-
-drop policy if exists "Participants and admins can view payment records" on public.rental_payments;
-create policy "Participants and admins can view payment records" on public.rental_payments
-  for select using (
-    exists (
-      select 1 from public.rentals r
-      join public.listings l on l.id = r.listing_id
-      where r.id = rental_payments.rental_id
-        and (auth.uid() = r.renter_id or auth.uid() = l.owner_id)
-    )
-    or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
-  );
 
 -- ---------------------------------------------------------------------------
 -- Realtime: the messages page subscribes to postgres_changes on `messages`
@@ -714,7 +681,7 @@ end $$;
 -- Admin Console foundation: an audit trail for every staff action, and a
 -- way for a review to be flagged for moderation (surfaced in the Reviews
 -- Moderation tab, and aggregated into the Dispute Center alongside disputed
--- rentals/escrow records).
+-- rentals).
 -- ---------------------------------------------------------------------------
 create table if not exists public.admin_actions_log (
   id uuid primary key default uuid_generate_v4(),
@@ -730,9 +697,9 @@ create index if not exists admin_actions_log_created_idx on public.admin_actions
 
 alter table public.admin_actions_log enable row level security;
 
--- No insert/update policy - like rental_payments, this is only ever written
--- by the backend (service_role) right after a real staff action, never by a
--- client directly.
+-- No insert/update policy - this is only ever written by the backend
+-- (service_role) right after a real staff action, never by a client
+-- directly.
 drop policy if exists "Admins can view the activity log" on public.admin_actions_log;
 create policy "Admins can view the activity log" on public.admin_actions_log
   for select using (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin'));
@@ -766,9 +733,93 @@ insert into public.platform_settings (id) values (1) on conflict (id) do nothing
 
 alter table public.platform_settings enable row level security;
 
--- No insert/update policy - like rental_payments and admin_actions_log
--- above, this is only ever written by the backend (service_role) after a
--- real staff action, never by a client directly.
+-- No insert/update policy - like admin_actions_log above, this is only
+-- ever written by the backend (service_role) after a real staff action,
+-- never by a client directly.
 drop policy if exists "Admins can view platform settings" on public.platform_settings;
 create policy "Admins can view platform settings" on public.platform_settings
   for select using (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin'));
+
+-- ---------------------------------------------------------------------------
+-- Price offers: a rental request carries the renter's own per-day price
+-- (starting from the listing's price), and the two sides bargain in the
+-- listing's chat thread - each offer/counter-offer is a row here, shown in
+-- chat as a card (messages.offer_id). The rental is approved the moment one
+-- side accepts the other's open offer, and its price_per_day/start_date/
+-- end_date are then the agreed terms. No money moves through the app - the
+-- renter pays the owner directly - so these rows are the record of what
+-- was agreed, e.g. for staff reviewing a dispute.
+-- ---------------------------------------------------------------------------
+alter table public.rentals
+  -- The listing's price when the request was made, so "offered ₹450 vs
+  -- listed ₹600" stays accurate even if the owner edits the listing later.
+  add column if not exists listed_price_per_day numeric(10, 2)
+    check (listed_price_per_day is null or listed_price_per_day >= 0),
+  -- Latest offered price while pending, the agreed price once approved.
+  -- Null only on requests made before offers existed (they used the
+  -- listing's price).
+  add column if not exists price_per_day numeric(10, 2)
+    check (price_per_day is null or price_per_day >= 0),
+  add column if not exists conversation_id uuid references public.conversations (id) on delete set null;
+
+create table if not exists public.rental_offers (
+  id uuid primary key default uuid_generate_v4(),
+  rental_id uuid not null references public.rentals (id) on delete cascade,
+  proposed_by uuid not null references public.profiles (id) on delete cascade,
+  price_per_day numeric(10, 2) not null check (price_per_day >= 0),
+  start_date date not null,
+  end_date date not null check (end_date >= start_date),
+  -- open: waiting on the other side. countered: replaced by a newer offer.
+  -- accepted: the deal. declined: the other side ended the negotiation.
+  -- withdrawn: the proposer ended it.
+  status text not null default 'open'
+    check (status in ('open', 'countered', 'accepted', 'declined', 'withdrawn')),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists rental_offers_rental_idx on public.rental_offers (rental_id);
+-- At most one open offer per rental - whoever didn't make it is the one
+-- whose turn it is, and a double-clicked counter can't leave two open.
+create unique index if not exists rental_offers_one_open_idx
+  on public.rental_offers (rental_id) where status = 'open';
+
+alter table public.rental_offers enable row level security;
+
+-- No insert/update policy - offers are only written by the backend, which
+-- enforces whose turn it is.
+drop policy if exists "Rental participants and admins can view offers" on public.rental_offers;
+create policy "Rental participants and admins can view offers" on public.rental_offers
+  for select using (
+    exists (
+      select 1 from public.rentals r
+      join public.listings l on l.id = r.listing_id
+      where r.id = rental_offers.rental_id
+        and (auth.uid() = r.renter_id or auth.uid() = l.owner_id)
+    )
+    or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+  );
+
+-- kind: 'text' (typed by a person), 'offer' (an offer card, offer_id set),
+-- or 'system' (a status line like "Deal agreed"). body always holds a
+-- plain-text version, so conversation previews and old clients still read
+-- sensibly.
+alter table public.messages
+  add column if not exists kind text not null default 'text'
+    check (kind in ('text', 'offer', 'system')),
+  add column if not exists offer_id uuid references public.rental_offers (id) on delete set null;
+
+-- Replaces the policy from the messaging block above: a client may only
+-- ever insert a plain text message, never an offer card or a "Deal agreed"
+-- line of its own - those are written by the backend.
+drop policy if exists "Participants can send messages" on public.messages;
+create policy "Participants can send messages" on public.messages
+  for insert with check (
+    auth.uid() = sender_id
+    and kind = 'text'
+    and offer_id is null
+    and exists (
+      select 1 from public.conversations c
+      where c.id = messages.conversation_id
+        and (auth.uid() = c.owner_id or auth.uid() = c.renter_id)
+    )
+  );

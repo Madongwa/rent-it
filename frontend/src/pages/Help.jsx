@@ -9,7 +9,7 @@ import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 const FAQ_ITEMS = [
   {
     q: 'How does renting work?',
-    a: "Search the marketplace, pick your dates, and send a rental request to the owner. Once they approve it, you meet up (or arrange delivery, where offered), confirm the item's condition together, and you're set. Return it in the same shape you got it, and any deposit held is released back to you.",
+    a: "Search the marketplace, pick your dates, and send a request with the price you want to pay per day. The owner can accept it, decline it, or counter in your chat. Once one of you accepts, you meet up (or arrange delivery, where offered), confirm the item's condition together, and pay the owner directly. Return it in the same shape you got it, and the owner gives back any deposit you paid.",
   },
   {
     q: 'How do I list my own equipment?',
@@ -17,7 +17,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How do deposits work?',
-    a: 'Deposits are optional and set by each owner, not a platform-wide rule. When one applies, it\'s held separately from the rental fee and refunded once both sides confirm the item came back in good condition.',
+    a: "Deposits are optional and set by each owner, not a platform-wide rule. Rent It doesn't hold deposits: when a listing needs one, you pay it to the owner at pickup, and they return it once you both confirm the item came back in good condition.",
   },
   {
     q: 'What if I need to cancel a booking?',
@@ -28,8 +28,16 @@ const FAQ_ITEMS = [
     a: 'Either the renter or the owner can report a problem instead of confirming a clean return. That pauses the booking so Rent It staff can review what happened and resolve it fairly, rather than leaving it for the two of you to sort out alone.',
   },
   {
+    q: 'Can I negotiate the price?',
+    a: "Yes. The listed price is where the owner starts, not a fixed rate. When you send a request you enter your own price per day, and the owner sees it next to their listed price. Either of you can counter with a different price or dates in the chat, and the rental is confirmed as soon as one of you accepts the other's offer.",
+  },
+  {
+    q: 'How do I pay?',
+    a: "Directly to the owner, usually at pickup — cash, UPI, or whatever you both agree on. Rent It doesn't process payments, so it can't refund or reverse them. Pay only once you've seen the item in person, and never send money in advance to someone you haven't met.",
+  },
+  {
     q: 'Is there a fee for using Rent It?',
-    a: "Rent It doesn't charge a fee to browse, list, or send a rental request. Any transaction costs that apply once payments are fully live will always be shown clearly before you confirm a booking — nothing hidden.",
+    a: "No. Rent It doesn't charge anything to browse, list, send offers, or rent — the price you agree with the owner is what you pay them.",
   },
   {
     q: 'What categories of equipment can I find?',

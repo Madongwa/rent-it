@@ -3,6 +3,17 @@ import { supabase } from '../lib/supabaseClient';
 import { api } from '../lib/api';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 import AdminOverviewGrid from '../components/admin/AdminOverviewGrid';
+import { formatInr } from '../lib/offers';
+
+// The agreed (or, while pending, latest offered) price next to the listed
+// one - no money moves through the app, so this is staff's record of the
+// deal when reviewing a request or a dispute.
+function agreedPrice(rental) {
+  if (rental?.price_per_day == null) return null;
+  const listed = rental.listed_price_per_day ?? rental.listing?.price_per_day;
+  const price = `${formatInr(rental.price_per_day)}/day`;
+  return listed != null && Number(listed) !== Number(rental.price_per_day) ? `${price} (listed ${formatInr(listed)})` : price;
+}
 
 const TABS = [
   { key: 'overview', label: 'Overview' },
@@ -277,6 +288,7 @@ export default function AdminDashboard() {
                 <p className="text-sm text-night-muted">
                   {r.start_date} → {r.end_date} · Owner: {r.listing?.owner?.full_name || 'Unknown'} · Renter:{' '}
                   {r.renter?.full_name || 'Unknown'}
+                  {agreedPrice(r) && <> · {agreedPrice(r)}</>}
                 </p>
                 <p className="text-xs text-night-muted">Requested {new Date(r.created_at).toLocaleString()}</p>
               </div>
@@ -458,6 +470,7 @@ export default function AdminDashboard() {
               <p className="text-sm text-night-muted">
                 {d.rental?.start_date} → {d.rental?.end_date} · Owner: {d.rental?.listing?.owner?.full_name} ·
                 Renter: {d.rental?.renter?.full_name}
+                {agreedPrice(d.rental) && <> · Agreed {agreedPrice(d.rental)}</>}
               </p>
               <p className="mt-2 text-sm text-night-text">
                 <span className="font-medium">{d.raiser?.full_name}</span> reported: {d.reason}
@@ -481,13 +494,13 @@ export default function AdminDashboard() {
                       onClick={() => resolve(d.id, 'completed')}
                       className="rounded-btn bg-white px-3 py-1.5 text-sm font-medium text-black hover:opacity-90"
                     >
-                      Side with owner (release payout)
+                      Side with owner (mark completed)
                     </button>
                     <button
                       onClick={() => resolve(d.id, 'cancelled')}
                       className="rounded-btn border border-night-border/15 px-3 py-1.5 text-sm font-medium text-night-muted hover:border-night-muted"
                     >
-                      Side with renter (refund)
+                      Side with renter (cancel rental)
                     </button>
                   </div>
                 </div>

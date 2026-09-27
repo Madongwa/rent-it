@@ -1,7 +1,7 @@
 import useSeo from '../hooks/useSeo';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 
-const LAST_UPDATED = 'September 17, 2026';
+const LAST_UPDATED = 'September 27, 2026';
 
 // Mirrors what's actually collected/stored today (see schema.sql,
 // SellerVerification.jsx, ListingForm.jsx) rather than a generic boilerplate
@@ -90,7 +90,7 @@ export default function Privacy() {
         <p>
           We don't sell your personal information. We share it only with service providers that
           help us run the Platform (for example, our database/hosting provider, and — where
-          configured — an identity-verification or payment provider), and only to the extent
+          configured — an identity-verification or email provider), and only to the extent
           needed for them to perform that service. We may also disclose information if required by
           law.
         </p>

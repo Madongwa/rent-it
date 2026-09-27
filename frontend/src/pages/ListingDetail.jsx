@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useFavorites } from '../hooks/useFavorites';
 import useSeo from '../hooks/useSeo';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
+import OfferForm from '../components/OfferForm';
 import {
   POWER_SOURCE_OPTIONS,
   DELIVERY_OPTIONS,
@@ -266,11 +267,6 @@ export default function ListingDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [requestError, setRequestError] = useState('');
-  const [requestSuccess, setRequestSuccess] = useState(false);
   const [messaging, setMessaging] = useState(false);
   const [messageError, setMessageError] = useState('');
 
@@ -320,28 +316,12 @@ export default function ListingDetail() {
     }
   }
 
-  async function handleRequestRent(e) {
-    e.preventDefault();
-    setRequestError('');
-
-    if (!user) {
-      navigate('/login', { state: { from: { pathname: `/listing/${id}` } } });
-      return;
-    }
-    if (!startDate || !endDate) {
-      setRequestError('Please choose a start and end date.');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      await api.createRental({ listing_id: id, start_date: startDate, end_date: endDate });
-      setRequestSuccess(true);
-    } catch (err) {
-      setRequestError(err.message);
-    } finally {
-      setSubmitting(false);
-    }
+  // The request lands in the chat with the owner as an offer card, so
+  // that's where the renter goes next - it's where the owner will accept
+  // or counter. Errors are thrown back to OfferForm to show inline.
+  async function handleRequestRent(terms) {
+    const rental = await api.createRental({ listing_id: id, ...terms });
+    navigate(rental.conversation_id ? `/messages?c=${rental.conversation_id}` : '/dashboard?tab=mine');
   }
 
   if (loading) return <DarkGradientBg className="min-h-[calc(100vh-4rem)] py-24 text-center text-night-muted">Loading…</DarkGradientBg>;
@@ -431,7 +411,8 @@ export default function ListingDetail() {
                   Refundable deposit:{' '}
                   <span className="font-medium text-night-muted">
                     {listing.deposit_amount ? `₹${Number(listing.deposit_amount).toLocaleString('en-IN')}` : 'Required'}
-                  </span>
+                  </span>{' '}
+                  · paid to the owner at pickup
                 </p>
               )}
               <p>
@@ -488,50 +469,35 @@ export default function ListingDetail() {
             </div>
           )}
 
-          {/* 6. Availability/booking request form - unchanged logic */}
+          {/* 6. Request to rent - dates plus the renter's own price per day */}
           <div className="mt-8 rounded-card border border-night-border/15 bg-white/5 p-5">
             {isOwner ? (
               <p className="text-sm text-night-muted">This is your own listing.</p>
-            ) : requestSuccess ? (
-              <p className="text-sm font-medium text-green-600">
-                ✅ Request sent! Check your dashboard for updates.
-              </p>
             ) : listing.status !== 'available' ? (
               <p className="text-sm text-night-muted">This item isn't currently available.</p>
             ) : (
-              <form onSubmit={handleRequestRent} className="space-y-3">
+              <>
                 <h2 className="font-semibold text-night-text">Request to rent</h2>
-                <div className="flex gap-3">
-                  <div className="min-w-0 flex-1">
-                    <label className="mb-1 block text-xs font-medium text-night-muted">Start date</label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full rounded-btn border border-night-border/20 bg-black/20 px-3 py-2 text-sm text-night-text [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-accent"
-                      required
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <label className="mb-1 block text-xs font-medium text-night-muted">End date</label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full rounded-btn border border-night-border/20 bg-black/20 px-3 py-2 text-sm text-night-text [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-accent"
-                      required
-                    />
-                  </div>
-                </div>
-                {requestError && <p className="text-sm text-red-500">{requestError}</p>}
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full rounded-btn bg-white py-2.5 font-semibold text-black hover:opacity-90 disabled:opacity-60"
-                >
-                  {submitting ? 'Sending…' : user ? 'Request to Rent' : 'Log in to request'}
-                </button>
-              </form>
+                <p className="mb-4 mt-1 text-sm text-night-muted">
+                  Offer the listed price or your own. The owner can accept, decline, or counter in chat.
+                </p>
+                {user ? (
+                  <OfferForm
+                    listedPrice={listing.price_per_day}
+                    depositRequired={listing.deposit_required}
+                    depositAmount={listing.deposit_amount}
+                    onSubmit={handleRequestRent}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/login', { state: { from: { pathname: `/listing/${id}` } } })}
+                    className="w-full rounded-btn bg-white py-2.5 font-semibold text-black hover:opacity-90"
+                  >
+                    Log in to send a request
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>

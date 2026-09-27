@@ -5,10 +5,17 @@ tools, construction equipment, and household/DIY tools.
 
 - **Home page** — pick a category: Farming, Construction, or Household & DIY
 - **Marketplace** — browse, search and filter listings
-- **Listing detail** — view an item and request to rent it for a date range
+- **Listing detail** — view an item and request to rent it for a date range,
+  offering the listed daily price or your own
+- **Messages** — the renter and owner bargain in chat: each request is an
+  offer card the other side can accept, decline, or counter (price and/or
+  dates) until one of them accepts
 - **List an Item** — post your own equipment for rent (requires login)
 - **Dashboard** — manage your listings, your rental requests, and incoming
-  requests on your items (approve/reject)
+  requests on your items, with the offered/agreed price on each
+
+No money moves through the app: once a deal is agreed, the renter pays the
+owner directly (and any deposit) at pickup.
 
 ## Stack
 
@@ -119,6 +126,4 @@ frontend/
 ## Possible next steps
 
 - Image uploads via Supabase Storage instead of pasting an image URL
-- In-app messaging between renter and owner
-- Payments (e.g. Stripe Connect) for the rental transaction itself
 - Reviews/ratings after a completed rental

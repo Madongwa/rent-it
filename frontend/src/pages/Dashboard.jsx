@@ -3,8 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import RentalPhotoSection from '../components/RentalPhotos';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
-import { useAuth } from '../context/AuthContext';
-import { loadRazorpayCheckout } from '../lib/loadRazorpay';
+import { findOpenOffer, formatInr, rentalDays, whoseTurn } from '../lib/offers';
 
 // Condition photos are only meaningful once a handoff has actually
 // happened (or is being disputed) - hidden for 'pending'/'rejected'/
@@ -76,6 +75,47 @@ function DisputeControl({ rentalId, onSubmit }) {
   );
 }
 
+// "₹450/day (listed ₹600) · total ₹1,800" - the offered price while a
+// request is being bargained over, the agreed one once it's approved.
+// Requests from before offers existed have no price of their own and
+// show the listing's.
+function PriceLine({ rental }) {
+  const price = rental.price_per_day ?? rental.listing?.price_per_day;
+  if (price == null) return null;
+  const listed = rental.listed_price_per_day ?? rental.listing?.price_per_day;
+  const days = rentalDays(rental.start_date, rental.end_date);
+  return (
+    <p className="text-sm text-night-muted">
+      <span className="font-medium text-night-text">{formatInr(price)}/day</span>
+      {listed != null && Number(listed) !== Number(price) && <> (listed {formatInr(listed)})</>} · total{' '}
+      {formatInr(price * days)}
+    </p>
+  );
+}
+
+// Whose move it is on a pending request, from this viewer's side.
+function TurnBadge({ myTurn, otherLabel }) {
+  return myTurn ? (
+    <span className="rounded-badge bg-accent/20 px-2.5 py-1 text-caption font-medium text-night-text">Your turn</span>
+  ) : (
+    <span className="rounded-badge bg-white/10 px-2.5 py-1 text-caption font-medium text-night-muted">
+      Waiting for {otherLabel}
+    </span>
+  );
+}
+
+function ChatLink({ rental }) {
+  if (!rental.conversation_id) return null;
+  return (
+    <Link
+      to={`/messages?c=${rental.conversation_id}`}
+      className="rounded-btn border border-night-border/20 px-3 py-1.5 text-sm font-medium text-night-text hover:bg-white/5"
+    >
+      Open chat
+    </Link>
+  );
+}
+
 function RentalPhotosPanel({ rental, onChange }) {
   return (
     <div className="mt-3 grid grid-cols-1 gap-4 border-t border-night-border/15 pt-3 sm:grid-cols-2">
@@ -98,7 +138,6 @@ function RentalPhotosPanel({ rental, onChange }) {
 }
 
 export default function Dashboard() {
-  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const VALID_TABS = TABS.map((t) => t.key);
   const [tab, setTabState] = useState(() => {
@@ -119,7 +158,6 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
   const [expandedId, setExpandedId] = useState(null);
-  const [payingId, setPayingId] = useState(null);
 
   function loadAll() {
     setLoading(true);
@@ -146,51 +184,13 @@ export default function Dashboard() {
     }
   }
 
-  async function payNow(rental) {
+  async function accept(rentalId) {
     setActionError('');
-    setPayingId(rental.id);
     try {
-      const order = await api.checkoutRental(rental.id);
-      const Razorpay = await loadRazorpayCheckout();
-      const rzp = new Razorpay({
-        key: order.key_id,
-        amount: order.amount,
-        currency: order.currency,
-        order_id: order.order_id,
-        name: 'Rent It',
-        description: order.listing_title,
-        prefill: { name: user?.user_metadata?.full_name || '', email: user?.email || '' },
-        theme: { color: '#2e7d32' },
-        handler: async (response) => {
-          try {
-            await api.verifyRentalPayment(rental.id, {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            });
-            loadAll();
-          } catch (err) {
-            // Money already moved at this point (Razorpay called our
-            // success handler) - this is "couldn't record it," not "the
-            // payment failed," so surface the payment ID rather than a
-            // generic retry prompt.
-            setActionError(
-              `Payment went through but couldn't be recorded (${err.message}). Contact support with payment ID ${response.razorpay_payment_id}.`
-            );
-          } finally {
-            setPayingId(null);
-          }
-        },
-        modal: { ondismiss: () => setPayingId(null) },
-      });
-      rzp.on('payment.failed', (resp) => {
-        setActionError(`Payment failed: ${resp.error?.description || 'unknown error'}`);
-        setPayingId(null);
-      });
-      rzp.open();
+      await api.acceptOffer(rentalId);
+      loadAll();
     } catch (err) {
       setActionError(err.message);
-      setPayingId(null);
     }
   }
 
@@ -306,25 +306,21 @@ export default function Dashboard() {
                   <p className="text-sm text-night-muted">
                     {r.start_date} → {r.end_date}
                   </p>
+                  <PriceLine rental={r} />
                 </div>
-                <div className="flex items-center gap-2">
-                  {r.status === 'approved' && !r.payment && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {r.status === 'pending' && whoseTurn(r, findOpenOffer(r.offers)) === 'renter' && (
                     <button
-                      onClick={() => payNow(r)}
-                      disabled={payingId === r.id}
-                      className="rounded-btn bg-white px-3 py-1.5 text-sm font-medium text-black hover:opacity-90 disabled:opacity-60"
+                      onClick={() => accept(r.id)}
+                      className="rounded-btn bg-accent px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
                     >
-                      {payingId === r.id ? 'Opening payment…' : 'Pay now'}
+                      Accept counter-offer
                     </button>
                   )}
-                  {r.payment && (
-                    <span className="rounded-badge bg-emerald-500/15 px-2.5 py-1 text-caption font-medium text-emerald-400">
-                      Paid ₹{Number(r.payment.total_amount).toLocaleString('en-IN')}
-                    </span>
-                  )}
+                  <ChatLink rental={r} />
                   {['pending', 'approved'].includes(r.status) && (
                     <button onClick={() => respond(r.id, 'cancelled')} className="text-sm font-medium text-red-400 hover:text-red-300">
-                      Cancel
+                      {r.status === 'pending' ? 'Withdraw' : 'Cancel'}
                     </button>
                   )}
                   {r.status === 'approved' && <DisputeControl rentalId={r.id} onSubmit={dispute} />}
@@ -336,7 +332,11 @@ export default function Dashboard() {
                       {expandedId === r.id ? 'Hide photos' : 'Photos'}
                     </button>
                   )}
-                  <StatusBadge status={r.status} />
+                  {r.status === 'pending' ? (
+                    <TurnBadge myTurn={whoseTurn(r, findOpenOffer(r.offers)) === 'renter'} otherLabel="owner" />
+                  ) : (
+                    <StatusBadge status={r.status} />
+                  )}
                 </div>
               </div>
               {expandedId === r.id && <RentalPhotosPanel rental={r} onChange={loadAll} />}
@@ -358,34 +358,31 @@ export default function Dashboard() {
                   <p className="text-sm text-night-muted">
                     Requested by {r.renter?.full_name || 'a user'} · {r.start_date} → {r.end_date}
                   </p>
+                  <PriceLine rental={r} />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {r.status === 'pending' ? (
                     <>
-                      <button
-                        onClick={() => respond(r.id, 'approved')}
-                        className="rounded-btn bg-accent px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-                      >
-                        Approve
-                      </button>
+                      {whoseTurn(r, findOpenOffer(r.offers)) === 'owner' && (
+                        <button
+                          onClick={() => accept(r.id)}
+                          className="rounded-btn bg-accent px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                        >
+                          Accept offer
+                        </button>
+                      )}
+                      <ChatLink rental={r} />
                       <button
                         onClick={() => respond(r.id, 'rejected')}
                         className="rounded-btn border border-night-border/20 px-3 py-1.5 text-sm font-medium text-night-muted hover:border-night-muted hover:text-night-text"
                       >
-                        Reject
+                        Decline
                       </button>
+                      <TurnBadge myTurn={whoseTurn(r, findOpenOffer(r.offers)) === 'owner'} otherLabel="renter" />
                     </>
                   ) : r.status === 'approved' ? (
                     <>
-                      {r.payment ? (
-                        <span className="rounded-badge bg-emerald-500/15 px-2.5 py-1 text-caption font-medium text-emerald-400">
-                          Paid
-                        </span>
-                      ) : (
-                        <span className="rounded-badge bg-amber-500/15 px-2.5 py-1 text-caption font-medium text-amber-400">
-                          Awaiting payment
-                        </span>
-                      )}
+                      <ChatLink rental={r} />
                       <button
                         onClick={() => respond(r.id, 'completed')}
                         className="rounded-btn bg-white px-3 py-1.5 text-sm font-medium text-black hover:opacity-90"

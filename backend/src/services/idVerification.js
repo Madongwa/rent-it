@@ -14,8 +14,7 @@
 // product, so there is nothing to register in Digio's dashboard beyond
 // the API credentials themselves.
 //
-// Decision policy (deliberately conservative - see webhooks.js's original
-// comment on this same principle): only auto-approve when Digio's own
+// Decision policy (deliberately conservative): only auto-approve when Digio's own
 // `verification_result.verified` comes back true, i.e. the ID was actually
 // checked against a government database, not just OCR'd. Aadhaar doesn't
 // support that central-database check through this API, so an Aadhaar

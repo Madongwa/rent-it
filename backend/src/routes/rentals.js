@@ -1,27 +1,81 @@
 import { Router } from 'express';
-import crypto from 'crypto';
 import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth } from '../middleware/auth.js';
 import { notify } from '../lib/notify.js';
-import { razorpay, computeRentalCharges } from '../lib/razorpay.js';
-import { recordRentalPayment } from '../lib/recordPayment.js';
+import { getOrCreateConversation, postMessage } from '../lib/conversations.js';
+import { parseOfferTerms, describeTerms, formatInr, whoseTurn } from '../lib/offers.js';
 
+// A rental request carries the renter's own per-day price, and the two
+// sides bargain in the listing's chat thread: every offer/counter-offer is
+// a rental_offers row, shown in chat as a card. Once one side accepts the
+// other's open offer, the rental is approved at those terms. No money
+// moves through the app - the renter pays the owner directly.
 const router = Router();
 
-const RENTAL_SELECT =
-  '*, listing:listings(id, title, image_url, price_per_day, owner_id, owner:profiles(id, full_name)), payment:rental_payments(total_amount, deposit_amount, platform_fee_amount, razorpay_payment_id, owner_stage1_paid_at, owner_stage2_paid_at, deposit_refunded_at)';
+const OFFERS_SELECT = 'offers:rental_offers(id, proposed_by, price_per_day, start_date, end_date, status, created_at)';
+const LISTING_FIELDS = 'id, title, image_url, price_per_day, deposit_required, deposit_amount, owner_id';
+const RENTAL_SELECT = `*, listing:listings(${LISTING_FIELDS}, owner:profiles(id, full_name)), ${OFFERS_SELECT}`;
+const INCOMING_SELECT = `*, listing:listings(${LISTING_FIELDS}), renter:profiles!rentals_renter_id_fkey(id, full_name), ${OFFERS_SELECT}`;
 
-// POST /api/rentals - request to rent a listing
+function loadRental(id) {
+  return supabase
+    .from('rentals')
+    .select(
+      'id, listing_id, renter_id, status, start_date, end_date, price_per_day, listed_price_per_day, conversation_id, listing:listings(id, title, owner_id, price_per_day, deposit_required, deposit_amount)'
+    )
+    .eq('id', id)
+    .single();
+}
+
+function loadOpenOffer(rentalId) {
+  return supabase
+    .from('rental_offers')
+    .select('id, proposed_by, price_per_day, start_date, end_date')
+    .eq('rental_id', rentalId)
+    .eq('status', 'open')
+    .maybeSingle();
+}
+
+async function profileName(userId) {
+  const { data } = await supabase.from('profiles').select('full_name').eq('id', userId).single();
+  return data?.full_name || 'Someone';
+}
+
+// Notifications point at the chat thread where the offer/status line just
+// landed. Requests from before offers existed have no thread, so those
+// fall back to the Dashboard tab the recipient would find them on.
+function threadLink(conversationId, dashboardTab) {
+  return conversationId ? `/messages?c=${conversationId}` : `/dashboard?tab=${dashboardTab}`;
+}
+
+// Only approved rentals actually block dates - two ranges [a,b] and [c,d]
+// overlap iff a<=d and c<=b.
+async function hasBookingConflict({ listingId, startDate, endDate, excludeRentalId }) {
+  let query = supabase
+    .from('rentals')
+    .select('id')
+    .eq('listing_id', listingId)
+    .eq('status', 'approved')
+    .lte('start_date', endDate)
+    .gte('end_date', startDate)
+    .limit(1);
+  if (excludeRentalId) query = query.neq('id', excludeRentalId);
+  const { data, error } = await query;
+  return { conflict: (data || []).length > 0, error };
+}
+
+// POST /api/rentals - renter sends a request with their offered price.
+// Lands in the (listing, renter) chat thread as an offer card, and the
+// owner is notified with both the listed and the offered price.
 router.post('/', requireAuth, async (req, res) => {
-  const { listing_id, start_date, end_date } = req.body;
-
-  if (!listing_id || !start_date || !end_date) {
-    return res.status(400).json({ error: 'listing_id, start_date and end_date are required' });
-  }
+  const { listing_id } = req.body;
+  if (!listing_id) return res.status(400).json({ error: 'listing_id is required' });
+  const { terms, error: termsError } = parseOfferTerms(req.body);
+  if (termsError) return res.status(400).json({ error: termsError });
 
   const { data: listing, error: listingError } = await supabase
     .from('listings')
-    .select('id, owner_id, status')
+    .select('id, owner_id, status, title, price_per_day')
     .eq('id', listing_id)
     .single();
 
@@ -32,50 +86,82 @@ router.post('/', requireAuth, async (req, res) => {
   if (listing.status !== 'available') {
     return res.status(400).json({ error: 'This item is not currently available' });
   }
-  if (new Date(end_date) < new Date(start_date)) {
-    return res.status(400).json({ error: 'End date must be on or after the start date' });
-  }
 
-  // Reject requests that overlap an already-approved rental on this listing -
-  // two ranges [a,b] and [c,d] overlap iff a<=d and c<=b. Only 'approved'
-  // rentals actually block dates; a merely 'pending' one doesn't (nothing
-  // stops the owner from approving a different request for the same dates
-  // instead).
-  const { data: conflicting, error: conflictError } = await supabase
+  // One negotiation at a time per renter per listing - a new price belongs
+  // in the existing thread as a counter-offer, not a parallel request.
+  const { data: openRequests, error: openError } = await supabase
     .from('rentals')
     .select('id')
     .eq('listing_id', listing_id)
-    .eq('status', 'approved')
-    .lte('start_date', end_date)
-    .gte('end_date', start_date)
+    .eq('renter_id', req.user.id)
+    .eq('status', 'pending')
     .limit(1);
-
-  if (conflictError) return res.status(500).json({ error: conflictError.message });
-  if (conflicting && conflicting.length > 0) {
-    return res.status(409).json({ error: 'This item is already booked for part of those dates' });
+  if (openError) return res.status(500).json({ error: openError.message });
+  if (openRequests.length > 0) {
+    return res.status(409).json({ error: 'You already have an open offer on this item - continue the conversation in Messages.' });
   }
 
-  const { data, error } = await supabase
-    .from('rentals')
-    .insert({ listing_id, renter_id: req.user.id, start_date, end_date })
-    .select(RENTAL_SELECT)
-    .single();
+  const { conflict, error: conflictError } = await hasBookingConflict({
+    listingId: listing_id,
+    startDate: terms.start_date,
+    endDate: terms.end_date,
+  });
+  if (conflictError) return res.status(500).json({ error: conflictError.message });
+  if (conflict) return res.status(409).json({ error: 'This item is already booked for part of those dates' });
 
+  const { data: conversation, error: conversationError } = await getOrCreateConversation({
+    listingId: listing_id,
+    ownerId: listing.owner_id,
+    renterId: req.user.id,
+    select: 'id',
+  });
+  if (conversationError || !conversation) {
+    return res.status(500).json({ error: conversationError?.message || 'Could not open a conversation' });
+  }
+
+  const { data: rental, error } = await supabase
+    .from('rentals')
+    .insert({
+      listing_id,
+      renter_id: req.user.id,
+      ...terms,
+      listed_price_per_day: listing.price_per_day,
+      conversation_id: conversation.id,
+    })
+    .select('id')
+    .single();
   if (error) return res.status(500).json({ error: error.message });
 
-  const { data: renterProfile } = await supabase
-    .from('profiles')
-    .select('full_name')
-    .eq('id', req.user.id)
+  const { data: offer, error: offerError } = await supabase
+    .from('rental_offers')
+    .insert({ rental_id: rental.id, proposed_by: req.user.id, ...terms })
+    .select('id')
     .single();
+  if (offerError) {
+    // Don't leave behind a pending request with no offer on it.
+    await supabase.from('rentals').delete().eq('id', rental.id);
+    return res.status(500).json({ error: offerError.message });
+  }
+
+  const summary = describeTerms(terms, listing.price_per_day);
+  await postMessage({
+    conversationId: conversation.id,
+    senderId: req.user.id,
+    body: `Offer: ${summary}`,
+    kind: 'offer',
+    offerId: offer.id,
+  });
+
   notify({
     userId: listing.owner_id,
     type: 'rental_request',
-    title: 'New rental request',
-    body: `${renterProfile?.full_name || 'Someone'} wants to rent "${data.listing.title}" (${start_date} → ${end_date}).`,
-    link: '/dashboard?tab=incoming',
+    title: `New offer on "${listing.title}"`,
+    body: `${await profileName(req.user.id)} offered ${summary}.`,
+    link: threadLink(conversation.id, 'incoming'),
   });
 
+  const { data, error: reloadError } = await supabase.from('rentals').select(RENTAL_SELECT).eq('id', rental.id).single();
+  if (reloadError) return res.status(500).json({ error: reloadError.message });
   res.status(201).json(data);
 });
 
@@ -104,9 +190,7 @@ router.get('/incoming', requireAuth, async (req, res) => {
 
   const { data, error } = await supabase
     .from('rentals')
-    .select(
-      `*, listing:listings(id, title, image_url, price_per_day), renter:profiles!rentals_renter_id_fkey(id, full_name), payment:rental_payments(total_amount, deposit_amount, platform_fee_amount, razorpay_payment_id, owner_stage1_paid_at, owner_stage2_paid_at, deposit_refunded_at)`
-    )
+    .select(INCOMING_SELECT)
     .in('listing_id', listingIds)
     .order('created_at', { ascending: false });
 
@@ -114,27 +198,179 @@ router.get('/incoming', requireAuth, async (req, res) => {
   res.json(data);
 });
 
-// PATCH /api/rentals/:id - owner approves/rejects, or renter cancels
+// POST /api/rentals/:id/offers - counter-offer (price and/or dates) on a
+// pending request. Only whoever's turn it is can counter; their offer
+// replaces the open one and the turn passes to the other side.
+router.post('/:id/offers', requireAuth, async (req, res) => {
+  const { terms, error: termsError } = parseOfferTerms(req.body);
+  if (termsError) return res.status(400).json({ error: termsError });
+
+  const { data: rental, error: findError } = await loadRental(req.params.id);
+  if (findError || !rental) return res.status(404).json({ error: 'Rental request not found' });
+
+  const isOwner = rental.listing?.owner_id === req.user.id;
+  const isRenter = rental.renter_id === req.user.id;
+  if (!isOwner && !isRenter) return res.status(403).json({ error: 'Forbidden' });
+  if (rental.status !== 'pending') {
+    return res.status(400).json({ error: `This request is already ${rental.status}` });
+  }
+
+  const { data: openOffer, error: offerFindError } = await loadOpenOffer(rental.id);
+  if (offerFindError) return res.status(500).json({ error: offerFindError.message });
+  if (whoseTurn(rental, openOffer) !== (isOwner ? 'owner' : 'renter')) {
+    return res.status(409).json({ error: 'Waiting for the other side to respond to your offer.' });
+  }
+
+  // Compare-and-set on status, so two quick counters (or a counter racing
+  // an accept) can't both win.
+  if (openOffer) {
+    const { data: replaced, error: replaceError } = await supabase
+      .from('rental_offers')
+      .update({ status: 'countered' })
+      .eq('id', openOffer.id)
+      .eq('status', 'open')
+      .select('id');
+    if (replaceError) return res.status(500).json({ error: replaceError.message });
+    if (replaced.length === 0) {
+      return res.status(409).json({ error: 'This offer was just answered - refresh to see the latest.' });
+    }
+  }
+
+  const { data: offer, error: offerError } = await supabase
+    .from('rental_offers')
+    .insert({ rental_id: rental.id, proposed_by: req.user.id, ...terms })
+    .select('id')
+    .single();
+  if (offerError) {
+    if (openOffer) await supabase.from('rental_offers').update({ status: 'open' }).eq('id', openOffer.id);
+    return res.status(500).json({ error: offerError.message });
+  }
+
+  const { data, error } = await supabase.from('rentals').update(terms).eq('id', rental.id).select(RENTAL_SELECT).single();
+  if (error) return res.status(500).json({ error: error.message });
+
+  const summary = describeTerms(terms, rental.listed_price_per_day ?? rental.listing.price_per_day);
+  await postMessage({
+    conversationId: rental.conversation_id,
+    senderId: req.user.id,
+    body: `Counter-offer: ${summary}`,
+    kind: 'offer',
+    offerId: offer.id,
+  });
+
+  notify({
+    userId: isOwner ? rental.renter_id : rental.listing.owner_id,
+    type: 'rental_counter_offer',
+    title: `New counter-offer on "${rental.listing.title}"`,
+    body: `${await profileName(req.user.id)} countered with ${summary}.`,
+    link: threadLink(rental.conversation_id, isOwner ? 'mine' : 'incoming'),
+  });
+
+  res.json(data);
+});
+
+// POST /api/rentals/:id/accept - accept the other side's open offer. The
+// rental is approved at exactly those terms.
+router.post('/:id/accept', requireAuth, async (req, res) => {
+  const { data: rental, error: findError } = await loadRental(req.params.id);
+  if (findError || !rental) return res.status(404).json({ error: 'Rental request not found' });
+
+  const isOwner = rental.listing?.owner_id === req.user.id;
+  const isRenter = rental.renter_id === req.user.id;
+  if (!isOwner && !isRenter) return res.status(403).json({ error: 'Forbidden' });
+  if (rental.status !== 'pending') {
+    return res.status(400).json({ error: `This request is already ${rental.status}` });
+  }
+
+  const { data: openOffer, error: offerFindError } = await loadOpenOffer(rental.id);
+  if (offerFindError) return res.status(500).json({ error: offerFindError.message });
+  if (whoseTurn(rental, openOffer) !== (isOwner ? 'owner' : 'renter')) {
+    return res.status(409).json({ error: "You can't accept your own offer - wait for the other side to accept or counter it." });
+  }
+
+  const terms = openOffer
+    ? { price_per_day: openOffer.price_per_day, start_date: openOffer.start_date, end_date: openOffer.end_date }
+    : {
+        price_per_day: rental.price_per_day ?? rental.listing.price_per_day,
+        start_date: rental.start_date,
+        end_date: rental.end_date,
+      };
+
+  const { conflict, error: conflictError } = await hasBookingConflict({
+    listingId: rental.listing_id,
+    startDate: terms.start_date,
+    endDate: terms.end_date,
+    excludeRentalId: rental.id,
+  });
+  if (conflictError) return res.status(500).json({ error: conflictError.message });
+  if (conflict) return res.status(409).json({ error: 'This item is already booked for part of those dates' });
+
+  if (openOffer) {
+    const { data: accepted, error: acceptError } = await supabase
+      .from('rental_offers')
+      .update({ status: 'accepted' })
+      .eq('id', openOffer.id)
+      .eq('status', 'open')
+      .select('id');
+    if (acceptError) return res.status(500).json({ error: acceptError.message });
+    if (accepted.length === 0) {
+      return res.status(409).json({ error: 'This offer was just answered - refresh to see the latest.' });
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('rentals')
+    .update({ status: 'approved', ...terms })
+    .eq('id', rental.id)
+    .eq('status', 'pending')
+    .select(RENTAL_SELECT)
+    .maybeSingle();
+  if (error) return res.status(500).json({ error: error.message });
+  if (!data) return res.status(409).json({ error: 'This request was just cancelled - refresh to see the latest.' });
+
+  await supabase.from('listings').update({ status: 'rented' }).eq('id', rental.listing_id);
+
+  const summary = describeTerms(terms, rental.listed_price_per_day ?? rental.listing.price_per_day);
+  const deposit = rental.listing.deposit_required
+    ? rental.listing.deposit_amount
+      ? ` Deposit: ${formatInr(rental.listing.deposit_amount)}, paid to the owner at pickup.`
+      : ' A deposit is required - agree the amount with the owner.'
+    : '';
+  await postMessage({
+    conversationId: rental.conversation_id,
+    senderId: req.user.id,
+    body: `Deal agreed: ${summary}. Pay the owner directly at pickup.${deposit}`,
+    kind: 'system',
+  });
+
+  notify({
+    userId: isOwner ? rental.renter_id : rental.listing.owner_id,
+    type: 'rental_approved',
+    title: `Deal agreed on "${rental.listing.title}"`,
+    body: `${await profileName(req.user.id)} accepted ${summary}.`,
+    link: threadLink(rental.conversation_id, isOwner ? 'mine' : 'incoming'),
+  });
+
+  res.json(data);
+});
+
+// PATCH /api/rentals/:id - owner declines or marks complete, or either side
+// cancels. (Approving happens by accepting an offer - POST /:id/accept.)
 router.patch('/:id', requireAuth, async (req, res) => {
   const { status } = req.body;
-  const allowed = ['approved', 'rejected', 'completed', 'cancelled'];
+  const allowed = ['rejected', 'completed', 'cancelled'];
   if (!allowed.includes(status)) {
     return res.status(400).json({ error: `status must be one of: ${allowed.join(', ')}` });
   }
 
-  const { data: rental, error: findError } = await supabase
-    .from('rentals')
-    .select('id, renter_id, status, listing:listings(owner_id)')
-    .eq('id', req.params.id)
-    .single();
-
+  const { data: rental, error: findError } = await loadRental(req.params.id);
   if (findError || !rental) return res.status(404).json({ error: 'Rental request not found' });
 
   const isOwner = rental.listing?.owner_id === req.user.id;
   const isRenter = rental.renter_id === req.user.id;
 
-  if (['approved', 'rejected'].includes(status) && !isOwner) {
-    return res.status(403).json({ error: 'Only the item owner can approve or reject a request' });
+  if (status === 'rejected' && !isOwner) {
+    return res.status(403).json({ error: 'Only the item owner can decline a request' });
   }
   if (status === 'completed' && !isOwner) {
     return res.status(403).json({ error: 'Only the item owner can mark a rental complete' });
@@ -144,10 +380,9 @@ router.patch('/:id', requireAuth, async (req, res) => {
   }
 
   // Only sensible from-states per target, so a request can't e.g. jump
-  // straight from 'pending' to 'completed', or be re-approved after
-  // already being rejected.
+  // straight from 'pending' to 'completed', or be re-opened after being
+  // declined.
   const validFrom = {
-    approved: ['pending'],
     rejected: ['pending'],
     completed: ['approved'],
     cancelled: ['pending', 'approved'],
@@ -160,147 +395,55 @@ router.patch('/:id', requireAuth, async (req, res) => {
     .from('rentals')
     .update({ status })
     .eq('id', req.params.id)
+    .eq('status', rental.status)
     .select(RENTAL_SELECT)
-    .single();
+    .maybeSingle();
 
   if (error) return res.status(500).json({ error: error.message });
+  if (!data) return res.status(409).json({ error: 'This rental just changed - refresh to see the latest.' });
 
-  // If a request was approved, mark the listing as rented.
-  if (status === 'approved') {
-    await supabase.from('listings').update({ status: 'rented' }).eq('id', data.listing_id);
-  }
-  // If a rental completes or is cancelled/rejected, free the listing back up.
-  if (['completed', 'cancelled', 'rejected'].includes(status)) {
-    await supabase.from('listings').update({ status: 'available' }).eq('id', data.listing_id);
+  // Ending a negotiation closes its open offer, so its card stops showing
+  // Accept/Counter buttons.
+  if (rental.status === 'pending') {
+    const { data: openOffer } = await loadOpenOffer(rental.id);
+    if (openOffer) {
+      await supabase
+        .from('rental_offers')
+        .update({ status: openOffer.proposed_by === req.user.id ? 'withdrawn' : 'declined' })
+        .eq('id', openOffer.id)
+        .eq('status', 'open');
+    }
   }
 
-  // Notify whichever side didn't just take the action - the owner acting
-  // (approve/reject/completed) tells the renter, the renter cancelling
-  // tells the owner.
+  // Only an approved rental ever marked the listing as rented - declining
+  // or withdrawing a pending request mustn't free up a listing that a
+  // different, approved rental is still using.
+  if (rental.status === 'approved') {
+    await supabase.from('listings').update({ status: 'available' }).eq('id', rental.listing_id);
+  }
+
+  const actorName = await profileName(req.user.id);
+  const CHAT_LINE = {
+    rejected: `${actorName} declined the request.`,
+    completed: `${actorName} marked the rental as complete.`,
+    cancelled: rental.status === 'pending' ? `${actorName} withdrew the request.` : `${actorName} cancelled the rental.`,
+  };
+  await postMessage({ conversationId: rental.conversation_id, senderId: req.user.id, body: CHAT_LINE[status], kind: 'system' });
+
+  // Notify whichever side didn't just take the action.
   const NOTIFY_COPY = {
-    approved: { title: 'Rental request approved', body: `Your request for "${data.listing.title}" was approved.` },
     rejected: { title: 'Rental request declined', body: `Your request for "${data.listing.title}" was declined.` },
     completed: { title: 'Rental marked complete', body: `Your rental of "${data.listing.title}" is marked complete.` },
     cancelled: { title: 'Rental cancelled', body: `The rental for "${data.listing.title}" was cancelled.` },
   };
-  const copy = NOTIFY_COPY[status];
-  if (copy) {
-    // Owner acting (approve/reject/completed) notifies the renter, who
-    // finds it under "My Rental Requests"; the renter cancelling notifies
-    // the owner, who finds it under "Requests on My Items" - different
-    // tabs, since each side only ever sees the other's half of Dashboard.
-    const recipientId = isOwner ? rental.renter_id : data.listing.owner_id;
-    const tab = isOwner ? 'mine' : 'incoming';
-    notify({ userId: recipientId, type: `rental_${status}`, ...copy, link: `/dashboard?tab=${tab}` });
-  }
+  notify({
+    userId: isOwner ? rental.renter_id : data.listing.owner_id,
+    type: `rental_${status}`,
+    ...NOTIFY_COPY[status],
+    link: threadLink(rental.conversation_id, isOwner ? 'mine' : 'incoming'),
+  });
 
   res.json(data);
-});
-
-// POST /api/rentals/:id/checkout - renter creates a Razorpay order to pay
-// for an approved rental. Only ever called by the renter, only once per
-// rental (a second call while unpaid just returns a fresh order for the
-// same amount - Razorpay orders don't expire on their own, but re-creating
-// is simpler than tracking staleness).
-router.post('/:id/checkout', requireAuth, async (req, res) => {
-  if (!razorpay) return res.status(503).json({ error: 'Payments are not configured yet.' });
-
-  const { data: rental, error: findError } = await supabase
-    .from('rentals')
-    .select(
-      'id, renter_id, status, start_date, end_date, listing:listings(id, title, price_per_day, deposit_required, deposit_amount)'
-    )
-    .eq('id', req.params.id)
-    .single();
-
-  if (findError || !rental) return res.status(404).json({ error: 'Rental request not found' });
-  if (rental.renter_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
-  if (rental.status !== 'approved') {
-    return res.status(400).json({ error: `Cannot pay for a "${rental.status}" rental - it must be approved first.` });
-  }
-
-  const { data: existingPayment } = await supabase
-    .from('rental_payments')
-    .select('rental_id')
-    .eq('rental_id', rental.id)
-    .maybeSingle();
-  if (existingPayment) return res.status(400).json({ error: 'This rental has already been paid for.' });
-
-  const days = Math.round((new Date(rental.end_date) - new Date(rental.start_date)) / (24 * 60 * 60 * 1000)) + 1;
-  const charges = computeRentalCharges({
-    pricePerDay: rental.listing.price_per_day,
-    days,
-    depositAmount: rental.listing.deposit_required ? rental.listing.deposit_amount || 0 : 0,
-  });
-
-  let order;
-  try {
-    order = await razorpay.orders.create({
-      amount: Math.round(charges.totalAmount * 100), // paise
-      currency: 'INR',
-      // Razorpay caps receipt at 40 chars - "rental_" + a dashed UUID is 43,
-      // so strip the dashes (r_ + 32 hex = 34). The full id is in notes.
-      receipt: `r_${rental.id.replace(/-/g, '')}`,
-      notes: { rental_id: rental.id, renter_id: req.user.id },
-    });
-  } catch (err) {
-    // The Razorpay SDK rejects with { statusCode, error: { code, description } }
-    // rather than an Error, so err.message is usually undefined.
-    const reason = err?.error?.description || err?.message || 'Razorpay error';
-    console.error('[checkout] Razorpay order create failed:', err?.statusCode, err?.error || err);
-    return res.status(502).json({ error: `Could not start payment: ${reason}` });
-  }
-
-  res.json({
-    order_id: order.id,
-    amount: order.amount,
-    currency: order.currency,
-    key_id: process.env.RAZORPAY_KEY_ID,
-    listing_title: rental.listing.title,
-    charges,
-  });
-});
-
-// POST /api/rentals/:id/verify-payment - called by the frontend right after
-// Razorpay Checkout succeeds, with the three fields it hands back. Verifying
-// the signature (rather than trusting the client's "it worked" call) is the
-// whole point - anyone can POST a fake success here, only someone who knows
-// RAZORPAY_KEY_SECRET can produce a signature that matches.
-router.post('/:id/verify-payment', requireAuth, async (req, res) => {
-  if (!razorpay) return res.status(503).json({ error: 'Payments are not configured yet.' });
-
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-  if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-    return res.status(400).json({ error: 'razorpay_order_id, razorpay_payment_id and razorpay_signature are required' });
-  }
-
-  const expected = crypto
-    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-    .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-    .digest('hex');
-  if (expected !== razorpay_signature) {
-    return res.status(400).json({ error: 'Payment signature verification failed.' });
-  }
-
-  const { data: rental, error: findError } = await supabase
-    .from('rentals')
-    .select('id, renter_id, status')
-    .eq('id', req.params.id)
-    .single();
-
-  if (findError || !rental) return res.status(404).json({ error: 'Rental request not found' });
-  if (rental.renter_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
-
-  try {
-    const data = await recordRentalPayment({
-      rentalId: rental.id,
-      razorpayOrderId: razorpay_order_id,
-      razorpayPaymentId: razorpay_payment_id,
-    });
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
 
 // POST /api/rentals/:id/photos - record pickup or return condition photos.
@@ -348,7 +491,7 @@ router.post('/:id/dispute', requireAuth, async (req, res) => {
 
   const { data: rental, error: findError } = await supabase
     .from('rentals')
-    .select('id, renter_id, status, listing:listings(owner_id)')
+    .select('id, renter_id, status, conversation_id, listing:listings(owner_id)')
     .eq('id', req.params.id)
     .single();
 
@@ -377,6 +520,13 @@ router.post('/:id/dispute', requireAuth, async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
+
+  await postMessage({
+    conversationId: rental.conversation_id,
+    senderId: req.user.id,
+    body: `${await profileName(req.user.id)} reported a problem with this rental. Rent It staff will review it.`,
+    kind: 'system',
+  });
 
   const otherPartyId = req.user.id === rental.renter_id ? rental.listing.owner_id : rental.renter_id;
   notify({

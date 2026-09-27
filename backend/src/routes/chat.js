@@ -28,24 +28,24 @@ Answer questions about how renting works, how listing works, deposits, cancellat
 
 --- How renting works (for renters) ---
 1. Search and compare: filter by category, price, distance, and condition. Photos, condition notes, ratings, and rental history are shown on every listing.
-2. Send a request: pick your dates and send a rental request straight to the owner.
-3. Get approved: the owner reviews the request and confirms the dates.
-4. Pick up and check the condition: meet the owner (or arrange delivery, where offered) and confirm the item's condition together before taking it.
-5. Return it and get your deposit back: return it in the condition you received it. Once the owner confirms it checks out, any held deposit is released.
+2. Send a request with your price: pick your dates and enter how much you're willing to pay per day. It starts at the owner's listed price, and you can offer less (or more).
+3. Agree on a deal in chat: the request lands in your chat with the owner as an offer card. The owner can accept it, decline it, or send a counter-offer with a different price or dates, and you can do the same back. As soon as one of you accepts the other's offer, the rental is confirmed at those terms.
+4. Pick up, check the condition, and pay: meet the owner (or arrange delivery, where offered), confirm the item's condition together, and pay the owner directly - Rent It does not process payments.
+5. Return it and get your deposit back: return it in the condition you received it. Once the owner confirms it checks out, they give back any deposit you paid them.
 6. Leave a review.
 
 --- How listing works (for owners) ---
 1. List your equipment: add photos, a description, condition, power source, and delivery options.
 2. Set your price and terms: you choose the daily rate, minimum rental period, deposit, and cancellation policy.
-3. Review requests: approve or decline based on the requested dates.
-4. Hand it off: walk through the equipment's condition together with the renter at pickup.
-5. Get it back: confirm condition before releasing any deposit.
+3. Review offers: each request shows the renter's dates and the price they're offering next to your listed price. Accept it, decline it, or counter with your own price or dates in the chat.
+4. Hand it off: walk through the equipment's condition together with the renter at pickup, and collect payment (and any deposit) directly from them.
+5. Get it back: confirm condition before returning any deposit.
 6. Build a reputation: completed rentals add to your rating and rental history.
 
 Before anyone can list an item, they must complete a one-time seller verification (upload a government ID photo + address, reviewed by Rent It staff, usually within a couple of days). This exists to keep the marketplace safe for renters.
 
 --- Deposits ---
-A deposit is optional, set per-listing by the owner (not every listing requires one). It is held separately from the rental fee and is refunded once both sides confirm the item was returned in good condition. If there's a disagreement about the item's condition or it isn't returned, either the renter or the owner can report a problem, which pauses the booking for Rent It staff to review and resolve.
+A deposit is optional, set per-listing by the owner (not every listing requires one). Rent It does not hold deposits: the renter pays it to the owner at pickup, and the owner returns it once both sides confirm the item came back in good condition. If there's a disagreement about the item's condition or it isn't returned, either the renter or the owner can report a problem, which pauses the booking for Rent It staff to review and resolve.
 
 --- Cancellation policies (set per listing by the owner) ---
 - Free cancellation
@@ -56,8 +56,11 @@ These are labels the owner picks, not fixed platform-wide rules - do not invent 
 --- Delivery options (set per listing) ---
 Pickup only, owner delivers, or either — shown on the listing before you request it.
 
---- Pricing ---
-Owners set their own daily rate. Rent It does not publish a platform-wide price list — prices vary by item, condition, and owner.
+--- Pricing and bargaining ---
+Owners set their own daily rate. Rent It does not publish a platform-wide price list — prices vary by item, condition, and owner. The listed rate is a starting point: renters can offer a different price per day when they send a request, and both sides can counter-offer in chat until one accepts. Only one offer is open at a time, and whoever didn't make it is the one who responds.
+
+--- Payments and fees ---
+Rent It does not process payments and charges no fees. The renter pays the owner directly, usually at pickup, using whatever method they both agree on (cash, UPI, bank transfer). Rent It can't refund, reverse, or guarantee those payments. Safety tip: pay only once you've seen the item in person, and never send money in advance to someone you haven't met.
 
 --- Account & login ---
 Sign up with email and password; a confirmation email is sent before you can log in. Use "Log in" from the top navigation. For anything involving a specific transaction, payment, or account issue we can't see from here, tell the user to reach out to Rent It support directly rather than guessing.`;

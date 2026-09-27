@@ -211,17 +211,35 @@ function TotalUsers() {
 }
 
 /* ------------------------------------------------------------------ *
- * 3. Escrow held - real, currently-held renter deposits
+ * 3. Bargaining - how far agreed prices land from listed prices
  * ------------------------------------------------------------------ */
 
-function EscrowHeld() {
-  const { data, error } = usePolledData(api.getAdminEscrowStats);
-  if (error) return <LoadFailed title="Escrow held" />;
-  if (!data) return <Loading title="Escrow held" />;
+function Bargaining() {
+  const { data, error } = usePolledData(api.getAdminRentals);
+  if (error) return <LoadFailed title="Bargaining" />;
+  if (!data) return <Loading title="Bargaining" />;
+
+  // Only deals made through offers have both prices - requests from before
+  // bargaining existed are left out rather than counted as "at listed".
+  const deals = data.filter(
+    (r) => APPROVED_LINEAGE.includes(r.status) && r.price_per_day != null && Number(r.listed_price_per_day) > 0
+  );
+  const below = deals.filter((r) => Number(r.price_per_day) < Number(r.listed_price_per_day)).length;
+  const avgOff = deals.length
+    ? Math.round(
+        (deals.reduce((sum, r) => sum + (1 - Number(r.price_per_day) / Number(r.listed_price_per_day)), 0) / deals.length) * 100
+      )
+    : 0;
+  const negotiating = data.filter((r) => r.status === 'pending').length;
+
   return (
-    <Shell title="Escrow held" meta="deposits">
-      <Big>₹{Number(data.held_total).toLocaleString('en-IN')}</Big>
-      <p className="mt-auto text-[13px] text-muted-foreground">Currently held across active rentals</p>
+    <Shell title="Bargaining" meta="agreed vs listed">
+      <Big unit="% avg. below listed">{avgOff}</Big>
+      <dl className="mt-auto space-y-2">
+        <Row value={deals.length}>Deals agreed</Row>
+        <Row value={below}>Below listed price</Row>
+        <Row value={negotiating}>Negotiating now</Row>
+      </dl>
     </Shell>
   );
 }
@@ -389,7 +407,7 @@ function ListingsByCategory() {
 const WIDGETS = [
   { id: 'site-activity', kind: 'site-activity', size: 'wide', label: 'Site activity' },
   { id: 'total-users', kind: 'total-users', size: 'sm', label: 'Total users' },
-  { id: 'escrow-held', kind: 'escrow-held', size: 'sm', label: 'Escrow held' },
+  { id: 'bargaining', kind: 'bargaining', size: 'sm', label: 'Bargaining' },
   { id: 'open-disputes', kind: 'open-disputes', size: 'sm', label: 'Open disputes' },
   { id: 'recent-requests', kind: 'recent-requests', size: 'wide', label: 'Recent requests' },
   { id: 'approval-rate', kind: 'approval-rate', size: 'sm', label: 'Approval rate' },
@@ -400,7 +418,7 @@ const WIDGETS = [
 const VIEWS = {
   'site-activity': SiteActivity,
   'total-users': TotalUsers,
-  'escrow-held': EscrowHeld,
+  bargaining: Bargaining,
   'open-disputes': OpenDisputes,
   'recent-requests': RecentRequests,
   'approval-rate': ApprovalRate,

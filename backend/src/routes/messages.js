@@ -2,11 +2,18 @@ import { Router } from 'express';
 import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth } from '../middleware/auth.js';
 import { notify } from '../lib/notify.js';
+import { getOrCreateConversation } from '../lib/conversations.js';
 
 const router = Router();
 
 const CONVERSATION_SELECT =
-  '*, listing:listings(id, title, image_url), owner:profiles!conversations_owner_id_fkey(id, full_name), renter:profiles!conversations_renter_id_fkey(id, full_name)';
+  '*, listing:listings(id, title, image_url, status, price_per_day, deposit_required, deposit_amount), owner:profiles!conversations_owner_id_fkey(id, full_name), renter:profiles!conversations_renter_id_fkey(id, full_name)';
+
+// Offer cards (kind 'offer') carry their offer, plus the rental's current
+// status and the price the listing had when the request was made, so the
+// card can show "offered vs listed" and whether it's still open.
+const MESSAGE_SELECT =
+  '*, offer:rental_offers(id, rental_id, proposed_by, price_per_day, start_date, end_date, status, created_at, rental:rentals(id, status, renter_id, listed_price_per_day))';
 
 async function assertParticipant(conversationId, userId) {
   const { data, error } = await supabase
@@ -33,7 +40,7 @@ router.get('/conversations', requireAuth, async (req, res) => {
   if (conversationIds.length > 0) {
     const { data: recent, error: recentError } = await supabase
       .from('messages')
-      .select('conversation_id, body, sender_id, created_at')
+      .select('conversation_id, body, kind, sender_id, created_at')
       .in('conversation_id', conversationIds)
       .order('created_at', { ascending: false });
     if (recentError) return res.status(500).json({ error: recentError.message });
@@ -66,22 +73,15 @@ router.post('/conversations', requireAuth, async (req, res) => {
     return res.status(400).json({ error: "You can't message yourself about your own listing" });
   }
 
-  const { data: existing } = await supabase
-    .from('conversations')
-    .select(CONVERSATION_SELECT)
-    .eq('listing_id', listing_id)
-    .eq('renter_id', req.user.id)
-    .maybeSingle();
-  if (existing) return res.json(existing);
-
-  const { data, error } = await supabase
-    .from('conversations')
-    .insert({ listing_id, owner_id: listing.owner_id, renter_id: req.user.id })
-    .select(CONVERSATION_SELECT)
-    .single();
+  const { data, error, created } = await getOrCreateConversation({
+    listingId: listing_id,
+    ownerId: listing.owner_id,
+    renterId: req.user.id,
+    select: CONVERSATION_SELECT,
+  });
 
   if (error) return res.status(500).json({ error: error.message });
-  res.status(201).json(data);
+  res.status(created ? 201 : 200).json(data);
 });
 
 // GET /api/messages/conversations/:id/messages
@@ -92,7 +92,7 @@ router.get('/conversations/:id/messages', requireAuth, async (req, res) => {
 
   const { data, error } = await supabase
     .from('messages')
-    .select('*')
+    .select(MESSAGE_SELECT)
     .eq('conversation_id', req.params.id)
     .order('created_at', { ascending: true });
 
@@ -111,8 +111,8 @@ router.post('/conversations/:id/messages', requireAuth, async (req, res) => {
 
   const { data, error } = await supabase
     .from('messages')
-    .insert({ conversation_id: req.params.id, sender_id: req.user.id, body: body.trim() })
-    .select()
+    .insert({ conversation_id: req.params.id, sender_id: req.user.id, body: body.trim(), kind: 'text' })
+    .select(MESSAGE_SELECT)
     .single();
 
   if (error) return res.status(500).json({ error: error.message });

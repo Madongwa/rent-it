@@ -193,7 +193,7 @@ router.get('/disputes', async (req, res) => {
   const { data, error } = await supabase
     .from('rental_disputes')
     .select(
-      '*, rental:rentals(id, start_date, end_date, listing:listings(id, title, owner_id, owner:profiles(id, full_name)), renter:profiles!rentals_renter_id_fkey(id, full_name)), raiser:profiles!rental_disputes_raised_by_fkey(id, full_name)'
+      '*, rental:rentals(id, start_date, end_date, price_per_day, listed_price_per_day, listing:listings(id, title, owner_id, price_per_day, owner:profiles(id, full_name)), renter:profiles!rentals_renter_id_fkey(id, full_name)), raiser:profiles!rental_disputes_raised_by_fkey(id, full_name)'
     )
     .eq('status', 'open')
     .order('created_at', { ascending: true });
@@ -203,16 +203,10 @@ router.get('/disputes', async (req, res) => {
 });
 
 // POST /api/admin/disputes/:id/resolve - body: { resolution, outcome }
-// outcome: 'completed' (side with the owner - normal payout proceeds) or
-// 'cancelled' (side with the renter - rental fee refunds, no owner payout).
-// This only records the decision; it does not itself move money. Renter
-// payment collection is wired (see rentals.js /checkout, /verify-payment),
-// but owner payouts and refunds still happen manually outside the app for
-// now - automating those needs RazorpayX Route with each owner KYC'd as a
-// linked sub-merchant, which is real compliance infrastructure this app
-// doesn't have yet. Staff use the amounts recorded in rental_payments
-// (owner_stage1/2_amount, deposit_amount) as the reference for whatever
-// they pay/refund outside the platform.
+// outcome: 'completed' (side with the owner) or 'cancelled' (side with the
+// renter). This only records the decision - no money moves through the
+// app (renters pay owners directly), so the agreed price on the rental is
+// the reference for what the two sides settle between themselves.
 router.post('/disputes/:id/resolve', async (req, res) => {
   const { resolution, outcome } = req.body;
 
@@ -320,7 +314,7 @@ router.get('/rentals', async (req, res) => {
   let query = supabase
     .from('rentals')
     .select(
-      'id, start_date, end_date, status, created_at, listing:listings(id, title, owner:profiles(id, full_name)), renter:profiles!rentals_renter_id_fkey(id, full_name)'
+      'id, start_date, end_date, status, created_at, price_per_day, listed_price_per_day, listing:listings(id, title, price_per_day, owner:profiles(id, full_name)), renter:profiles!rentals_renter_id_fkey(id, full_name)'
     )
     .order('created_at', { ascending: false })
     .limit(200);
@@ -522,26 +516,6 @@ router.get('/stats/activity', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
-
-// GET /api/admin/stats/escrow - total currently-held renter deposits (paid
-// in, not yet refunded, on a rental that wasn't cancelled), for the Escrow
-// Held widget. No day-over-day delta - there's no historical snapshot of
-// this balance to compare against, so the widget omits that rather than
-// fake it.
-router.get('/stats/escrow', async (req, res) => {
-  const { data, error } = await supabase
-    .from('rental_payments')
-    .select('deposit_amount, rental:rentals(status)')
-    .is('deposit_refunded_at', null);
-
-  if (error) return res.status(500).json({ error: error.message });
-
-  const held_total = data
-    .filter((row) => row.rental?.status !== 'cancelled')
-    .reduce((sum, row) => sum + Number(row.deposit_amount), 0);
-
-  res.json({ held_total });
 });
 
 // GET /api/admin/stats/listings-by-category - listing counts and share of
