@@ -16,6 +16,7 @@ import notificationsRouter from './routes/notifications.js';
 import kycRouter from './routes/kyc.js';
 import adminRouter from './routes/admin.js';
 import chatRouter from './routes/chat.js';
+import translateRouter from './routes/translate.js';
 
 // The Express app itself, with no app.listen() call. Shared between the
 // local dev server (server.js) and the Vercel serverless entry (api/index.js).
@@ -88,6 +89,7 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/kyc', kycRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/chat', chatRouter);
+app.use('/api/translate', translateRouter);
 
 // Reports any error thrown or passed to next() below to Sentry - a no-op if
 // SENTRY_DSN isn't set. Must be registered after every route and before the

@@ -13,6 +13,12 @@ tools, construction equipment, and household/DIY tools.
 - **List an Item** — post your own equipment for rent (requires login)
 - **Dashboard** — manage your listings, your rental requests, and incoming
   requests on your items, with the offered/agreed price on each
+- **Language button** (top right) — the whole site in English or 12 Indian
+  languages (Hindi, Bengali, Telugu, Marathi, Tamil, Urdu, Gujarati,
+  Kannada, Malayalam, Odia, Punjabi, Assamese), translated by AI and stored
+  so each piece of text is only translated once. Chats always stay exactly
+  as typed. Run `node backend/scripts/pretranslate.js` after adding new
+  pages or text, so visitors don't wait on the AI.
 
 No money moves through the app: once a deal is agreed, the renter pays the
 owner directly (and any deposit) at pickup.
@@ -90,7 +96,8 @@ this same GitHub repo:
    app used locally; `backend/vercel.json` routes all paths to it). Add the
    same env vars as `backend/.env` (`SUPABASE_URL`,
    `SUPABASE_SERVICE_ROLE_KEY`, and `CLIENT_ORIGIN` set to your frontend's
-   Vercel URL).
+   Vercel URL), plus `GROQ_API_KEY` and `GEMINI_API_KEY` for the help
+   assistant and the language button.
 2. **Frontend** — new Vercel project, Root Directory = `frontend`. Framework
    preset "Vite". Add the same env vars as `frontend/.env`
    (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_API_URL` set to

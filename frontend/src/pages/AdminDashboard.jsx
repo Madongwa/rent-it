@@ -228,7 +228,9 @@ export default function AdminDashboard() {
 
   return (
     <DarkGradientBg className="min-h-[calc(100vh-4rem)]">
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    {/* Staff-only and full of other users' personal details (KYC, disputes,
+        chats) - kept in English and never sent to the AI translator. */}
+    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6" translate="no">
       <h1 className="text-heading-sm text-night-text">Staff dashboard</h1>
 
       <div className="mt-6 flex flex-wrap gap-1 border-b border-night-border/15">

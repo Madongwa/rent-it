@@ -1,13 +1,8 @@
 import { Router } from 'express';
-import OpenAI from 'openai';
 import rateLimit from 'express-rate-limit';
+import { groq as groqClient } from '../lib/groq.js';
 
 const router = Router();
-
-const groqClient = new OpenAI({
-  baseURL: 'https://api.groq.com/openai/v1',
-  apiKey: process.env.GROQ_API_KEY,
-});
 
 const chatRateLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute

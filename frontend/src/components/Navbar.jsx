@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { MetalNavLink } from './ui/metal-nav-link';
 import NotificationBell from './NotificationBell';
+import LanguageSwitcher from './LanguageSwitcher';
 import useUnreadMessages from '../hooks/useUnreadMessages';
 import '../styles/home-hero.css';
 
@@ -120,7 +121,7 @@ export default function Navbar() {
 
   return (
     <header className="rh-nav">
-      <Link to="/" className="rh-logo">
+      <Link to="/" className="rh-logo" translate="no">
         <span className="rh-logo-mark" aria-hidden="true">🛠️</span>
         Rent It
       </Link>
@@ -169,6 +170,8 @@ export default function Navbar() {
           <Arrow />
         </Link>
       </div>
+
+      <LanguageSwitcher />
 
       <button
         ref={burgerRef}

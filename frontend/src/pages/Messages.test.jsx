@@ -382,3 +382,13 @@ describe('Messages - the + menu (photos, documents, location)', () => {
     expect(screen.getByTitle('Open in Google Maps')).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=28.6129,77.2295');
   });
 });
+
+describe('Messages - chats are never translated', () => {
+  it('marks what people typed, and their names, so the language button leaves them as typed', async () => {
+    renderAs(OWNER, [
+      { id: 't1', conversation_id: 'conv-1', sender_id: RENTER.id, kind: 'text', body: 'kal milega kya?', created_at: '2099-01-01T09:00:00Z', offer: null },
+    ]);
+    expect(await screen.findByText('kal milega kya?')).toHaveAttribute('translate', 'no');
+    for (const name of screen.getAllByText('Ravi')) expect(name).toHaveAttribute('translate', 'no');
+  });
+});

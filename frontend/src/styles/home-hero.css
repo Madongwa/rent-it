@@ -433,3 +433,17 @@ html.rh-anim.rh-go .rh-ctas .rh-btn-ghost{animation:rh-pillIn .70s var(--e-revea
   .rh-ctas{margin-top:18px}
   .rh-hero-inner{transform:translateY(-44%)}
 }
+
+/* --- LANGUAGE BUTTON ------------------------------------------------------
+   Its own element rather than part of .rh-nav-actions, so it stays in the
+   bar on tablet/mobile, where the actions fold into the burger menu. */
+.rh-lang{position:relative;margin-left:max(12px, calc(14 * var(--rh-u)))}
+.rh-lang-btn{gap:7px;padding:0 max(12px, calc(14 * var(--rh-u)))}
+@media (max-width:1200px){
+  .rh-lang{margin-left:auto}
+  .rh-lang + .rh-burger{margin-left:10px}
+  .rh-lang-btn{height:max(38px, calc(34 * var(--rh-u)));font-size:14px}
+}
+@media (max-width:552px){
+  .rh-lang-btn{height:36px;padding:0 11px}
+}

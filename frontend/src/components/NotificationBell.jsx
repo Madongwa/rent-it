@@ -160,7 +160,13 @@ export default function NotificationBell() {
                   {!n.read && <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />}
                   <div className={n.read ? 'pl-3.5' : ''}>
                     <p className="text-sm font-medium text-night-text">{n.title}</p>
-                    {n.body && <p className="mt-0.5 text-xs text-night-muted">{n.body}</p>}
+                    {/* A new-message notification's body is the start of the chat
+                        message itself - chats are never sent for translation. */}
+                    {n.body && (
+                      <p className="mt-0.5 text-xs text-night-muted" translate={n.type === 'new_message' ? 'no' : undefined}>
+                        {n.body}
+                      </p>
+                    )}
                     <p className="mt-1 text-[10px] text-night-muted/70">{timeAgo(n.created_at)}</p>
                   </div>
                 </div>

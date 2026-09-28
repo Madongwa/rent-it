@@ -233,7 +233,10 @@ function ConversationRow({ conversation, userId, active, onOpen }) {
       <Avatar name={other?.full_name} imageUrl={other?.avatar_url} />
       <div className="min-w-0 flex-1 border-b border-night-border/10 pb-3">
         <div className="flex items-baseline justify-between gap-2">
-          <p className={`truncate text-sm ${unread ? 'font-bold' : 'font-semibold'} text-night-text`}>
+          <p
+            className={`truncate text-sm ${unread ? 'font-bold' : 'font-semibold'} text-night-text`}
+            translate={other?.full_name ? 'no' : undefined}
+          >
             {other?.full_name || 'Rent It user'}
           </p>
           <span className={`shrink-0 text-[11px] ${unread ? 'font-semibold text-emerald-400' : 'text-night-muted'}`}>
@@ -248,7 +251,20 @@ function ConversationRow({ conversation, userId, active, onOpen }) {
                 <Ticks read={read} />{' '}
               </>
             )}
-            {last ? last.body : 'No messages yet'}
+            {/* What people type stays exactly as typed - the language button
+                translates the site, never chats. App-written lines (offers,
+                status updates) are ordinary site text and do get translated. */}
+            {last ? (
+              (last.kind || 'text') === 'text' ? (
+                <span translate="no" dir="auto">
+                  {last.body}
+                </span>
+              ) : (
+                last.body
+              )
+            ) : (
+              'No messages yet'
+            )}
           </p>
           {unread > 0 && (
             <span
@@ -624,7 +640,9 @@ export default function Messages() {
                     </button>
                     <Avatar name={otherName} imageUrl={other?.avatar_url} size="h-10 w-10" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-night-text">{otherName}</p>
+                      <p className="truncate text-sm font-semibold text-night-text" translate={other?.full_name ? 'no' : undefined}>
+                        {otherName}
+                      </p>
                       <p className="truncate text-xs text-night-muted">
                         <Link to={`/listing/${active.listing?.id}`} className="hover:underline">
                           {active.listing?.title}
@@ -705,7 +723,10 @@ export default function Messages() {
                               mine ? 'rounded-br-md bg-accent text-white' : 'rounded-bl-md bg-night-elevated/90 text-night-text'
                             }`}
                           >
-                            <AttachmentMessage message={m} mine={mine} />
+                            {/* File names and shared places are what people typed/chose - left as is. */}
+                            <div translate="no">
+                              <AttachmentMessage message={m} mine={mine} />
+                            </div>
                             <p className={`mt-1 flex items-center justify-end gap-1 px-1.5 text-[10px] ${mine ? 'text-white/70' : 'text-night-muted'}`}>
                               {formatClock(m.created_at)}
                               {mine && <Ticks read={!!otherReadAt && otherReadAt >= new Date(m.created_at)} />}
@@ -721,7 +742,10 @@ export default function Messages() {
                               mine ? 'rounded-br-md bg-accent text-white' : 'rounded-bl-md bg-night-elevated/90 text-night-text'
                             }`}
                           >
-                            <p className="whitespace-pre-line break-words">{m.body}</p>
+                            {/* Chats are never translated - see the chat list above. */}
+                            <p className="whitespace-pre-line break-words" translate="no" dir="auto">
+                              {m.body}
+                            </p>
                             <p className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${mine ? 'text-white/70' : 'text-night-muted'}`}>
                               {formatClock(m.created_at)}
                               {mine && <Ticks read={!!otherReadAt && otherReadAt >= new Date(m.created_at)} />}

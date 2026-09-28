@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth } from '../middleware/auth.js';
 import { TERMS_VERSION } from '../lib/terms.js';
+import { isSupportedLanguage } from '../lib/languages.js';
 
 const router = Router();
 
@@ -9,7 +10,7 @@ const router = Router();
 router.get('/me', requireAuth, async (req, res) => {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, phone, avatar_url, created_at, role, seller_status, terms_accepted_at, terms_version')
+    .select('id, full_name, phone, avatar_url, created_at, role, seller_status, terms_accepted_at, terms_version, preferred_language')
     .eq('id', req.user.id)
     .single();
 
@@ -62,8 +63,12 @@ router.get('/:id', async (req, res) => {
 
 // PATCH /api/profiles/me
 router.patch('/me', requireAuth, async (req, res) => {
-  const { full_name, phone, avatar_url } = req.body;
+  const { full_name, phone, avatar_url, preferred_language } = req.body;
   const updates = {};
+  if (preferred_language !== undefined) {
+    if (!isSupportedLanguage(preferred_language)) return res.status(400).json({ error: 'Unsupported language' });
+    updates.preferred_language = preferred_language;
+  }
   if (full_name !== undefined) updates.full_name = full_name;
   if (phone !== undefined) updates.phone = phone;
   if (avatar_url !== undefined) updates.avatar_url = avatar_url;
@@ -72,7 +77,7 @@ router.patch('/me', requireAuth, async (req, res) => {
     .from('profiles')
     .update(updates)
     .eq('id', req.user.id)
-    .select('id, full_name, phone, avatar_url, created_at')
+    .select('id, full_name, phone, avatar_url, created_at, preferred_language')
     .single();
 
   if (error) return res.status(500).json({ error: error.message });

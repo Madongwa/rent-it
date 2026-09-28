@@ -972,3 +972,37 @@ create policy "Users and admins can view terms acceptances" on public.terms_acce
 -- ---------------------------------------------------------------------------
 revoke insert, update, delete, truncate on all tables in schema public from anon, authenticated;
 alter default privileges in schema public revoke insert, update, delete, truncate on tables from anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Language button: the site in English or 12 Indian languages, translated
+-- by AI (backend/src/lib/translate.js) and stored here so each piece of
+-- text is only ever translated once per language. Chat messages are never
+-- translated.
+--
+-- preferred_language follows a logged-in user across devices. Keep the
+-- list in sync with backend/src/lib/languages.js and
+-- frontend/src/lib/languages.js.
+-- ---------------------------------------------------------------------------
+alter table public.profiles
+  add column if not exists preferred_language text not null default 'en'
+    check (preferred_language in ('en', 'hi', 'bn', 'te', 'mr', 'ta', 'ur', 'gu', 'kn', 'ml', 'or', 'pa', 'as'));
+
+-- Site text (buttons, headings, listing titles...), shared by every visitor:
+-- keyed by a hash of the English text, since the text itself can be long.
+create table if not exists public.ui_translations (
+  lang text not null,
+  source_hash text not null,
+  source text not null,
+  translated text not null,
+  created_at timestamptz not null default now(),
+  primary key (lang, source_hash)
+);
+
+-- Which model made each translation, so the warm-up script
+-- (scripts/pretranslate.js) can redo ones a fallback model made while the
+-- main one was busy.
+alter table public.ui_translations add column if not exists model text;
+
+-- Backend-only (service_role): RLS on with no policies means the anon and
+-- authenticated roles can't read or write it directly.
+alter table public.ui_translations enable row level security;

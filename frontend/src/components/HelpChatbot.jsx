@@ -35,6 +35,8 @@ function TypingDots({ reduceMotion }) {
   );
 }
 
+// Chats stay in English (or as typed) - the language button translates the
+// site, never chat bubbles.
 function MessageBubble({ role, content, reduceMotion }) {
   const isUser = role === 'user';
   const variants = reduceMotion
@@ -57,6 +59,8 @@ function MessageBubble({ role, content, reduceMotion }) {
             ? 'rounded-2xl rounded-br-md bg-accent text-white'
             : 'rounded-2xl rounded-bl-md bg-night-elevated text-night-text'
         }`}
+        translate="no"
+        dir="auto"
       >
         {content}
       </div>

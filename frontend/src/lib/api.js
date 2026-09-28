@@ -105,6 +105,9 @@ export const api = {
   sendChatMessage: (message, history = []) =>
     request('/chat', { method: 'POST', body: JSON.stringify({ message, history }) }),
 
+  translateUi: (lang, texts) =>
+    request('/translate/ui', { method: 'POST', body: JSON.stringify({ lang, texts }) }),
+
   getDisputeQueue: () => request('/admin/disputes'),
   resolveDispute: (disputeId, resolution, outcome) =>
     request(`/admin/disputes/${disputeId}/resolve`, {
