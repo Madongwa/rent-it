@@ -119,9 +119,10 @@ export default function NotificationBell() {
         onClick={togglePanel}
         aria-label="Notifications"
         aria-expanded={open}
-        className="relative flex h-10 w-10 items-center justify-center rounded-full text-night-muted transition-colors hover:bg-white/10 hover:text-night-text"
+        className="relative flex h-8 w-8 items-center justify-center rounded-full text-night-muted transition-colors hover:bg-white/10 hover:text-night-text"
       >
-        <Bell className="h-5 w-5" />
+        {/* Same 32px height as the nav pills, so the bar reads as one row. */}
+        <Bell className="h-[18px] w-[18px]" />
         {unreadCount > 0 && (
           <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
             {unreadCount > 9 ? '9+' : unreadCount}

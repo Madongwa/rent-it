@@ -68,7 +68,8 @@ export default function LanguageSwitcher() {
         aria-label={`Language: ${current.name}. Change language`}
       >
         <Languages className="h-4 w-4 shrink-0" aria-hidden="true" />
-        <span lang={current.code}>{current.native}</span>
+        {/* A short label keeps the navbar row from overflowing; the menu has the full names. */}
+        <span lang={current.code}>{current.short}</span>
         <ChevronDown className={`h-3.5 w-3.5 shrink-0 opacity-70 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
 

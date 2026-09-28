@@ -28,7 +28,7 @@ import { cn } from '../../lib/utils';
 import { useSurfaceTheme } from './metal-button-utils/use-surface-theme';
 
 const NAV_SIZE = {
-  sm: 'h-8 px-3',
+  sm: 'h-8 px-2',
   md: 'h-9 px-3.5',
   lg: 'h-10 px-4',
 };

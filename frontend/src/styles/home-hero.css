@@ -194,6 +194,9 @@
   font-weight:800;font-size:calc(24 * var(--rh-u));letter-spacing:calc(0.3 * var(--rh-u));
   transform:translateY(calc(-1.5 * var(--rh-u)));line-height:1;color:var(--rh-ink);
   text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;gap:calc(7*var(--rh-u));
+  /* Never squeezed by a crowded link row - that's what used to let the
+     links slide under it. */
+  flex:0 0 auto;
 }
 .rh-logo-mark{
   display:inline-flex;align-items:center;justify-content:center;
@@ -215,9 +218,15 @@
      guarantees a minimum gap from the logo/buttons even when this flex
      box is nearly as wide as the space it's centered in (without it,
      "Home" sat almost flush against the logo at ~1440x900). */
-  flex:1 1 auto;min-width:0;padding:0 calc(16 * var(--rh-u));
-  display:flex;align-items:center;justify-content:center;
-  gap:calc(9 * var(--rh-u));white-space:nowrap;
+  flex:1 1 auto;min-width:0;padding:0 max(14px, calc(14 * var(--rh-u)));
+  display:flex;align-items:center;
+  /* "safe": centred when the links fit, left-aligned when they don't - plain
+     center made an over-full row spill out of BOTH sides, i.e. over the
+     logo. With all eight links (Dashboard + Staff) and the language button
+     the row got close to full at common desktop sizes, so the gap and the
+     pills' padding are also a little tighter than before. */
+  justify-content:safe center;
+  gap:calc(6 * var(--rh-u));white-space:nowrap;
 }
 /* A literal 3x on 6 nav labels (as first tried) measured out to ~1427px
    wide at 1920x1080 alone, before the two buttons - the whole row didn't
@@ -227,13 +236,13 @@
    the original 10.6u, but small enough to sit on one line at 1920px+
    alongside the buttons, which kept their full 3x. */
 .rh-nav-links a{
-  color:var(--rh-ink-muted);text-decoration:none;font-size:calc(15 * var(--rh-u));
+  color:var(--rh-ink-muted);text-decoration:none;font-size:calc(14 * var(--rh-u));
   font-weight:500;letter-spacing:calc(-0.14 * var(--rh-u));line-height:1;
   transition:color .18s ease;
 }
 .rh-nav-links a:hover,.rh-nav-links a.is-active{color:#fff}
 
-.rh-nav-actions{margin-left:auto;display:flex;align-items:center;gap:max(12px, calc(14 * var(--rh-u)))}
+.rh-nav-actions{margin-left:auto;display:flex;align-items:center;gap:max(8px, calc(10 * var(--rh-u)))}
 
 /* Walked back from the literal 3x on the buttons (84u tall, 33-34.5u
    font) - next to 15u nav-link text that read as wildly mismatched, like
@@ -242,10 +251,13 @@
    they're buttons, and height/padding follow from that new font size
    using the same proportions the buttons always had (height/font ~2.43x,
    padding/height ~0.46-0.48x, radius = height/2 for a true pill). */
+/* Sized down from 40u/16.5u to sit level with the 32px nav pills - with
+   Dashboard, Staff, the bell and the language button all in one row, the
+   old bigger buttons were what pushed the links into them. */
 .rh-btn-login{
-  height:calc(40 * var(--rh-u));padding:0 calc(18 * var(--rh-u));
-  border-radius:calc(20 * var(--rh-u));color:#e8e8e8;
-  font-size:calc(16.5 * var(--rh-u));font-weight:500;letter-spacing:calc(-0.22 * var(--rh-u));
+  height:max(32px, calc(34 * var(--rh-u)));padding:0 calc(14 * var(--rh-u));
+  border-radius:999px;color:#e8e8e8;
+  font-size:calc(14.5 * var(--rh-u));font-weight:500;letter-spacing:calc(-0.22 * var(--rh-u));
   background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
   -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
   transition:background .18s ease,border-color .18s ease,color .18s ease;
@@ -253,10 +265,10 @@
 .rh-btn-login:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.22);color:#fff}
 
 .rh-btn-nav-start{
-  height:calc(40 * var(--rh-u));padding-left:calc(19 * var(--rh-u));
-  padding-right:calc(21 * var(--rh-u));border-radius:calc(20 * var(--rh-u));
-  background:var(--rh-white-btn);color:var(--rh-btn-ink);font-size:calc(16 * var(--rh-u));
-  font-weight:500;letter-spacing:0;gap:calc(10 * var(--rh-u));
+  height:max(32px, calc(34 * var(--rh-u)));padding-left:calc(14 * var(--rh-u));
+  padding-right:calc(15 * var(--rh-u));border-radius:999px;
+  background:var(--rh-white-btn);color:var(--rh-btn-ink);font-size:calc(14.5 * var(--rh-u));
+  font-weight:500;letter-spacing:0;gap:calc(8 * var(--rh-u));
   transition:background .18s ease;
 }
 .rh-btn-nav-start:hover{background:#fff}
@@ -438,7 +450,7 @@ html.rh-anim.rh-go .rh-ctas .rh-btn-ghost{animation:rh-pillIn .70s var(--e-revea
    Its own element rather than part of .rh-nav-actions, so it stays in the
    bar on tablet/mobile, where the actions fold into the burger menu. */
 .rh-lang{position:relative;margin-left:max(12px, calc(14 * var(--rh-u)))}
-.rh-lang-btn{gap:7px;padding:0 max(12px, calc(14 * var(--rh-u)))}
+.rh-lang-btn{gap:6px;padding:0 max(10px, calc(11 * var(--rh-u)))}
 @media (max-width:1200px){
   .rh-lang{margin-left:auto}
   .rh-lang + .rh-burger{margin-left:10px}
@@ -447,3 +459,31 @@ html.rh-anim.rh-go .rh-ctas .rh-btn-ghost{animation:rh-pillIn .70s var(--e-revea
 @media (max-width:552px){
   .rh-lang-btn{height:36px;padding:0 11px}
 }
+
+/* --- ROW DOESN'T FIT -> BURGER --------------------------------------------
+   Switched on by Navbar.jsx when the link row would overflow at a width
+   where it normally shows (e.g. a translated language with longer labels,
+   or a narrow laptop window) - the same burger layout as below 1200px,
+   instead of links running into the logo or the buttons. The links stay
+   laid out but invisible, so the navbar can keep measuring whether they'd
+   fit again. */
+.rh-nav--compact .rh-nav-links{position:absolute;visibility:hidden;pointer-events:none}
+.rh-nav--compact .rh-nav-actions{display:none}
+.rh-nav--compact .rh-lang{margin-left:auto}
+.rh-nav--compact .rh-lang + .rh-burger{margin-left:10px}
+.rh-nav--compact .rh-burger{display:flex;width:max(46px, calc(48 * var(--rh-u)));
+  height:max(38px, calc(34 * var(--rh-u)));border-radius:999px}
+.rh-nav--compact .rh-menu{position:fixed;top:calc(max(58px, calc(68 * var(--rh-u))) - 6px);
+  right:max(24px, calc(28 * var(--rh-u)));width:min(320px, calc(100vw - 48px));
+  background:rgba(10,10,12,.86);-webkit-backdrop-filter:blur(22px);
+  backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.09);
+  border-radius:20px;padding:10px 8px 12px;flex-direction:column;
+  box-shadow:0 24px 60px rgba(0,0,0,.55);transform-origin:top right;z-index:31}
+
+/* Dashboard/Staff before we know they apply (Navbar.jsx): mounted from the
+   first paint so their metal ring works, but out of the row and invisible.
+   Deliberately not display:none - metal-fx draws every ring through one
+   shared renderer, and a zero-size ring in it can blank the others. */
+.rh-nav-links{position:relative}
+/* !important: metal-fx sets opacity:1 as an inline style on its root. */
+.rh-nav-link--pending{position:absolute;left:0;top:0;opacity:0 !important;pointer-events:none}

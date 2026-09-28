@@ -23,35 +23,84 @@ function NavBadge({ count }) {
   );
 }
 
-// One nav, every route. Extended with Dashboard/Staff via array indices
-// (rather than CSS nth-child) since those two entries are conditional -
-// nth-child can't reliably target a staggered delay when items in front of
-// it come and go.
+// One nav, every route, and every link wears the same metal ring.
 //
-// Dashboard/Staff are marked `metal: false` - metal-fx keeps one shared
-// WebGL context + draw loop across every mounted <MetalFx> on the page, and
-// an instance that mounts well after the initial page load (as these two
-// always do, since they wait on an async profile fetch) never gets drawn:
-// it ends up permanently `visibility: hidden` with nothing rendered in its
-// place. The other 6 links mount at first paint and are unaffected, so they
-// keep the metal ring; these two render as plain (still fully styled, see
-// metal-nav-link.jsx's comment) NavLinks instead.
-//
-// Messages is shown to everyone, logged in or not, for the same reason -
-// it has to mount at first paint to keep its metal ring. Logged-out
-// visitors who click it are sent to log in by ProtectedRoute.
+// metal-fx only reveals rings that exist when the page first loads: a
+// <MetalFx> mounted later (e.g. once the async profile fetch says you're
+// staff) stays permanently `visibility: hidden` - checked in the browser.
+// So all eight links are rendered from the very first paint, and Dashboard
+// and Staff are just hidden (`show: false`) until we know they apply,
+// rather than mounted late. Messages is shown to everyone, logged in or not;
+// logged-out visitors who click it are sent to log in by ProtectedRoute.
 function useNavLinks(user, isAdmin, unreadChats) {
-  const links = [
-    { to: '/', label: 'Home', end: true, metal: true },
-    { to: '/marketplace', label: 'Marketplace', metal: true },
-    { to: '/how-it-works', label: 'How It Works', metal: true },
-    { to: '/why-it-matters', label: 'Why It Matters', metal: true },
-    { to: '/help', label: 'Help / FAQ', metal: true },
-    { to: '/messages', label: 'Messages', metal: true, badge: unreadChats },
+  return [
+    { to: '/', label: 'Home', end: true, show: true },
+    { to: '/marketplace', label: 'Marketplace', show: true },
+    { to: '/how-it-works', label: 'How It Works', show: true },
+    { to: '/why-it-matters', label: 'Why It Matters', show: true },
+    { to: '/help', label: 'Help / FAQ', show: true },
+    { to: '/messages', label: 'Messages', show: true, badge: unreadChats },
+    { to: '/dashboard', label: 'Dashboard', show: !!user },
+    { to: '/admin', label: 'Staff', show: isAdmin },
   ];
-  if (user) links.push({ to: '/dashboard', label: 'Dashboard', metal: false });
-  if (isAdmin) links.push({ to: '/admin', label: 'Staff', metal: false });
-  return links;
+}
+
+// Whether the full link row fits. It does at every common desktop size in
+// English, but a translated language (longer labels) or a narrow window can
+// push it over - then the bar switches to the burger menu (rh-nav--compact)
+// rather than letting links run into the logo or the buttons. While
+// compact, it tries the full row again once the bar is wider, or the labels
+// shorter, than when it last overflowed.
+function useRowFits(headerRef, linksRef) {
+  const [compact, setCompact] = useState(false);
+  const compactRef = useRef(false);
+  const overflowedAt = useRef(null);
+
+  useEffect(() => {
+    const header = headerRef.current;
+    const nav = linksRef.current;
+    if (!header || !nav || typeof ResizeObserver === 'undefined') return undefined;
+
+    function set(next) {
+      compactRef.current = next;
+      setCompact(next);
+    }
+    function check() {
+      if (compactRef.current) {
+        const at = overflowedAt.current;
+        if (header.clientWidth > at.header + 24 || nav.scrollWidth < at.links - 16) set(false);
+      } else if (nav.scrollWidth > nav.clientWidth + 1) {
+        overflowedAt.current = { header: header.clientWidth, links: nav.scrollWidth };
+        set(true);
+      }
+    }
+
+    // The metal ring's wrapper settles its size a moment after the label
+    // inside it changes, so a change is checked on the next frame and once
+    // more shortly after - checking only immediately missed the overflow.
+    let frame = 0;
+    let timer = 0;
+    function schedule() {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+      frame = requestAnimationFrame(check);
+      timer = setTimeout(check, 250);
+    }
+
+    const observer = new ResizeObserver(schedule);
+    observer.observe(header);
+    // Each pill and its label too, since translation changes a label's
+    // width in place.
+    for (const el of [...nav.children, ...nav.querySelectorAll('a')]) observer.observe(el);
+    check();
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    };
+  }, [headerRef, linksRef]);
+
+  return compact;
 }
 
 function Arrow() {
@@ -71,6 +120,9 @@ export default function Navbar() {
   const [isAdmin, setIsAdmin] = useState(false);
   const burgerRef = useRef(null);
   const menuRef = useRef(null);
+  const headerRef = useRef(null);
+  const linksRef = useRef(null);
+  const compact = useRowFits(headerRef, linksRef);
   const unreadChats = useUnreadMessages();
   const links = useNavLinks(user, isAdmin, unreadChats);
 
@@ -120,38 +172,29 @@ export default function Navbar() {
   }
 
   return (
-    <header className="rh-nav">
+    <header ref={headerRef} className={`rh-nav${compact ? ' rh-nav--compact' : ''}`}>
       <Link to="/" className="rh-logo" translate="no">
         <span className="rh-logo-mark" aria-hidden="true">🛠️</span>
         Rent It
       </Link>
 
-      <nav className="rh-nav-links" aria-label="Primary">
-        {links.map((link, i) =>
-          link.metal ? (
-            <MetalNavLink
-              key={link.to}
-              to={link.to}
-              end={link.end}
-              size="sm"
-              preset="chromatic"
-              style={{ animationDelay: `${(0.54 + i * 0.035).toFixed(3)}s` }}
-            >
-              {link.label}
-              <NavBadge count={link.badge} />
-            </MetalNavLink>
-          ) : (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              end={link.end}
-              style={{ animationDelay: `${(0.54 + i * 0.035).toFixed(3)}s` }}
-              className={({ isActive }) => `inline-flex h-8 items-center justify-center rounded-full px-3 ${isActive ? 'is-active' : ''}`}
-            >
-              {link.label}
-            </NavLink>
-          )
-        )}
+      <nav ref={linksRef} className="rh-nav-links" aria-label="Primary" aria-hidden={compact || undefined}>
+        {links.map((link, i) => (
+          <MetalNavLink
+            key={link.to}
+            to={link.to}
+            end={link.end}
+            size="sm"
+            preset="chromatic"
+            wrapperClassName={link.show ? undefined : 'rh-nav-link--pending'}
+            aria-hidden={link.show ? undefined : true}
+            tabIndex={link.show ? undefined : -1}
+            style={{ animationDelay: `${(0.54 + i * 0.035).toFixed(3)}s` }}
+          >
+            {link.label}
+            <NavBadge count={link.badge} />
+          </MetalNavLink>
+        ))}
       </nav>
 
       <div className="rh-nav-actions">
@@ -191,7 +234,7 @@ export default function Navbar() {
         className={`rh-menu${mobileOpen ? ' open' : ''}`}
         aria-label="Mobile"
       >
-        {links.map((link) => (
+        {links.filter((link) => link.show).map((link) => (
           <NavLink key={link.to} to={link.to} end={link.end} className={rhMenuLinkClass} onClick={closeMobileMenu}>
             {link.label}
             <NavBadge count={link.badge} />
