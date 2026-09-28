@@ -394,3 +394,15 @@ describe('Messages - chats are never translated', () => {
     for (const name of screen.getAllByText('Ravi')) expect(name).toHaveAttribute('translate', 'no');
   });
 });
+
+describe('Messages - safety warnings', () => {
+  it("warns under the other person's risky message, but not under mine", async () => {
+    renderAs(OWNER, [
+      { id: 't1', conversation_id: 'conv-1', sender_id: RENTER.id, kind: 'text', body: 'Send me the OTP please', created_at: '2099-01-01T09:00:00Z', offer: null },
+      { id: 't2', conversation_id: 'conv-1', sender_id: OWNER.id, kind: 'text', body: 'Never ask for an OTP', created_at: '2099-01-01T09:05:00Z', offer: null },
+    ]);
+    await screen.findByText('Send me the OTP please');
+    expect(screen.getAllByRole('note')).toHaveLength(1);
+    expect(screen.getByRole('note')).toHaveTextContent('Never share these');
+  });
+});

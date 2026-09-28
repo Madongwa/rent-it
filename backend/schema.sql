@@ -1022,3 +1022,26 @@ create table if not exists public.price_insights (
 );
 
 alter table public.price_insights enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Listing safety review (backend/src/lib/safety.js): one row per listing
+-- reviewed by the rule checks + AI, shown to staff in the dashboard's Safety
+-- tab when flagged. input_hash is of the listing details that were
+-- reviewed, so an edited listing is reviewed again. 'dismissed' = staff
+-- looked and it's fine. Backend-only.
+-- ---------------------------------------------------------------------------
+create table if not exists public.listing_safety_reviews (
+  listing_id uuid primary key references public.listings (id) on delete cascade,
+  input_hash text not null,
+  status text not null check (status in ('ok', 'flagged', 'dismissed')),
+  severity text check (severity in ('low', 'medium', 'high')),
+  reasons text[] not null default array[]::text[],
+  model text,
+  reviewed_at timestamptz not null default now(),
+  dismissed_by uuid references public.profiles (id) on delete set null,
+  dismissed_at timestamptz
+);
+
+create index if not exists listing_safety_reviews_status_idx on public.listing_safety_reviews (status);
+
+alter table public.listing_safety_reviews enable row level security;

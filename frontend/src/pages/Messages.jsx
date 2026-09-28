@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, IndianRupee, MessageCircle, Search } from 'lucide-react';
+import { ArrowLeft, IndianRupee, MessageCircle, Search, ShieldAlert } from 'lucide-react';
 import { api } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,7 @@ import AttachmentMessage from '../components/chat/AttachmentMessage';
 import { checkAttachment, shrinkImage, uploadAttachment } from '../lib/chatAttachments';
 import { MESSAGES_READ_EVENT } from '../hooks/useUnreadMessages';
 import { formatDay, formatInr, priceDifference, rentalDays } from '../lib/offers';
+import { chatWarnings } from '../lib/chatSafety';
 
 // Leaflet (the map) only downloads when someone opens the location picker.
 const LocationPicker = lazy(() => import('../components/chat/LocationPicker'));
@@ -747,6 +748,17 @@ export default function Messages() {
                             <p className="whitespace-pre-line break-words" translate="no" dir="auto">
                               {m.body}
                             </p>
+                            {!mine &&
+                              chatWarnings(m.body).map((w) => (
+                                <p
+                                  key={w.id}
+                                  role="note"
+                                  className="mt-1.5 flex gap-1.5 rounded-lg bg-amber-500/15 px-2 py-1.5 text-xs text-amber-300"
+                                >
+                                  <ShieldAlert className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                  <span>{w.warning}</span>
+                                </p>
+                              ))}
                             <p className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${mine ? 'text-white/70' : 'text-night-muted'}`}>
                               {formatClock(m.created_at)}
                               {mine && <Ticks read={!!otherReadAt && otherReadAt >= new Date(m.created_at)} />}

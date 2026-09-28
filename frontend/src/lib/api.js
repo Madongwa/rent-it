@@ -125,6 +125,9 @@ export const api = {
   unbanUser: (userId) => request(`/admin/users/${userId}/unban`, { method: 'POST' }),
 
   getAdminListings: () => request('/admin/listings'),
+  getSafetyQueue: () => request('/admin/safety'),
+  runSafetyScan: () => request('/admin/safety/scan', { method: 'POST' }),
+  dismissSafetyFlag: (listingId) => request(`/admin/safety/${listingId}/dismiss`, { method: 'POST' }),
   updateAdminListingStatus: (listingId, status) =>
     request(`/admin/listings/${listingId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 

@@ -4,6 +4,7 @@ import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { logAdminAction } from '../lib/adminLog.js';
 import { releaseListingIfIdle } from '../lib/listingStatus.js';
 import { recomputeListingRating } from './reviews.js';
+import { dismissFlag, flaggedListings, pendingListings, reviewPending } from '../lib/safety.js';
 
 const router = Router();
 
@@ -187,6 +188,42 @@ router.patch('/listings/:id/status', async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
   await logAdminAction(req.user.id, 'listing.status_change', 'listing', req.params.id, `status -> ${status}`);
   res.json(data);
+});
+
+// GET /api/admin/safety - listings the safety review flagged (still live),
+// and how many listings are new or edited since their last review.
+router.get('/safety', async (req, res) => {
+  try {
+    const [flagged, pending] = await Promise.all([flaggedListings(), pendingListings()]);
+    res.json({ flagged, pending: pending.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/safety/scan - reviews the next batch of pending listings
+// (the Safety tab calls this until nothing is left). Kept to a couple of
+// dozen per call to stay inside the serverless time limit.
+router.post('/safety/scan', async (req, res) => {
+  try {
+    res.json(await reviewPending());
+  } catch (err) {
+    console.error('[safety] scan failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/safety/:listingId/dismiss - staff checked a flagged
+// listing and it's fine. Stays dismissed until the listing is edited.
+router.post('/safety/:listingId/dismiss', async (req, res) => {
+  try {
+    const dismissed = await dismissFlag(req.params.listingId, req.user.id);
+    if (!dismissed) return res.status(404).json({ error: 'No open flag on that listing' });
+    await logAdminAction(req.user.id, 'listing.safety_dismissed', 'listing', req.params.listingId, 'marked fine');
+    res.json(dismissed);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /api/admin/disputes - open disputes awaiting a staff decision

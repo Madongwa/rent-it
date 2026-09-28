@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 import AdminOverviewGrid from '../components/admin/AdminOverviewGrid';
 import { formatInr } from '../lib/offers';
+import SafetyTab from '../components/admin/SafetyTab';
 
 // The agreed (or, while pending, latest offered) price next to the listed
 // one - no money moves through the app, so this is staff's record of the
@@ -23,6 +24,7 @@ const TABS = [
   { key: 'kyc', label: 'Seller verification' },
   { key: 'users', label: 'Users' },
   { key: 'listings', label: 'Listings' },
+  { key: 'safety', label: 'Safety' },
   { key: 'activity', label: 'Activity log' },
 ];
 
@@ -561,6 +563,8 @@ export default function AdminDashboard() {
           ))}
         </div>
       )}
+
+      {tab === 'safety' && <SafetyTab onListingRemoved={loadAll} />}
 
       {!loading && tab === 'listings' && (
         <div className="mt-6 space-y-3">
