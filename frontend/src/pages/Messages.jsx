@@ -173,6 +173,7 @@ function OfferCard({ offer, isFirst, mine, isOwner, otherName, listedPrice, list
           )}
           {isOpen && !mine && countering && (
             <OfferForm
+              listingId={listing?.id}
               listedPrice={listedPrice}
               depositRequired={listing?.deposit_required}
               depositAmount={listing?.deposit_amount}
@@ -796,6 +797,7 @@ export default function Messages() {
                   <div className="max-h-[60%] overflow-y-auto border-t border-night-border/15 bg-night-elevated/60 p-4">
                     <p className="mb-3 text-sm font-semibold text-night-text">Make an offer</p>
                     <OfferForm
+                      listingId={active.listing?.id}
                       listedPrice={active.listing?.price_per_day}
                       depositRequired={active.listing?.deposit_required}
                       depositAmount={active.listing?.deposit_amount}

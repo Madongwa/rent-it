@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import PriceSuggestion from './PriceSuggestion';
 import {
   CONDITION_OPTIONS,
   POWER_SOURCE_OPTIONS,
@@ -52,7 +53,9 @@ function Field({ label, children, hint }) {
   );
 }
 
-export default function ListingForm({ initial, onSubmit, submitLabel = 'Publish listing' }) {
+// listingId: set when editing, so a price suggestion doesn't compare the
+// listing with itself.
+export default function ListingForm({ initial, listingId, onSubmit, submitLabel = 'Publish listing' }) {
   const { user } = useAuth();
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState({ ...FIELD_DEFAULTS, ...initial });
@@ -195,6 +198,8 @@ export default function ListingForm({ initial, onSubmit, submitLabel = 'Publish 
             />
           </Field>
         </div>
+
+        <PriceSuggestion form={form} listingId={listingId} onUse={(price) => update('price_per_day', String(price))} />
 
         <Field label="Photo" hint="JPG or PNG, uploaded straight to storage - no external hosting needed.">
           <div className="flex items-center gap-4">

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatInr, priceDifference, rentalDays, todayStr } from '../lib/offers';
+import PriceCheck from './PriceCheck';
 
 const INPUT_CLASS =
   'w-full rounded-btn border border-night-border/20 bg-black/20 px-3 py-2 text-sm text-night-text [color-scheme:dark] placeholder:text-night-muted/60 focus:outline-none focus:ring-2 focus:ring-accent';
@@ -12,8 +13,10 @@ const DIFF_TONE = {
 
 // Dates + "how much you'll pay per day", with the listed price and running
 // total alongside. Used for a first request (listing page, or "Make an
-// offer" in chat) and for counter-offers on an offer card.
+// offer" in chat) and for counter-offers on an offer card. With a
+// listingId, it also shows the AI price check (PriceCheck).
 export default function OfferForm({
+  listingId,
   listedPrice,
   depositRequired = false,
   depositAmount = null,
@@ -110,6 +113,8 @@ export default function OfferForm({
           )}
         </div>
       </div>
+
+      {listingId && <PriceCheck listingId={listingId} price={priceValid ? priceNum : null} />}
 
       {days > 0 && priceValid && (
         <div className="rounded-btn bg-black/20 px-3 py-2 text-sm">

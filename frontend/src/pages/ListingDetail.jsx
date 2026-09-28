@@ -483,6 +483,7 @@ export default function ListingDetail() {
                 </p>
                 {user ? (
                   <OfferForm
+                    listingId={listing.id}
                     listedPrice={listing.price_per_day}
                     depositRequired={listing.deposit_required}
                     depositAmount={listing.deposit_amount}

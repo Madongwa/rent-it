@@ -14,6 +14,7 @@ const { api, auth } = vi.hoisted(() => ({
     sendMessage: vi.fn(),
     markConversationRead: vi.fn(),
     sendAttachment: vi.fn(),
+    getPriceCheck: vi.fn(),
   },
   auth: { user: null },
 }));
@@ -80,6 +81,7 @@ function renderAs(user, messages) {
 beforeEach(() => {
   Object.values(api).forEach((fn) => fn.mockReset());
   api.markConversationRead.mockResolvedValue({});
+  api.getPriceCheck.mockResolvedValue({ estimate: null, similar: [], similar_stats: null });
   Object.values(uploads).forEach((fn) => fn.mockReset());
   uploads.shrinkImage.mockImplementation(async (f) => f);
   uploads.signedAttachmentUrl.mockResolvedValue('https://signed.example/file');

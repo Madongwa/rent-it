@@ -105,6 +105,9 @@ export const api = {
   sendChatMessage: (message, history = []) =>
     request('/chat', { method: 'POST', body: JSON.stringify({ message, history }) }),
 
+  suggestPrice: (payload) => request('/pricing/suggest', { method: 'POST', body: JSON.stringify(payload) }),
+  getPriceCheck: (listingId) => request(`/pricing/listing/${listingId}`),
+
   translateUi: (lang, texts) =>
     request('/translate/ui', { method: 'POST', body: JSON.stringify({ lang, texts }) }),
 

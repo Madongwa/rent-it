@@ -69,7 +69,7 @@ export default function EditListing() {
       <p className="mt-1 text-body text-night-muted">Update the details renters see for this item.</p>
 
       <div className="mt-8">
-        <ListingForm initial={initial} onSubmit={handleSubmit} submitLabel="Save changes" />
+        <ListingForm initial={initial} listingId={id} onSubmit={handleSubmit} submitLabel="Save changes" />
       </div>
     </div>
     </DarkGradientBg>

@@ -33,6 +33,15 @@ export function priceDifference(offered, listed) {
   };
 }
 
+// Where a price sits against the usual range for the item (the AI price
+// check): 'below', 'within' or 'above' - null without a price or range.
+export function priceVsRange(price, low, high) {
+  if (price == null || !Number.isFinite(Number(price)) || low == null || high == null) return null;
+  if (Number(price) < low) return 'below';
+  if (Number(price) > high) return 'above';
+  return 'within';
+}
+
 export function findOpenOffer(offers) {
   return (offers || []).find((o) => o.status === 'open') || null;
 }

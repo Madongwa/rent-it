@@ -1006,3 +1006,19 @@ alter table public.ui_translations add column if not exists model text;
 -- Backend-only (service_role): RLS on with no policies means the anon and
 -- authenticated roles can't read or write it directly.
 alter table public.ui_translations enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Price suggestions (backend/src/lib/pricing.js): the AI's estimate of what
+-- a listing usually rents for, shown in the offer form while bargaining.
+-- Stored so each listing costs one AI call a week, not one per visitor;
+-- input_hash is of the details the estimate was made from, so editing the
+-- listing makes a fresh one. Backend-only, like ui_translations.
+-- ---------------------------------------------------------------------------
+create table if not exists public.price_insights (
+  listing_id uuid primary key references public.listings (id) on delete cascade,
+  input_hash text not null,
+  data jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.price_insights enable row level security;
