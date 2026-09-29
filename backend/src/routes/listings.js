@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { draftListing } from '../lib/listingDraft.js';
 import { interpretSearch } from '../lib/searchIntent.js';
 import { normalizePhotos } from '../lib/listingPhotos.js';
+import { BOOKED_STATUSES, unavailableRanges, unavailableSoon } from '../lib/availability.js';
 
 const router = Router();
 
@@ -115,23 +116,13 @@ router.get('/', async (req, res) => {
   // so it's applied as a post-filter here rather than in the query above.
   const availabilityWindows = (availability || '').split(',').filter(Boolean);
   if (availabilityWindows.length && data.length) {
-    const today = new Date().toISOString().slice(0, 10);
-    const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const listingIds = data.map((l) => l.id);
-
-    const { data: history, error: historyError } = await supabase
-      .from('rental_history')
-      .select('listing_id, start_date, end_date')
-      .in('listing_id', listingIds)
-      .lte('start_date', weekEnd)
-      .gte('end_date', today);
-    if (historyError) return res.status(500).json({ error: historyError.message });
-
-    const bookedToday = new Set();
-    const bookedThisWeek = new Set();
-    for (const row of history) {
-      bookedThisWeek.add(row.listing_id);
-      if (row.start_date <= today && row.end_date >= today) bookedToday.add(row.listing_id);
+    // Agreed rentals and owner-blocked dates count too (lib/availability.js).
+    let bookedToday;
+    let bookedThisWeek;
+    try {
+      ({ bookedToday, bookedThisWeek } = await unavailableSoon(data.map((l) => l.id)));
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
     }
 
     data = data.filter((l) => {
@@ -177,7 +168,78 @@ router.get('/:id', async (req, res) => {
     (a, b) => new Date(b.start_date) - new Date(a.start_date)
   );
 
+  // Upcoming dates it can't be rented - booked or blocked by the owner.
+  try {
+    data.unavailable = await unavailableRanges(data.id);
+  } catch (err) {
+    console.error('[listings] availability failed:', err.message);
+    data.unavailable = [];
+  }
+
   res.json(data);
+});
+
+async function assertOwner(listingId, userId) {
+  const { data } = await supabase.from('listings').select('owner_id').eq('id', listingId).maybeSingle();
+  if (!data) return 404;
+  return data.owner_id === userId ? null : 403;
+}
+
+// GET /api/listings/:id/blocked-dates - the owner's own blocked dates,
+// with their private notes (upcoming ones).
+router.get('/:id/blocked-dates', requireAuth, async (req, res) => {
+  const denied = await assertOwner(req.params.id, req.user.id);
+  if (denied) return res.status(denied).json({ error: denied === 404 ? 'Listing not found' : 'Forbidden' });
+  const { data, error } = await supabase
+    .from('listing_blocked_dates')
+    .select('id, start_date, end_date, note')
+    .eq('listing_id', req.params.id)
+    .gte('end_date', new Date().toISOString().slice(0, 10))
+    .order('start_date', { ascending: true });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// POST /api/listings/:id/blocked-dates - body: { start_date, end_date, note? }.
+// The owner marks dates the item isn't available (repairs, own use). Can't
+// cover dates a renter already has an agreed booking for.
+router.post('/:id/blocked-dates', requireAuth, async (req, res) => {
+  const denied = await assertOwner(req.params.id, req.user.id);
+  if (denied) return res.status(denied).json({ error: denied === 404 ? 'Listing not found' : 'Forbidden' });
+  const { start_date, end_date, note } = req.body || {};
+  const isDate = (d) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d);
+  if (!isDate(start_date) || !isDate(end_date) || end_date < start_date) {
+    return res.status(400).json({ error: 'Choose a start date and an end date on or after it.' });
+  }
+  if (end_date < new Date().toISOString().slice(0, 10)) return res.status(400).json({ error: 'Those dates are in the past.' });
+
+  const { data: booked, error: bookedError } = await supabase
+    .from('rentals')
+    .select('id')
+    .eq('listing_id', req.params.id)
+    .in('status', BOOKED_STATUSES)
+    .lte('start_date', end_date)
+    .gte('end_date', start_date)
+    .limit(1);
+  if (bookedError) return res.status(500).json({ error: bookedError.message });
+  if (booked.length) return res.status(409).json({ error: 'A renter already has an agreed booking in those dates.' });
+
+  const { data, error } = await supabase
+    .from('listing_blocked_dates')
+    .insert({ listing_id: req.params.id, start_date, end_date, note: typeof note === 'string' && note.trim() ? note.trim().slice(0, 200) : null })
+    .select('id, start_date, end_date, note')
+    .single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(201).json(data);
+});
+
+// DELETE /api/listings/:id/blocked-dates/:blockId - make those dates available again.
+router.delete('/:id/blocked-dates/:blockId', requireAuth, async (req, res) => {
+  const denied = await assertOwner(req.params.id, req.user.id);
+  if (denied) return res.status(denied).json({ error: denied === 404 ? 'Listing not found' : 'Forbidden' });
+  const { error } = await supabase.from('listing_blocked_dates').delete().eq('id', req.params.blockId).eq('listing_id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(204).end();
 });
 
 // Fields the "List an Item" create form and the Dashboard edit form are

@@ -6,6 +6,10 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-09-29
 
+- **Owner availability calendar** - owners block dates (repairs, own use) on
+  Edit listing; those dates can't be requested or accepted, the availability
+  filters skip them (now also counting agreed bookings), and the listing page
+  shows an availability calendar of booked and blocked dates.
 - **Weekly and monthly prices** - owners can set cheaper weekly/monthly prices;
   a rental of 7+ days uses the weekly rate (30+ the monthly) as its listed
   price, and the offer form says so.

@@ -8,6 +8,7 @@ import useSeo from '../hooks/useSeo';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 import OfferForm from '../components/OfferForm';
 import ListingGallery from '../components/ListingGallery';
+import AvailabilityCalendar from '../components/AvailabilityCalendar';
 import { formatInr } from '../lib/offers';
 import {
   POWER_SOURCE_OPTIONS,
@@ -544,6 +545,11 @@ export default function ListingDetail() {
             </div>
           )}
         </dl>
+      </SectionCard>
+
+      {/* Upcoming availability - booked and owner-blocked dates */}
+      <SectionCard title="Availability">
+        <AvailabilityCalendar ranges={listing.unavailable || []} />
       </SectionCard>
 
       {/* 7. Rental history calendar + list */}

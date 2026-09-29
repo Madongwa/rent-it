@@ -6,6 +6,7 @@ import { getOrCreateConversation, postMessage } from '../lib/conversations.js';
 import { parseOfferTerms, describeTerms, formatInr, whoseTurn } from '../lib/offers.js';
 import { releaseListingIfIdle } from '../lib/listingStatus.js';
 import { effectiveDailyRate, rentalDays } from '../lib/rates.js';
+import { hasBlockedConflict } from '../lib/availability.js';
 
 // A rental request carries the renter's own per-day price, and the two
 // sides bargain in the listing's chat thread: every offer/counter-offer is
@@ -57,6 +58,10 @@ function threadLink(conversationId, dashboardTab) {
 const BOOKED_STATUSES = ['approved', 'disputed'];
 const BOOKED_ERROR = 'This item is already booked for part of those dates';
 
+const BLOCKED_ERROR = 'The owner has marked some of those dates as unavailable';
+
+// { conflict, message } - booked by an agreed rental, or blocked by the
+// owner (lib/availability.js).
 async function hasBookingConflict({ listingId, startDate, endDate, excludeRentalId }) {
   let query = supabase
     .from('rentals')
@@ -68,7 +73,11 @@ async function hasBookingConflict({ listingId, startDate, endDate, excludeRental
     .limit(1);
   if (excludeRentalId) query = query.neq('id', excludeRentalId);
   const { data, error } = await query;
-  return { conflict: (data || []).length > 0, error };
+  if (error) return { conflict: false, error };
+  if ((data || []).length > 0) return { conflict: true, message: BOOKED_ERROR };
+  const blocked = await hasBlockedConflict({ listingId, startDate, endDate });
+  if (blocked.error) return { conflict: false, error: blocked.error };
+  return blocked.conflict ? { conflict: true, message: BLOCKED_ERROR } : { conflict: false };
 }
 
 // POST /api/rentals - renter sends a request with their offered price.
@@ -108,13 +117,13 @@ router.post('/', requireAuth, async (req, res) => {
     return res.status(409).json({ error: 'You already have an open offer on this item - continue the conversation in Messages.' });
   }
 
-  const { conflict, error: conflictError } = await hasBookingConflict({
+  const { conflict, message: conflictMessage, error: conflictError } = await hasBookingConflict({
     listingId: listing_id,
     startDate: terms.start_date,
     endDate: terms.end_date,
   });
   if (conflictError) return res.status(500).json({ error: conflictError.message });
-  if (conflict) return res.status(409).json({ error: BOOKED_ERROR });
+  if (conflict) return res.status(409).json({ error: conflictMessage });
 
   const { data: conversation, error: conversationError } = await getOrCreateConversation({
     listingId: listing_id,
@@ -316,14 +325,14 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
         end_date: rental.end_date,
       };
 
-  const { conflict, error: conflictError } = await hasBookingConflict({
+  const { conflict, message: conflictMessage, error: conflictError } = await hasBookingConflict({
     listingId: rental.listing_id,
     startDate: terms.start_date,
     endDate: terms.end_date,
     excludeRentalId: rental.id,
   });
   if (conflictError) return res.status(500).json({ error: conflictError.message });
-  if (conflict) return res.status(409).json({ error: BOOKED_ERROR });
+  if (conflict) return res.status(409).json({ error: conflictMessage });
 
   // Claim the rental first (compare-and-set on status). A withdraw or
   // decline racing this one does the same on its side, so exactly one of

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import ListingForm from '../components/ListingForm';
+import BlockedDatesEditor from '../components/BlockedDatesEditor';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 
 // Normalizes a fetched listing into the shape ListingForm's controlled
@@ -72,6 +73,10 @@ export default function EditListing() {
 
       <div className="mt-8">
         <ListingForm initial={initial} listingId={id} onSubmit={handleSubmit} submitLabel="Save changes" />
+      </div>
+
+      <div className="mt-6">
+        <BlockedDatesEditor listingId={id} />
       </div>
     </div>
     </DarkGradientBg>

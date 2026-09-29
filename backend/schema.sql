@@ -1089,3 +1089,22 @@ update public.listings
 alter table public.listings
   add column if not exists price_per_week numeric(10, 2) check (price_per_week is null or price_per_week >= 0),
   add column if not exists price_per_month numeric(10, 2) check (price_per_month is null or price_per_month >= 0);
+
+-- ---------------------------------------------------------------------------
+-- Dates an owner has marked their item unavailable (repairs, own use).
+-- Treated like bookings: requests/acceptances for them are refused and the
+-- availability filters skip them (backend/src/lib/availability.js). The
+-- note is private to the owner. Backend-only.
+-- ---------------------------------------------------------------------------
+create table if not exists public.listing_blocked_dates (
+  id uuid primary key default uuid_generate_v4(),
+  listing_id uuid not null references public.listings (id) on delete cascade,
+  start_date date not null,
+  end_date date not null check (end_date >= start_date),
+  note text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists listing_blocked_dates_listing_idx on public.listing_blocked_dates (listing_id, end_date);
+
+alter table public.listing_blocked_dates enable row level security;

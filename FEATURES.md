@@ -52,7 +52,7 @@ Browse everything available to rent.
 - **Quick-filter pill bar** - categories, Nearby, Available now, Under ₹750/day,
   Top rated.
 - **Filter sidebar** - price (₹ buckets or a custom range), availability
-  (today / this week), condition (New, Like New, Good, Fair), power source
+  (today / this week - counts agreed bookings and owner-blocked dates), condition (New, Like New, Good, Fair), power source
   (electric, petrol, diesel, manual, battery, not applicable), delivery
   (owner delivers / pickup only / either), deposit, cancellation policy (free /
   flexible / strict), owner type (individual / business), accessories included,
@@ -68,7 +68,8 @@ Browse everything available to rent.
 (plus **weekly / monthly prices** where the owner set them),
 deposit, minimum rental period and supported durations, description, specs
 (power source, delivery, cancellation policy, owner type, accessories),
-a **calendar of booked dates** (rental history), reviews, and:
+an **availability calendar** (upcoming dates that are booked or that the owner
+blocked, plus a list), past rental history, reviews, and:
 
 - **Request to rent** - pick dates and your own price per day (starts at the
   listed price - the cheaper weekly rate for 7+ days, monthly for 30+). The form shows the total, the deposit, and an **AI price
@@ -163,6 +164,11 @@ listing.
 - **Suggest a price** - under the price field: what items like this usually
   rent for in India (AI estimate with a one-line reason), genuinely similar
   Rent It listings with their real prices, and a **"Use ₹X"** button.
+- **Availability** (on Edit listing) - block dates when the item isn't
+  available (repairs, your own use) with a private note; "Make available"
+  undoes it. Blocked dates can't be requested or accepted, and the
+  "available today / this week" filters skip them. You can't block dates a
+  renter already has an agreed booking for.
 - **Edit / pause / delete** your listings from the Dashboard.
 
 ---
