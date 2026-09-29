@@ -23,26 +23,26 @@ function NavBadge({ count }) {
   );
 }
 
-// One nav, every route, and every link wears the same metal ring.
-//
-// metal-fx only reveals rings that exist when the page first loads: a
-// <MetalFx> mounted later (e.g. once the async profile fetch says you're
-// staff) stays permanently `visibility: hidden` - checked in the browser.
-// So all eight links are rendered from the very first paint, and Dashboard
-// and Staff are just hidden (`show: false`) until we know they apply,
-// rather than mounted late. Messages is shown to everyone, logged in or not;
-// logged-out visitors who click it are sent to log in by ProtectedRoute.
-function useNavLinks(user, isAdmin, unreadChats) {
-  return [
-    { to: '/', label: 'Home', end: true, show: true },
-    { to: '/marketplace', label: 'Marketplace', show: true },
-    { to: '/how-it-works', label: 'How It Works', show: true },
-    { to: '/why-it-matters', label: 'Why It Matters', show: true },
-    { to: '/help', label: 'Help / FAQ', show: true },
-    { to: '/messages', label: 'Messages', show: true, badge: unreadChats },
-    { to: '/dashboard', label: 'Dashboard', show: !!user },
-    { to: '/admin', label: 'Staff', show: isAdmin },
+// One nav, every route, and every link wears the same metal ring. Dashboard
+// (any logged-in user) and Staff (admins only) are simply left out until
+// they apply, at the end of the same row. An earlier attempt kept them
+// mounted but invisible and absolutely positioned (for metal-fx's sake) -
+// metal-fx's own styles overrode the hiding and they showed over the logo
+// for logged-out visitors, so never again: not rendered = not shown.
+// Messages is shown to everyone; logged-out visitors who click it are sent
+// to log in by ProtectedRoute.
+export function navLinks(user, isAdmin, unreadChats) {
+  const links = [
+    { to: '/', label: 'Home', end: true },
+    { to: '/marketplace', label: 'Marketplace' },
+    { to: '/how-it-works', label: 'How It Works' },
+    { to: '/why-it-matters', label: 'Why It Matters' },
+    { to: '/help', label: 'Help / FAQ' },
+    { to: '/messages', label: 'Messages', badge: unreadChats },
   ];
+  if (user) links.push({ to: '/dashboard', label: 'Dashboard' });
+  if (user && isAdmin) links.push({ to: '/admin', label: 'Staff' });
+  return links;
 }
 
 // Whether the full link row fits. It does at every common desktop size in
@@ -51,7 +51,7 @@ function useNavLinks(user, isAdmin, unreadChats) {
 // rather than letting links run into the logo or the buttons. While
 // compact, it tries the full row again once the bar is wider, or the labels
 // shorter, than when it last overflowed.
-function useRowFits(headerRef, linksRef) {
+function useRowFits(headerRef, linksRef, linkCount) {
   const [compact, setCompact] = useState(false);
   const compactRef = useRef(false);
   const overflowedAt = useRef(null);
@@ -98,7 +98,7 @@ function useRowFits(headerRef, linksRef) {
       cancelAnimationFrame(frame);
       clearTimeout(timer);
     };
-  }, [headerRef, linksRef]);
+  }, [headerRef, linksRef, linkCount]);
 
   return compact;
 }
@@ -122,9 +122,9 @@ export default function Navbar() {
   const menuRef = useRef(null);
   const headerRef = useRef(null);
   const linksRef = useRef(null);
-  const compact = useRowFits(headerRef, linksRef);
   const unreadChats = useUnreadMessages();
-  const links = useNavLinks(user, isAdmin, unreadChats);
+  const links = navLinks(user, isAdmin, unreadChats);
+  const compact = useRowFits(headerRef, linksRef, links.length);
 
   useEffect(() => {
     if (!user) {
@@ -186,9 +186,6 @@ export default function Navbar() {
             end={link.end}
             size="sm"
             preset="chromatic"
-            wrapperClassName={link.show ? undefined : 'rh-nav-link--pending'}
-            aria-hidden={link.show ? undefined : true}
-            tabIndex={link.show ? undefined : -1}
             style={{ animationDelay: `${(0.54 + i * 0.035).toFixed(3)}s` }}
           >
             {link.label}
@@ -234,7 +231,7 @@ export default function Navbar() {
         className={`rh-menu${mobileOpen ? ' open' : ''}`}
         aria-label="Mobile"
       >
-        {links.filter((link) => link.show).map((link) => (
+        {links.map((link) => (
           <NavLink key={link.to} to={link.to} end={link.end} className={rhMenuLinkClass} onClick={closeMobileMenu}>
             {link.label}
             <NavBadge count={link.badge} />

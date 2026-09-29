@@ -479,11 +479,3 @@ html.rh-anim.rh-go .rh-ctas .rh-btn-ghost{animation:rh-pillIn .70s var(--e-revea
   backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.09);
   border-radius:20px;padding:10px 8px 12px;flex-direction:column;
   box-shadow:0 24px 60px rgba(0,0,0,.55);transform-origin:top right;z-index:31}
-
-/* Dashboard/Staff before we know they apply (Navbar.jsx): mounted from the
-   first paint so their metal ring works, but out of the row and invisible.
-   Deliberately not display:none - metal-fx draws every ring through one
-   shared renderer, and a zero-size ring in it can blank the others. */
-.rh-nav-links{position:relative}
-/* !important: metal-fx sets opacity:1 as an inline style on its root. */
-.rh-nav-link--pending{position:absolute;left:0;top:0;opacity:0 !important;pointer-events:none}
