@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import PriceSuggestion from './PriceSuggestion';
+import ListingDraftAssistant from './ListingDraftAssistant';
 import {
   CONDITION_OPTIONS,
   POWER_SOURCE_OPTIONS,
@@ -78,6 +79,21 @@ export default function ListingForm({ initial, listingId, onSubmit, submitLabel 
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  // Fields the AI listing writer filled in. Only the ones it had a value for,
+  // and a location the owner already typed is left alone.
+  function applyDraft(draft) {
+    setForm((f) => {
+      const next = { ...f };
+      for (const field of ['title', 'description', 'condition', 'power_source', 'accessories_note']) {
+        if (draft[field]) next[field] = draft[field];
+      }
+      if (draft.category_id) next.category_id = String(draft.category_id);
+      if (typeof draft.accessories_included === 'boolean') next.accessories_included = draft.accessories_included;
+      if (draft.location && !f.location) next.location = draft.location;
+      return next;
+    });
+  }
+
   function toggleDuration(value) {
     setForm((f) => {
       const has = f.supported_durations.includes(value);
@@ -132,6 +148,8 @@ export default function ListingForm({ initial, listingId, onSubmit, submitLabel 
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-5 rounded-card border border-night-border/15 bg-night-card p-6">
         <h2 className="text-subheading text-night-text">Basics</h2>
+
+        {!listingId && <ListingDraftAssistant imageUrl={form.image_url} onApply={applyDraft} />}
 
         <Field label="Title *">
           <input

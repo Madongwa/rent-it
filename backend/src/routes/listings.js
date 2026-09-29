@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth } from '../middleware/auth.js';
+import rateLimit from 'express-rate-limit';
+import { draftListing } from '../lib/listingDraft.js';
 
 const router = Router();
 
@@ -194,6 +196,33 @@ const WRITABLE_FIELDS = [
   'supported_durations',
   'distance_km',
 ];
+
+// Each draft is an AI call - kept well below the free-tier limits.
+const draftRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 6,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests - please wait a minute and try again.' },
+});
+
+// POST /api/listings/draft - body: { notes, image_url? }. The AI listing
+// writer on the List an Item form: returns suggested field values (never
+// saves anything). See lib/listingDraft.js.
+router.post('/draft', requireAuth, draftRateLimiter, async (req, res) => {
+  const { notes, image_url } = req.body || {};
+  if (typeof notes !== 'string' || notes.trim().length < 3) {
+    return res.status(400).json({ error: 'Describe the item in a few words first.' });
+  }
+  try {
+    const draft = await draftListing({ notes: notes.trim().slice(0, 1500), imageUrl: image_url });
+    if (!draft) return res.status(502).json({ error: 'The listing writer is unavailable right now - please try again in a minute.' });
+    res.json(draft);
+  } catch (err) {
+    console.error('[listings] draft failed:', err.message);
+    res.status(502).json({ error: 'The listing writer is unavailable right now - please try again in a minute.' });
+  }
+});
 
 // POST /api/listings - create a new listing (the "List an Item" form)
 router.post('/', requireAuth, async (req, res) => {

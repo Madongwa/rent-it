@@ -43,6 +43,7 @@ export const api = {
   updateListing: (id, payload) =>
     request(`/listings/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteListing: (id) => request(`/listings/${id}`, { method: 'DELETE' }),
+  draftListing: (payload) => request('/listings/draft', { method: 'POST', body: JSON.stringify(payload) }),
 
   createRental: (payload) => request('/rentals', { method: 'POST', body: JSON.stringify(payload) }),
   getMyRentals: () => request('/rentals/mine'),

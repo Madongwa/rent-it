@@ -36,9 +36,17 @@ export function parseJsonObject(content) {
 
 // Returns { data, model } from the first model whose reply parses and
 // passes `validate` (return a cleaned object, or null to reject it), or
-// null if none did.
-export async function chatJson({ system, user, maxTokens = 1200, validate = (d) => d, models = defaultModels() }) {
+// null if none did. `image` (a data: URL) is shown to Gemini, which can
+// see pictures; the Groq fallbacks get the text alone.
+export async function chatJson({ system, user, image, maxTokens = 1200, validate = (d) => d, models = defaultModels() }) {
   for (const { model, client } of models) {
+    const content =
+      image && model.startsWith('gemini')
+        ? [
+            { type: 'text', text: user },
+            { type: 'image_url', image_url: { url: image } },
+          ]
+        : user;
     try {
       // gpt-oss and Gemini think first, which comes out of max_tokens too.
       const reasoning = model.startsWith('openai/gpt-oss') || model.startsWith('gemini');
@@ -51,7 +59,7 @@ export async function chatJson({ system, user, maxTokens = 1200, validate = (d) 
           response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: system },
-            { role: 'user', content: user },
+            { role: 'user', content },
           ],
         },
         { timeout: TIMEOUT_MS, maxRetries: 0 }
