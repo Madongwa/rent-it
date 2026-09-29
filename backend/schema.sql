@@ -1068,3 +1068,15 @@ create table if not exists public.message_translations (
 );
 
 alter table public.message_translations enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Several photos per listing (up to 8, first = cover). image_url stays as
+-- the cover, which cards and older code read; listings from before this get
+-- their one photo as a one-photo gallery. Safe to re-run.
+-- ---------------------------------------------------------------------------
+alter table public.listings
+  add column if not exists image_urls text[] not null default array[]::text[];
+
+update public.listings
+  set image_urls = array[image_url]
+  where image_url is not null and cardinality(image_urls) = 0;

@@ -65,19 +65,22 @@ export async function loadListingPhoto(url, { fetchImpl = fetch, supabaseUrl = p
   }
 }
 
-// Returns the draft fields, or null if no model could write one.
-export async function draftListing({ notes, imageUrl }, { db = supabase, models, loadPhoto = loadListingPhoto } = {}) {
+const MAX_DRAFT_PHOTOS = 3;
+
+// Returns the draft fields, or null if no model could write one. Up to
+// three of the listing's photos are shown to the model (the first ones).
+export async function draftListing({ notes, imageUrl, imageUrls = imageUrl ? [imageUrl] : [] }, { db = supabase, models, loadPhoto = loadListingPhoto } = {}) {
   const { data: categories, error } = await db.from('categories').select('id, name');
   if (error) throw new Error(error.message);
-  const image = imageUrl ? await loadPhoto(imageUrl) : null;
+  const images = (await Promise.all(imageUrls.slice(0, MAX_DRAFT_PHOTOS).map((u) => loadPhoto(u)))).filter(Boolean);
 
   const answer = await chatJson({
     system: systemPrompt(categories.map((c) => c.name)),
-    user: `Owner's notes:\n${notes}${image ? '\n\n(The listing photo is attached.)' : ''}`,
-    image,
+    user: `Owner's notes:\n${notes}${images.length ? `\n\n(${images.length === 1 ? 'The listing photo is' : `${images.length} listing photos are`} attached.)` : ''}`,
+    images,
     maxTokens: 700,
     validate: (d) => validateDraft(d, categories),
     ...(models ? { models } : {}),
   });
-  return answer ? { ...answer.data, used_photo: !!image && answer.model.startsWith('gemini') } : null;
+  return answer ? { ...answer.data, used_photo: images.length > 0 && answer.model.startsWith('gemini') } : null;
 }

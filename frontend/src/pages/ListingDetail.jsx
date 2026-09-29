@@ -7,6 +7,7 @@ import { useFavorites } from '../hooks/useFavorites';
 import useSeo from '../hooks/useSeo';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 import OfferForm from '../components/OfferForm';
+import ListingGallery from '../components/ListingGallery';
 import {
   POWER_SOURCE_OPTIONS,
   DELIVERY_OPTIONS,
@@ -340,15 +341,12 @@ export default function ListingDetail() {
       </Link>
 
       <div className="mt-4 grid grid-cols-1 gap-8 md:grid-cols-2">
-        {/* 1. Image */}
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-card bg-white/5">
-          {listing.image_url ? (
-            <img src={listing.image_url} alt={listing.title} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-6xl">
-              {listing.category?.icon || '🧰'}
-            </div>
-          )}
+        {/* 1. Photos */}
+        <ListingGallery
+          photos={listing.image_urls?.length ? listing.image_urls : listing.image_url ? [listing.image_url] : []}
+          title={listing.title}
+          fallback={listing.category?.icon || '🧰'}
+        >
           <button
             type="button"
             onClick={handleToggleFavorite}
@@ -362,7 +360,7 @@ export default function ListingDetail() {
               <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z" />
             </svg>
           </button>
-        </div>
+        </ListingGallery>
 
         <div>
           {/* 1. Category/subcategory tags + condition badge */}

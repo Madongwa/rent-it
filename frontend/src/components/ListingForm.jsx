@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import PriceSuggestion from './PriceSuggestion';
 import ListingDraftAssistant from './ListingDraftAssistant';
+import ListingPhotos from './ListingPhotos';
 import {
   CONDITION_OPTIONS,
   POWER_SOURCE_OPTIONS,
@@ -26,7 +26,7 @@ const FIELD_DEFAULTS = {
   price_per_day: '',
   location: '',
   condition: 'Good',
-  image_url: '',
+  image_urls: [],
   power_source: '',
   delivery_option: 'pickup_only',
   deposit_required: false,
@@ -60,7 +60,6 @@ export default function ListingForm({ initial, listingId, onSubmit, submitLabel 
   const { user } = useAuth();
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState({ ...FIELD_DEFAULTS, ...initial });
-  const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -102,24 +101,6 @@ export default function ListingForm({ initial, listingId, onSubmit, submitLabel 
     });
   }
 
-  async function handleImageChange(e) {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    setUploading(true);
-    setError('');
-    try {
-      const path = `${user.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-      const { error: uploadError } = await supabase.storage.from('listing-images').upload(path, file);
-      if (uploadError) throw uploadError;
-      const { data } = supabase.storage.from('listing-images').getPublicUrl(path);
-      update('image_url', data.publicUrl);
-    } catch (err) {
-      setError(`Image upload failed: ${err.message}`);
-    } finally {
-      setUploading(false);
-    }
-  }
-
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
@@ -149,7 +130,7 @@ export default function ListingForm({ initial, listingId, onSubmit, submitLabel 
       <div className="space-y-5 rounded-card border border-night-border/15 bg-night-card p-6">
         <h2 className="text-subheading text-night-text">Basics</h2>
 
-        {!listingId && <ListingDraftAssistant imageUrl={form.image_url} onApply={applyDraft} />}
+        {!listingId && <ListingDraftAssistant imageUrls={form.image_urls} onApply={applyDraft} />}
 
         <Field label="Title *">
           <input
@@ -219,14 +200,8 @@ export default function ListingForm({ initial, listingId, onSubmit, submitLabel 
 
         <PriceSuggestion form={form} listingId={listingId} onUse={(price) => update('price_per_day', String(price))} />
 
-        <Field label="Photo" hint="JPG or PNG, uploaded straight to storage - no external hosting needed.">
-          <div className="flex items-center gap-4">
-            {form.image_url && (
-              <img src={form.image_url} alt="Listing preview" className="h-16 w-16 rounded-btn object-cover" />
-            )}
-            <input type="file" accept="image/*" onChange={handleImageChange} disabled={uploading} className="text-sm text-night-muted" />
-            {uploading && <span className="text-xs text-night-muted">Uploading…</span>}
-          </div>
+        <Field label="Photos">
+          <ListingPhotos userId={user?.id} photos={form.image_urls} onChange={(urls) => update('image_urls', urls)} />
         </Field>
       </div>
 
@@ -347,7 +322,7 @@ export default function ListingForm({ initial, listingId, onSubmit, submitLabel 
 
       <button
         type="submit"
-        disabled={submitting || uploading}
+        disabled={submitting}
         className="w-full rounded-btn bg-white py-3 font-semibold text-black hover:opacity-90 disabled:opacity-60"
       >
         {submitting ? 'Saving…' : submitLabel}

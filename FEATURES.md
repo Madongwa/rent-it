@@ -64,7 +64,7 @@ Browse everything available to rent.
 - Save listings to **Favorites** with the heart on each card (needs login).
 
 ### Listing detail
-Photo, category and condition badges, rating and review count, daily price,
+**Photo gallery** (all the owner's photos - arrows, arrow keys, thumbnails), category and condition badges, rating and review count, daily price,
 deposit, minimum rental period and supported durations, description, specs
 (power source, delivery, cancellation policy, owner type, accessories),
 a **calendar of booked dates** (rental history), reviews, and:
@@ -148,15 +148,15 @@ listing.
   Staff approve or reject them; automated checking via Digio can be switched
   on with API keys. Listing is blocked until approved.
 - **List an Item** form - title, description, category, condition, price per
-  day, location, photo, power source, delivery option, deposit (and amount),
+  day, location, **up to 8 photos** (first is the cover; "Make cover", remove), power source, delivery option, deposit (and amount),
   cancellation policy, owner type, accessories (and what's included),
   minimum rental period, supported durations.
 - **AI listing writer** - at the top of the form: *"Describe your item and
   we'll fill in the form"*. Type a few words in any language (Hinglish too),
   e.g. "mahindra 575 tractor 2019, 45hp, achhi condition, trolley bhi saath me,
   ludhiana", and the title, description, category, condition, power source,
-  accessories and location are filled in (in English). If a photo is uploaded
-  the AI looks at it too. Everything is checked against the form's real
+  accessories and location are filled in (in English). If photos are uploaded
+  the AI looks at up to three of them too. Everything is checked against the form's real
   options; nothing is saved until you publish.
 - **Suggest a price** - under the price field: what items like this usually
   rent for in India (AI estimate with a one-line reason), genuinely similar
@@ -246,7 +246,7 @@ WhatsApp-style chat page at `/messages`, one thread per listing and renter.
 | Chat translation | Messages | **Groq only** | Chat messages |
 | Suggested replies | Messages | **Groq only** | Recent chat messages, offer state |
 | Help assistant | Help bubble | Groq | Your question; your own account summary when logged in |
-| Listing writer | List an Item | Gemini (sees the photo), Groq as backup | Your notes and listing photo |
+| Listing writer | List an Item | Gemini (sees the photos), Groq as backup | Your notes and up to 3 listing photos |
 | Price suggestion / price check | Listing form, offer form | Gemini, Groq as backup | Item details and same-category listings (public) |
 | Plain-language search | Marketplace | Gemini, Groq as backup | Your search sentence |
 | Listing safety review | Staff dashboard → Safety | Gemini, Groq as backup | Public listing text |

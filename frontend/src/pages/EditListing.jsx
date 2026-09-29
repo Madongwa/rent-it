@@ -17,7 +17,7 @@ function toFormInitial(listing) {
     price_per_day: String(listing.price_per_day),
     location: listing.location || '',
     condition: listing.condition || 'Good',
-    image_url: listing.image_url || '',
+    image_urls: listing.image_urls?.length ? listing.image_urls : listing.image_url ? [listing.image_url] : [],
     power_source: listing.power_source || '',
     delivery_option: listing.delivery_option,
     deposit_required: listing.deposit_required,

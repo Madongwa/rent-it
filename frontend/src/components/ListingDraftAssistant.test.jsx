@@ -14,15 +14,15 @@ describe('ListingDraftAssistant', () => {
     const draft = { title: 'Bosch 18V Cordless Drill', category_id: 3, used_photo: true };
     api.draftListing.mockResolvedValue(draft);
     const onApply = vi.fn();
-    render(<ListingDraftAssistant imageUrl="https://x/listing-images/a.jpg" onApply={onApply} />);
+    render(<ListingDraftAssistant imageUrls={['https://x/listing-images/a.jpg']} onApply={onApply} />);
 
     expect(screen.getByRole('button', { name: 'Fill in the form' })).toBeDisabled();
     await userEvent.type(screen.getByLabelText(/Describe your item/), 'bosch drill 18v');
     await userEvent.click(screen.getByRole('button', { name: 'Fill in the form' }));
 
-    expect(api.draftListing).toHaveBeenCalledWith({ notes: 'bosch drill 18v', image_url: 'https://x/listing-images/a.jpg' });
+    expect(api.draftListing).toHaveBeenCalledWith({ notes: 'bosch drill 18v', image_urls: ['https://x/listing-images/a.jpg'] });
     expect(onApply).toHaveBeenCalledWith(draft);
-    expect(await screen.findByText(/from your notes and photo - check every field/)).toBeInTheDocument();
+    expect(await screen.findByText(/from your notes and photos - check every field/)).toBeInTheDocument();
   });
 
   it('shows the error when the writer is unavailable', async () => {

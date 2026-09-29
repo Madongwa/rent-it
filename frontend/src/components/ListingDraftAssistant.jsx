@@ -4,9 +4,9 @@ import { api } from '../lib/api';
 
 // The AI listing writer at the top of the listing form: the owner jots a
 // few words about the item (any language) and the form's main fields are
-// filled in from them - and from the photo, once one is uploaded. Nothing
+// filled in from them - and from the photos, once uploaded. Nothing
 // is saved; the owner checks and edits everything before publishing.
-export default function ListingDraftAssistant({ imageUrl, onApply }) {
+export default function ListingDraftAssistant({ imageUrls = [], onApply }) {
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -16,7 +16,7 @@ export default function ListingDraftAssistant({ imageUrl, onApply }) {
     setLoading(true);
     setError('');
     try {
-      const draft = await api.draftListing({ notes, image_url: imageUrl || undefined });
+      const draft = await api.draftListing({ notes, image_urls: imageUrls });
       onApply(draft);
       setApplied(draft);
     } catch (err) {
@@ -49,13 +49,13 @@ export default function ListingDraftAssistant({ imageUrl, onApply }) {
         >
           {loading ? 'Filling in…' : applied ? 'Fill in again' : 'Fill in the form'}
         </button>
-        <span className="text-xs text-night-muted">Any language is fine. Upload a photo first and it'll be used too.</span>
+        <span className="text-xs text-night-muted">Any language is fine. Add photos first and they'll be used too.</span>
       </div>
       {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
       {applied && (
         <p className="mt-2 text-xs text-amber-300" role="status">
           {applied.used_photo
-            ? 'Filled in by AI from your notes and photo - check every field before publishing.'
+            ? 'Filled in by AI from your notes and photos - check every field before publishing.'
             : 'Filled in by AI from your notes - check every field before publishing.'}
         </p>
       )}

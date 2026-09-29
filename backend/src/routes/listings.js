@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth.js';
 import rateLimit from 'express-rate-limit';
 import { draftListing } from '../lib/listingDraft.js';
 import { interpretSearch } from '../lib/searchIntent.js';
+import { normalizePhotos } from '../lib/listingPhotos.js';
 
 const router = Router();
 
@@ -192,6 +193,7 @@ const WRITABLE_FIELDS = [
   'location',
   'condition',
   'image_url',
+  'image_urls',
   'power_source',
   'delivery_option',
   'deposit_required',
@@ -244,12 +246,13 @@ router.post('/search-intent', searchRateLimiter, async (req, res) => {
 // writer on the List an Item form: returns suggested field values (never
 // saves anything). See lib/listingDraft.js.
 router.post('/draft', requireAuth, draftRateLimiter, async (req, res) => {
-  const { notes, image_url } = req.body || {};
+  const { notes, image_url, image_urls } = req.body || {};
+  const photos = (Array.isArray(image_urls) ? image_urls : image_url ? [image_url] : []).filter((u) => typeof u === 'string');
   if (typeof notes !== 'string' || notes.trim().length < 3) {
     return res.status(400).json({ error: 'Describe the item in a few words first.' });
   }
   try {
-    const draft = await draftListing({ notes: notes.trim().slice(0, 1500), imageUrl: image_url });
+    const draft = await draftListing({ notes: notes.trim().slice(0, 1500), imageUrls: photos });
     if (!draft) return res.status(502).json({ error: 'The listing writer is unavailable right now - please try again in a minute.' });
     res.json(draft);
   } catch (err) {
@@ -286,6 +289,7 @@ router.post('/', requireAuth, async (req, res) => {
   for (const field of WRITABLE_FIELDS) {
     if (field in req.body) fields[field] = req.body[field];
   }
+  Object.assign(fields, normalizePhotos(req.body));
 
   const { data, error } = await supabase
     .from('listings')
@@ -313,6 +317,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
   for (const field of allowedFields) {
     if (field in req.body) updates[field] = req.body[field];
   }
+  Object.assign(updates, normalizePhotos(req.body));
 
   const { data, error } = await supabase
     .from('listings')

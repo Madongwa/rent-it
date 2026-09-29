@@ -6,6 +6,10 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-09-29
 
+- **Several photos per listing** - up to 8, uploaded together; the first is
+  the cover ("Make cover", remove). The listing page shows them as a gallery
+  with arrows and thumbnails, and the AI listing writer looks at up to 3.
+
 - **Help assistant knows your account and speaks your language** - replies in
   the language picked with the language button; when logged in it can answer
   about your own rentals, offers (and whose turn it is), listings, seller
