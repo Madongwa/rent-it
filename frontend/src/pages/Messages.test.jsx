@@ -411,6 +411,17 @@ describe('Messages - safety warnings', () => {
   });
 });
 
+describe('Messages - sending', () => {
+  it("sends the sender's language along, so the server can translate before delivering", async () => {
+    auth.lang = 'hi';
+    api.sendMessage.mockResolvedValue({ id: 'new', conversation_id: 'conv-1', sender_id: RENTER.id, kind: 'text', body: 'नमस्ते', created_at: '2099-01-01T10:00:00Z' });
+    renderAs(RENTER, []);
+    await userEvent.type(await screen.findByLabelText('Message'), 'नमस्ते');
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(api.sendMessage).toHaveBeenCalledWith('conv-1', 'नमस्ते', 'hi'));
+  });
+});
+
 describe("Messages - translation into the reader's language", () => {
   const theirs = { id: 't1', conversation_id: 'conv-1', sender_id: RENTER.id, kind: 'text', body: 'kal milega kya?', created_at: '2099-01-01T09:00:00Z', offer: null };
   const mine = { id: 't2', conversation_id: 'conv-1', sender_id: OWNER.id, kind: 'text', body: 'Haan', created_at: '2099-01-01T09:05:00Z', offer: null };

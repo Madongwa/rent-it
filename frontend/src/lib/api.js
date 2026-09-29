@@ -83,10 +83,12 @@ export const api = {
   markConversationRead: (conversationId) =>
     request(`/messages/conversations/${conversationId}/read`, { method: 'POST' }),
   getUnreadMessageCount: () => request('/messages/unread-count'),
-  sendMessage: (conversationId, body) =>
+  // lang: the sender's own language - the server translates the message into
+  // the recipient's before delivering it, unless they match.
+  sendMessage: (conversationId, body, lang) =>
     request(`/messages/conversations/${conversationId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ body, lang }),
     }),
 
   getMyKyc: () => request('/kyc/me'),

@@ -4,6 +4,8 @@ import { requireAuth } from '../middleware/auth.js';
 import { notify } from '../lib/notify.js';
 import { getOrCreateConversation } from '../lib/conversations.js';
 import { ATTACHMENT_BUCKET, parseAttachmentMessage } from '../lib/attachments.js';
+import { translateForReader } from '../lib/translate.js';
+import { isSupportedLanguage } from '../lib/languages.js';
 
 const router = Router();
 
@@ -216,6 +218,24 @@ router.post('/conversations/:id/messages', requireAuth, async (req, res) => {
     row = parsed;
   }
 
+  const recipientId = participant.owner_id === req.user.id ? participant.renter_id : participant.owner_id;
+
+  // Translate first, deliver second: if the other person picked a different
+  // language (the language button, saved on their profile), the message is
+  // translated into it before it's sent, so it arrives - and its
+  // notification reads - in their language. `lang` is the sender's own
+  // choice; the same language on both sides skips the translator entirely.
+  let forReader = null;
+  if (row.kind === 'text') {
+    const { data: recipient } = await supabase.from('profiles').select('preferred_language').eq('id', recipientId).maybeSingle();
+    const readerLang = recipient?.preferred_language || 'en';
+    const writerLang = isSupportedLanguage(req.body.lang) ? req.body.lang : null;
+    if (readerLang !== writerLang) {
+      const result = await translateForReader(row.body, readerLang);
+      if (result) forReader = { ...result, lang: readerLang };
+    }
+  }
+
   const { data, error } = await supabase
     .from('messages')
     .insert({ conversation_id: req.params.id, sender_id: req.user.id, ...row })
@@ -224,13 +244,20 @@ router.post('/conversations/:id/messages', requireAuth, async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
 
-  const recipientId = participant.owner_id === req.user.id ? participant.renter_id : participant.owner_id;
+  if (forReader) {
+    const { error: txError } = await supabase.from('message_translations').upsert(
+      { message_id: data.id, lang: forReader.lang, body: forReader.text, source_lang: forReader.source },
+      { ignoreDuplicates: true }
+    );
+    if (txError) console.error('[messages] could not store translation:', txError.message);
+  }
+
   const { data: senderProfile } = await supabase.from('profiles').select('full_name').eq('id', req.user.id).single();
   await notify({
     userId: recipientId,
     type: 'new_message',
     title: `New message from ${senderProfile?.full_name || 'a Rent It user'}`,
-    body: row.body.slice(0, 140),
+    body: (forReader?.translated ? forReader.text : row.body).slice(0, 140),
     link: `/messages?c=${req.params.id}`,
   });
 

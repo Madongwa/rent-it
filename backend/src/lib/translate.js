@@ -264,6 +264,35 @@ export async function translateUiTexts(texts, lang, { client, db = supabase, mod
   return result;
 }
 
+// A message waits at most this long to be translated before it's sent
+// anyway - a slow or unavailable translator must never hold up a chat.
+const SEND_TRANSLATE_TIMEOUT_MS = 8 * 1000;
+
+// Translates one chat message for the person it's being sent to, before it's
+// delivered - so it arrives already in their language. Returns
+// { text, source, translated }, or null if it couldn't be done in time
+// (the message then goes as typed, and is translated on demand later).
+export async function translateForReader(body, lang, { client, models = chatModels(), timeoutMs = SEND_TRANSLATE_TIMEOUT_MS } = {}) {
+  if (!LANGUAGE_NAMES[lang]) return null;
+  if (client) models = models.map((m) => ({ ...m, client }));
+  const work = translateBatches(messagePrompt(LANGUAGE_NAMES[lang]), [body], models).then(([result]) => {
+    const item = result?.text;
+    const text = cleanString(item?.text);
+    if (!text) return null;
+    const source = typeof item.source === 'string' ? item.source.slice(0, 8).toLowerCase() : null;
+    return { text, source, translated: text !== body };
+  });
+  let timer;
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(null), timeoutMs);
+  });
+  try {
+    return await Promise.race([work.catch(() => null), timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Chat messages: returns { [messageId]: { text, source, translated } } for
 // the text messages among `ids` in chats `userId` is part of - the other
 // person's messages, in the reader's language. `translated` is false when a

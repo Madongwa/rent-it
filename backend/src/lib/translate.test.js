@@ -10,6 +10,7 @@ import {
   translateUiTexts,
   translateMessages,
   chatModels,
+  translateForReader,
 } from './translate.js';
 
 // Every test passes its own fake client/db - the real ones need API keys.
@@ -215,5 +216,29 @@ describe('translateMessages (chat)', () => {
 
   it('sends chats to Groq models only, never Gemini', () => {
     expect(chatModels().every(({ model }) => !model.startsWith('gemini'))).toBe(true);
+  });
+});
+
+describe('translateForReader (translate before delivering)', () => {
+  it("translates a message into the recipient's language", async () => {
+    const client = fakeClient((texts) => texts.map(() => ({ text: 'Will I get it tomorrow?', source: 'hi' })));
+    expect(await translateForReader('kal milega kya?', 'en', { client })).toEqual({
+      text: 'Will I get it tomorrow?',
+      source: 'hi',
+      translated: true,
+    });
+  });
+
+  it('gives up after the time limit, so a slow translator never holds up a chat', async () => {
+    const slow = { chat: { completions: { create: () => new Promise(() => {}) } } };
+    const started = Date.now();
+    expect(await translateForReader('hello', 'hi', { client: slow, timeoutMs: 50 })).toBeNull();
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
+  it('does nothing for an unknown language', async () => {
+    const client = fakeClient(() => []);
+    expect(await translateForReader('hello', 'xx', { client })).toBeNull();
+    expect(client.create).not.toHaveBeenCalled();
   });
 });

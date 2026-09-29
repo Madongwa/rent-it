@@ -534,7 +534,9 @@ export default function Messages() {
     if (!draft.trim() || !activeId) return;
     setSending(true);
     try {
-      const sent = await api.sendMessage(activeId, draft.trim());
+      // Translated for the other person (if they picked another language)
+      // before it's delivered - this takes a second or two longer then.
+      const sent = await api.sendMessage(activeId, draft.trim(), lang);
       setMessages((m) => (m.some((x) => x.id === sent.id) ? m : [...m, sent]));
       setDraft('');
       loadConversations(); // refresh preview/order
@@ -901,7 +903,7 @@ export default function Messages() {
                     disabled={sending || !draft.trim()}
                     className="h-10 shrink-0 rounded-full bg-white px-4 text-sm font-medium text-black hover:opacity-90 disabled:opacity-60"
                   >
-                    Send
+                    {sending ? 'Sending…' : 'Send'}
                   </button>
                 </form>
 
