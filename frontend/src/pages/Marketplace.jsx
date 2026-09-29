@@ -6,6 +6,8 @@ import FilterSidebar, { PRICE_BUCKETS, countActiveFilters } from '../components/
 import { useFavorites } from '../hooks/useFavorites';
 import useSeo from '../hooks/useSeo';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
+import { Sparkles } from 'lucide-react';
+import { describeIntent, intentToParams } from '../lib/searchIntent';
 
 const MULTI_KEYS = ['condition', 'powerSource', 'delivery', 'cancellation', 'ownerType', 'duration', 'availability'];
 // Filter keys whose URL param name differs from the filter-state key name.
@@ -44,6 +46,7 @@ function readFilters(searchParams) {
   filters.maxDistance = searchParams.get('distance') || '';
   filters.minRating = searchParams.get('minRating') || '';
   filters.minRentalPeriod = searchParams.get('minRentalPeriod') || '';
+  filters.near = searchParams.get('near') || '';
   return filters;
 }
 
@@ -123,6 +126,10 @@ export default function Marketplace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchInput, setSearchInput] = useState(q);
+  // Plain-language search: how the AI read the last sentence typed, so the
+  // results can say so (and offer the exact words instead).
+  const [aiReading, setAiReading] = useState(null);
+  const [interpreting, setInterpreting] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const page = Math.max(Number(searchParams.get('page')) || 1, 1);
@@ -142,7 +149,7 @@ export default function Marketplace() {
   const multiParams = MULTI_KEYS.map((k) => filters[k].join(',')).join('|');
   const filterKey = [
     filters.category, q, filters.sort, minPrice, maxPrice, multiParams, filters.deposit,
-    filters.accessories, filters.maxDistance, filters.minRating, filters.minRentalPeriod,
+    filters.accessories, filters.maxDistance, filters.minRating, filters.minRentalPeriod, filters.near,
   ].join('::');
   // Tracks the previous filterKey so a filter change (as opposed to a plain
   // page change) can snap the page back to 1 - browsing page 4 of one filter
@@ -181,6 +188,7 @@ export default function Marketplace() {
         duration: filters.duration.join(','),
         minRating: filters.minRating,
         minRentalPeriod: filters.minRentalPeriod,
+        near: filters.near,
         page,
       })
       .then((result) => {
@@ -269,9 +277,35 @@ export default function Marketplace() {
     setSingle('minRating', filters.minRating === '4' ? '' : '4');
   }
 
-  function handleSearchSubmit(e) {
+  // A few words ("drill") search as typed. A sentence ("something to dig
+  // post holes near Mandya this weekend") goes to the AI, which turns it
+  // into the usual filters - and if it can't, the words are searched as
+  // typed, like before.
+  async function handleSearchSubmit(e) {
     e.preventDefault();
-    updateParam('q', searchInput.trim());
+    const text = searchInput.trim();
+    setAiReading(null);
+    if (text.split(/\s+/).length < 3) {
+      updateParam('q', text);
+      return;
+    }
+    setInterpreting(true);
+    try {
+      const intent = await api.interpretSearch(text);
+      setSearchParams(intentToParams(intent, filters.sort));
+      setAiReading({ text, intent });
+    } catch {
+      updateParam('q', text);
+    } finally {
+      setInterpreting(false);
+    }
+  }
+
+  function searchExactWords() {
+    const text = aiReading.text;
+    setAiReading(null);
+    setSearchInput(text);
+    setSearchParams(new URLSearchParams({ q: text }));
   }
 
   const activeCategory = categories.find((c) => c.slug === filters.category);
@@ -336,18 +370,47 @@ export default function Marketplace() {
         </div>
 
         {/* Search + sort-adjacent row (kept simple; sort itself lives in the sidebar) */}
-        <form onSubmit={handleSearchSubmit} className="mb-4 flex max-w-md gap-2">
+        <form onSubmit={handleSearchSubmit} className="mb-4 flex max-w-xl gap-2">
           <input
             type="text"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search listings…"
+            placeholder="Search, or describe what you need - e.g. a ladder near Mysuru this week"
+            aria-label="Search listings"
             className="w-full rounded-btn border border-night-border/20 bg-white/5 px-3 py-2 text-sm text-night-text placeholder:text-night-muted focus:outline-none focus:ring-2 focus:ring-accent"
           />
-          <button type="submit" className="shrink-0 rounded-btn bg-white px-4 text-sm font-medium text-black hover:opacity-90">
-            Search
+          <button
+            type="submit"
+            disabled={interpreting}
+            className="shrink-0 rounded-btn bg-white px-4 text-sm font-medium text-black hover:opacity-90 disabled:opacity-60"
+          >
+            {interpreting ? 'Searching…' : 'Search'}
           </button>
         </form>
+
+        {aiReading && (
+          <p className="-mt-2 mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-night-muted" role="status">
+            <Sparkles className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />
+            <span>{`Showing: ${describeIntent(aiReading.intent, categories)}`}</span>
+            <button type="button" onClick={searchExactWords} className="text-night-text underline-offset-2 hover:underline">
+              Search the exact words instead
+            </button>
+          </p>
+        )}
+
+        {filters.near && (
+          <div className="-mt-2 mb-4">
+            <button
+              type="button"
+              onClick={() => updateParam('near', '')}
+              className="inline-flex items-center gap-1.5 rounded-full border border-night-border/20 px-3 py-1 text-sm text-night-text hover:border-night-border/40"
+              aria-label={`Remove filter: near ${filters.near}`}
+            >
+              {`📍 Near ${filters.near}`}
+              <CloseIcon className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* TOP PILL BAR - quick filters, horizontally scrollable */}
         <div className="relative mb-6">

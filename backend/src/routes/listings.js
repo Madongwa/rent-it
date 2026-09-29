@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth } from '../middleware/auth.js';
 import rateLimit from 'express-rate-limit';
 import { draftListing } from '../lib/listingDraft.js';
+import { interpretSearch } from '../lib/searchIntent.js';
 
 const router = Router();
 
@@ -40,7 +41,7 @@ const MAX_LIMIT = 120;
 router.get('/', async (req, res) => {
   const {
     category, q, minPrice, maxPrice, sort, deposit, accessories,
-    distance, duration, minRating, minRentalPeriod, availability, ownerId, limit, page,
+    distance, duration, minRating, minRentalPeriod, availability, ownerId, limit, page, near,
   } = req.query;
 
   let query = supabase.from('listings').select(LISTING_SELECT).eq('status', 'available');
@@ -62,6 +63,13 @@ router.get('/', async (req, res) => {
   // matching better, and can use the search_vector GIN index.
   if (q) {
     query = query.textSearch('search_vector', q, { type: 'websearch', config: 'english' });
+  }
+
+  // "Near Mandya" - listings whose location mentions the town. % and _ are
+  // stripped so the text can't act as a wildcard pattern of its own.
+  if (near) {
+    const town = String(near).replace(/[%_,()]/g, '').trim().slice(0, 60);
+    if (town) query = query.ilike('location', `%${town}%`);
   }
 
   if (minPrice) query = query.gte('price_per_day', Number(minPrice));
@@ -204,6 +212,32 @@ const draftRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests - please wait a minute and try again.' },
+});
+
+// Each interpretation may be an AI call - but repeats are cached, and the
+// Marketplace searches the plain words if this fails, so it degrades softly.
+const searchRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 12,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many searches - please wait a moment.' },
+});
+
+// POST /api/listings/search-intent - body: { text }. Plain-language search:
+// returns Marketplace filters for the request (see lib/searchIntent.js).
+// Public, like browsing itself.
+router.post('/search-intent', searchRateLimiter, async (req, res) => {
+  const { text } = req.body || {};
+  if (typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Type what you are looking for.' });
+  try {
+    const filters = await interpretSearch(text);
+    if (!filters) return res.status(502).json({ error: 'Could not understand that search right now.' });
+    res.json(filters);
+  } catch (err) {
+    console.error('[listings] search intent failed:', err.message);
+    res.status(502).json({ error: 'Could not understand that search right now.' });
+  }
 });
 
 // POST /api/listings/draft - body: { notes, image_url? }. The AI listing
