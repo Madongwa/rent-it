@@ -8,6 +8,7 @@ import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 import OfferForm from '../components/OfferForm';
 import AttachMenu from '../components/chat/AttachMenu';
 import AttachmentMessage from '../components/chat/AttachmentMessage';
+import SuggestReplies from '../components/chat/SuggestReplies';
 import { checkAttachment, shrinkImage, uploadAttachment } from '../lib/chatAttachments';
 import { MESSAGES_READ_EVENT } from '../hooks/useUnreadMessages';
 import { formatDay, formatInr, priceDifference, rentalDays } from '../lib/offers';
@@ -870,6 +871,10 @@ export default function Messages() {
                       onCancel={() => setOfferFormOpen(false)}
                     />
                   </div>
+                )}
+
+                {messages.some((m) => m.kind === 'text' && m.sender_id !== user?.id) && (
+                  <SuggestReplies conversationId={activeId} lang={lang} onPick={setDraft} />
                 )}
 
                 <form onSubmit={handleSend} className="flex items-center gap-2 border-t border-night-border/15 bg-night-elevated/60 p-2.5 sm:p-3">

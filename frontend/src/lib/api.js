@@ -83,6 +83,8 @@ export const api = {
   markConversationRead: (conversationId) =>
     request(`/messages/conversations/${conversationId}/read`, { method: 'POST' }),
   getUnreadMessageCount: () => request('/messages/unread-count'),
+  suggestReplies: (conversationId, lang) =>
+    request(`/messages/conversations/${conversationId}/suggest-replies`, { method: 'POST', body: JSON.stringify({ lang }) }),
   // lang: the sender's own language - the server translates the message into
   // the recipient's before delivering it, unless they match.
   sendMessage: (conversationId, body, lang) =>
@@ -106,8 +108,8 @@ export const api = {
   approveKyc: (userId) => request(`/admin/kyc/${userId}/approve`, { method: 'POST' }),
   rejectKyc: (userId, reason) =>
     request(`/admin/kyc/${userId}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
-  sendChatMessage: (message, history = []) =>
-    request('/chat', { method: 'POST', body: JSON.stringify({ message, history }) }),
+  sendChatMessage: (message, history = [], lang) =>
+    request('/chat', { method: 'POST', body: JSON.stringify({ message, history, lang }) }),
 
   suggestPrice: (payload) => request('/pricing/suggest', { method: 'POST', body: JSON.stringify(payload) }),
   getPriceCheck: (listingId) => request(`/pricing/listing/${listingId}`),

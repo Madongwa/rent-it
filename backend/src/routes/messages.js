@@ -5,6 +5,8 @@ import { notify } from '../lib/notify.js';
 import { getOrCreateConversation } from '../lib/conversations.js';
 import { ATTACHMENT_BUCKET, parseAttachmentMessage } from '../lib/attachments.js';
 import { translateForReader } from '../lib/translate.js';
+import { suggestReplies } from '../lib/replySuggestions.js';
+import rateLimit from 'express-rate-limit';
 import { isSupportedLanguage } from '../lib/languages.js';
 
 const router = Router();
@@ -187,6 +189,30 @@ router.get('/conversations/:id/messages', requireAuth, async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
+});
+
+// Each request is an AI call - kept well below the free-tier limits.
+const suggestRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests - please wait a moment.' },
+});
+
+// POST /api/messages/conversations/:id/suggest-replies - body: { lang }.
+// Up to three short reply drafts in the user's language ("Suggest replies"
+// in the chat) - see lib/replySuggestions.js. Nothing is sent.
+router.post('/conversations/:id/suggest-replies', requireAuth, suggestRateLimiter, async (req, res) => {
+  const lang = isSupportedLanguage(req.body?.lang) ? req.body.lang : 'en';
+  try {
+    const replies = await suggestReplies(req.params.id, req.user.id, lang);
+    if (replies === null) return res.status(404).json({ error: 'Conversation not found' });
+    res.json({ replies });
+  } catch (err) {
+    console.error('[messages] suggest replies failed:', err.message);
+    res.status(502).json({ error: 'Suggestions are unavailable right now - please try again in a minute.' });
+  }
 });
 
 // POST /api/messages/conversations/:id/messages - a text message ({ body }),

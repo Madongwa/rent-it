@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { MessageCircle, X, Send } from 'lucide-react';
 import { api } from '../lib/api';
+import { useLanguage } from '../context/LanguageContext';
 
 const GREETING = "Hi! I'm here to help with anything about renting, listing, or using Rent It. What can I help with?";
 
@@ -35,9 +36,10 @@ function TypingDots({ reduceMotion }) {
   );
 }
 
-// Chats stay in English (or as typed) - the language button translates the
-// site, never chat bubbles.
-function MessageBubble({ role, content, reduceMotion }) {
+// Replies already come back in the language picked with the language
+// button, and what the user typed stays as typed - so only the canned
+// greeting is left to the page translator.
+function MessageBubble({ role, content, reduceMotion, translatable }) {
   const isUser = role === 'user';
   const variants = reduceMotion
     ? { hidden: { opacity: 0 }, visible: { opacity: 1 } }
@@ -59,7 +61,7 @@ function MessageBubble({ role, content, reduceMotion }) {
             ? 'rounded-2xl rounded-br-md bg-accent text-white'
             : 'rounded-2xl rounded-bl-md bg-night-elevated text-night-text'
         }`}
-        translate="no"
+        translate={translatable ? undefined : 'no'}
         dir="auto"
       >
         {content}
@@ -69,6 +71,7 @@ function MessageBubble({ role, content, reduceMotion }) {
 }
 
 export default function HelpChatbot() {
+  const { lang } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([{ id: 'greeting', role: 'assistant', content: GREETING }]);
   const [inputValue, setInputValue] = useState('');
@@ -148,7 +151,9 @@ export default function HelpChatbot() {
     setIsLoading(true);
 
     try {
-      const { reply } = await api.sendChatMessage(trimmed, history);
+      // Logged in, the API call carries the login token, so the assistant can
+      // answer about this user's own rentals and listings (and only theirs).
+      const { reply } = await api.sendChatMessage(trimmed, history, lang);
       setMessages((m) => [...m, { id: uid(), role: 'assistant', content: reply }]);
     } catch (err) {
       setMessages((m) => [
@@ -243,7 +248,13 @@ export default function HelpChatbot() {
             {/* Messages */}
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
               {messages.map((m) => (
-                <MessageBubble key={m.id} role={m.role} content={m.content} reduceMotion={reduceMotion} />
+                <MessageBubble
+                  key={m.id}
+                  role={m.role}
+                  content={m.content}
+                  reduceMotion={reduceMotion}
+                  translatable={m.id === 'greeting'}
+                />
               ))}
 
               {!hasInteracted && (

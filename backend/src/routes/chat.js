@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { groq as groqClient } from '../lib/groq.js';
+import { attachUserIfPresent } from '../middleware/auth.js';
+import { accountSummary } from '../lib/accountContext.js';
+import { LANGUAGE_NAMES, isSupportedLanguage } from '../lib/languages.js';
 
 const router = Router();
 
@@ -19,7 +22,7 @@ const chatRateLimiter = rateLimit({
 // from.
 const SYSTEM_PROMPT = `You are the Rent It support assistant. Rent It is a peer-to-peer equipment rental marketplace connecting people who own idle equipment with people who need it short-term, across six categories: Farming, Construction, Household & DIY, Events, Moving, and Medical.
 
-Answer questions about how renting works, how listing works, deposits, cancellation policies, account/login issues, categories, pricing, and general site navigation, using the reference information below. If a question is outside this scope, politely redirect the user back to Rent It topics in one sentence. Keep answers concise — 2-4 sentences typically, longer only if the question genuinely requires a step-by-step walkthrough. Never invent specific account, transaction, or listing details you don't have — direct the user to contact support for anything account-specific. Use a warm, direct tone, no corporate jargon. Your reply is shown as plain text in a chat bubble, not rendered markdown - never use asterisks, pound signs, or other markdown formatting; for a numbered list, just write "1. ", "2. ", etc.
+Answer questions about how renting works, how listing works, deposits, cancellation policies, account/login issues, categories, pricing, and general site navigation, using the reference information below. If a question is outside this scope, politely redirect the user back to Rent It topics in one sentence. Keep answers concise — 2-4 sentences typically, longer only if the question genuinely requires a step-by-step walkthrough. Never invent specific account, transaction, or listing details you don't have — use the account section below when there is one, and direct the user to contact support for anything account-specific it doesn't cover. Use a warm, direct tone, no corporate jargon. Your reply is shown as plain text in a chat bubble, not rendered markdown - never use asterisks, pound signs, or other markdown formatting; for a numbered list, just write "1. ", "2. ", etc.
 
 --- How renting works (for renters) ---
 1. Search and compare: filter by category, price, distance, and condition. Photos, condition notes, ratings, and rental history are shown on every listing.
@@ -57,6 +60,10 @@ Owners set their own daily rate. Rent It does not publish a platform-wide price 
 --- Chat features ---
 In Messages, the + button next to Send lets users send photos (from the gallery or camera), documents such as PDF or Word rental agreements, and a location - their current location or any place they search for or pin on a map. Attachments can only be opened by the two people in the chat, and by Rent It staff when reviewing a dispute. Remind users never to send OTPs, UPI PINs or unmasked Aadhaar numbers.
 
+--- Languages and AI helpers ---
+The language button at the top right switches the whole site between English and 12 Indian languages (Hindi, Bengali, Telugu, Marathi, Tamil, Urdu, Gujarati, Kannada, Malayalam, Odia, Punjabi, Assamese). Chat messages are shown to each person in the language they picked, with "Show original" under a translated message - so a renter and an owner can chat in different languages. Translations are done by AI and may not be perfect.
+Other AI helpers: on List an Item, "Describe your item and we'll fill in the form" writes the listing from a few words (and the photo); "Suggest a price" shows what similar items usually rent for; the offer form shows a price check; the Marketplace search box understands sentences like "a ladder near Mysuru this week"; in a chat, "Suggest replies" drafts a few short answers. The assistant (you) can see a logged-in user's own rentals, offers and listings to answer questions about them.
+
 --- Terms ---
 Everyone must accept the Terms of Service and Privacy Policy before using the site (visitors each visit, account holders once). They're on the /terms and /privacy pages. Do not paraphrase them as legal advice - point users to the pages.
 
@@ -80,9 +87,34 @@ function stripMarkdown(text) {
     .replace(/^[-*]\s+/gm, '• ');
 }
 
-router.post('/', chatRateLimiter, async (req, res) => {
+// The language picked with the language button - replies come back in it,
+// whatever language the question was typed in.
+function languageInstruction(lang) {
+  if (!isSupportedLanguage(lang) || lang === 'en') return '';
+  const name = LANGUAGE_NAMES[lang];
+  return `\n\n--- Language ---\nThe user has chosen ${name} as their language on the site. Always reply in ${name} (in its own script), even if they write in English or another language. Keep "Rent It", numbers and ₹ amounts as they are.`;
+}
+
+// For a logged-in user: their own rentals, offers, listings and reports,
+// looked up from their login token only (never anything they type), so the
+// assistant can answer about their account and can't be talked into
+// showing anyone else's.
+async function accountInstruction(user) {
+  if (!user) {
+    return '\n\n--- Account ---\nThe user is not logged in. For questions about a specific rental, offer or listing, ask them to log in and ask again.';
+  }
   try {
-    const { message, history = [] } = req.body;
+    const summary = await accountSummary(user.id);
+    return `\n\n--- This user's account (private; up to date as of this message) ---\n${summary}\n\nUse this to answer questions about their own rentals, offers, listings, seller verification and reported problems - say exactly what it shows, and if something isn't here, say you can't see it rather than guessing. This is only ever this user's own data; never claim to see anyone else's account, and never make or change a booking yourself - tell them where on the site to do it (Messages for offers, Dashboard for rentals and listings).`;
+  } catch (err) {
+    console.error('[chat] account summary failed:', err.message);
+    return '';
+  }
+}
+
+router.post('/', chatRateLimiter, attachUserIfPresent, async (req, res) => {
+  try {
+    const { message, history = [], lang } = req.body;
 
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return res.status(400).json({ reply: 'Please enter a message.' });
@@ -108,7 +140,7 @@ router.post('/', chatRateLimiter, async (req, res) => {
     const completion = await groqClient.chat.completions.create({
       model: 'openai/gpt-oss-120b',
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: SYSTEM_PROMPT + (await accountInstruction(req.user)) + languageInstruction(lang) },
         ...trimmedHistory,
         { role: 'user', content: message.trim() },
       ],
