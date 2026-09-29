@@ -6,6 +6,9 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-09-29
 
+- **Trust badges** - verified seller, typical reply time, rentals completed,
+  overall rating and member-since year on listing pages and storefronts; a
+  "Verified seller" mark on listing cards.
 - **Owner availability calendar** - owners block dates (repairs, own use) on
   Edit listing; those dates can't be requested or accepted, the availability
   filters skip them (now also counting agreed bookings), and the listing page

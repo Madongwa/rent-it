@@ -6,11 +6,20 @@ import { draftListing } from '../lib/listingDraft.js';
 import { interpretSearch } from '../lib/searchIntent.js';
 import { normalizePhotos } from '../lib/listingPhotos.js';
 import { BOOKED_STATUSES, unavailableRanges, unavailableSoon } from '../lib/availability.js';
+import { ownerTrust } from '../lib/trust.js';
 
 const router = Router();
 
 const LISTING_SELECT =
-  '*, category:categories(id, slug, name, icon), owner:profiles(id, full_name, avatar_url)';
+  '*, category:categories(id, slug, name, icon), owner:profiles(id, full_name, avatar_url, seller_status)';
+
+// Public listing responses show whether the owner is a verified seller -
+// as a yes/no, never their actual verification status (e.g. 'rejected').
+function publicOwner(listing) {
+  if (!listing?.owner) return listing;
+  const { seller_status, ...owner } = listing.owner;
+  return { ...listing, owner: { ...owner, verified: seller_status === 'approved' } };
+}
 
 // The detail page additionally wants the reviews and past-rental history for
 // the calendar/reviews sections - kept out of LISTING_SELECT above so the
@@ -134,7 +143,7 @@ router.get('/', async (req, res) => {
     });
   }
 
-  res.json({ data, page: pageNum, pageSize: limitNum, hasMore });
+  res.json({ data: data.map(publicOwner), page: pageNum, pageSize: limitNum, hasMore });
 });
 
 // GET /api/listings/mine - listings owned by the logged-in user (any status)
@@ -176,7 +185,15 @@ router.get('/:id', async (req, res) => {
     data.unavailable = [];
   }
 
-  res.json(data);
+  // The owner's trust badges (lib/trust.js).
+  try {
+    data.owner_trust = await ownerTrust(data.owner_id);
+  } catch (err) {
+    console.error('[listings] trust badges failed:', err.message);
+    data.owner_trust = null;
+  }
+
+  res.json(publicOwner(data));
 });
 
 async function assertOwner(listingId, userId) {

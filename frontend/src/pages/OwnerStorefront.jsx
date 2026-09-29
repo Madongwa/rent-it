@@ -5,6 +5,7 @@ import ListingCard from '../components/ListingCard';
 import { useFavorites } from '../hooks/useFavorites';
 import useSeo from '../hooks/useSeo';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
+import TrustBadges from '../components/TrustBadges';
 
 export default function OwnerStorefront() {
   const { id } = useParams();
@@ -64,6 +65,7 @@ export default function OwnerStorefront() {
             </p>
           </div>
         </div>
+        <TrustBadges trust={owner.trust} className="mt-4" />
 
         <div className="mt-10">
           {listings.length === 0 ? (

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { GlowingEffect } from './ui/GlowingEffect';
 import './ListingCardGlass.css';
+import { BadgeCheck } from 'lucide-react';
 
 function PinIcon(props) {
   return (
@@ -71,6 +72,12 @@ export default function ListingCard({ listing, isFavorited, onToggleFavorite }) 
           </div>
 
           <h3 className="listing-card-title">{listing.title}</h3>
+
+          {listing.owner?.verified && (
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-emerald-400" title="The owner passed seller verification">
+              <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" /> Verified seller
+            </p>
+          )}
 
           {listing.location && (
             <p className="listing-card-location">

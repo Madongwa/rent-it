@@ -9,6 +9,7 @@ import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 import OfferForm from '../components/OfferForm';
 import ListingGallery from '../components/ListingGallery';
 import AvailabilityCalendar from '../components/AvailabilityCalendar';
+import TrustBadges from '../components/TrustBadges';
 import { formatInr } from '../lib/offers';
 import {
   POWER_SOURCE_OPTIONS,
@@ -440,6 +441,8 @@ export default function ListingDetail() {
               )}
             </div>
           </div>
+
+          <TrustBadges trust={listing.owner_trust} className="mt-4" />
 
           <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-night-border/15 pt-4 text-sm">
             <div>

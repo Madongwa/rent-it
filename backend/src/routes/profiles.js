@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth } from '../middleware/auth.js';
 import { TERMS_VERSION } from '../lib/terms.js';
 import { isSupportedLanguage } from '../lib/languages.js';
+import { ownerTrust } from '../lib/trust.js';
 
 const router = Router();
 
@@ -58,7 +59,13 @@ router.get('/:id', async (req, res) => {
     .single();
 
   if (error || !data) return res.status(404).json({ error: 'Profile not found' });
-  res.json(data);
+  let trust = null;
+  try {
+    trust = await ownerTrust(data.id);
+  } catch (err) {
+    console.error('[profiles] trust badges failed:', err.message);
+  }
+  res.json({ ...data, trust });
 });
 
 // PATCH /api/profiles/me

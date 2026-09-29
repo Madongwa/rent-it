@@ -77,7 +77,16 @@ blocked, plus a list), past rental history, reviews, and:
 - **Message the owner** - opens a chat about this item.
 
 ### Owner storefront
-`/owner/:id` - an owner's public page with their listings.
+`/owner/:id` - an owner's public page with their listings and trust badges.
+
+### Trust badges
+On every listing page and storefront, from real activity: **Verified seller**
+(passed seller verification), **Replies within an hour / a few hours / a day**
+(median time to their first reply in their latest chats, once they've
+answered at least two), **N rentals completed**, **★ rating from N reviews**
+(across all their listings) and **On Rent It since <year>**. Listing cards
+show a small **Verified seller** mark. Only a yes/no "verified" is ever
+public, never a seller's actual verification status.
 
 ### How It Works / Why It Matters
 Step-by-step guides for renters and owners, and why renting beats buying.
