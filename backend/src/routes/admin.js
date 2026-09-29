@@ -5,6 +5,7 @@ import { logAdminAction } from '../lib/adminLog.js';
 import { releaseListingIfIdle } from '../lib/listingStatus.js';
 import { recomputeListingRating } from './reviews.js';
 import { dismissFlag, flaggedListings, pendingListings, reviewPending } from '../lib/safety.js';
+import { summarizeDispute } from '../lib/disputeSummary.js';
 
 const router = Router();
 
@@ -238,6 +239,22 @@ router.get('/disputes', async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
+});
+
+// POST /api/admin/disputes/:id/summary - body: { refresh? }. The AI
+// summary of a dispute (saved on it, so this is instant after the first
+// time; refresh makes a new one). Built from the rental's records, never
+// the chat - see lib/disputeSummary.js.
+router.post('/disputes/:id/summary', async (req, res) => {
+  try {
+    const summary = await summarizeDispute(req.params.id, { refresh: req.body?.refresh === true });
+    if (summary === undefined) return res.status(404).json({ error: 'Dispute not found' });
+    if (!summary) return res.status(502).json({ error: 'Summaries are unavailable right now - please try again in a minute.' });
+    res.json(summary);
+  } catch (err) {
+    console.error('[disputes] summary failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST /api/admin/disputes/:id/resolve - body: { resolution, outcome }

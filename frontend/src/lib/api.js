@@ -112,6 +112,8 @@ export const api = {
     request('/translate/ui', { method: 'POST', body: JSON.stringify({ lang, texts }) }),
 
   getDisputeQueue: () => request('/admin/disputes'),
+  getDisputeSummary: (disputeId, refresh = false) =>
+    request(`/admin/disputes/${disputeId}/summary`, { method: 'POST', body: JSON.stringify({ refresh }) }),
   resolveDispute: (disputeId, resolution, outcome) =>
     request(`/admin/disputes/${disputeId}/resolve`, {
       method: 'POST',

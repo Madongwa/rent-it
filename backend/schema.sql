@@ -1045,3 +1045,8 @@ create table if not exists public.listing_safety_reviews (
 create index if not exists listing_safety_reviews_status_idx on public.listing_safety_reviews (status);
 
 alter table public.listing_safety_reviews enable row level security;
+
+-- AI dispute summary for staff (backend/src/lib/disputeSummary.js), saved
+-- once made: { summary, facts[], check[], model, generated_at }. Built from
+-- the rental's records only, never the chat.
+alter table public.rental_disputes add column if not exists ai_summary jsonb;
