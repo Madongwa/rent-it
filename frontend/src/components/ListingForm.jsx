@@ -24,6 +24,8 @@ const FIELD_DEFAULTS = {
   description: '',
   category_id: '',
   price_per_day: '',
+  price_per_week: '',
+  price_per_month: '',
   location: '',
   condition: 'Good',
   image_urls: [],
@@ -116,6 +118,8 @@ export default function ListingForm({ initial, listingId, onSubmit, submitLabel 
         ...form,
         category_id: Number(form.category_id),
         price_per_day: Number(form.price_per_day),
+        price_per_week: form.price_per_week ? Number(form.price_per_week) : null,
+        price_per_month: form.price_per_month ? Number(form.price_per_month) : null,
         deposit_amount: form.deposit_required && form.deposit_amount ? Number(form.deposit_amount) : null,
         power_source: form.power_source || null,
       });
@@ -193,6 +197,31 @@ export default function ListingForm({ initial, listingId, onSubmit, submitLabel 
               value={form.location || ''}
               onChange={(e) => update('location', e.target.value)}
               placeholder="e.g. Noida, Uttar Pradesh"
+              className={inputClass}
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Price per week (₹, optional)" hint="Charged for rentals of 7 days or more - usually cheaper than 7 × the daily price.">
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={form.price_per_week}
+              onChange={(e) => update('price_per_week', e.target.value)}
+              placeholder={form.price_per_day ? String(Math.round(Number(form.price_per_day) * 6)) : '4500'}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Price per month (₹, optional)" hint="Charged for rentals of 30 days or more.">
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={form.price_per_month}
+              onChange={(e) => update('price_per_month', e.target.value)}
+              placeholder={form.price_per_day ? String(Math.round(Number(form.price_per_day) * 20)) : '15000'}
               className={inputClass}
             />
           </Field>

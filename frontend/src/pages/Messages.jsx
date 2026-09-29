@@ -865,6 +865,7 @@ export default function Messages() {
                     <OfferForm
                       listingId={active.listing?.id}
                       listedPrice={active.listing?.price_per_day}
+                      rates={active.listing}
                       depositRequired={active.listing?.deposit_required}
                       depositAmount={active.listing?.deposit_amount}
                       onSubmit={handleNewOffer}

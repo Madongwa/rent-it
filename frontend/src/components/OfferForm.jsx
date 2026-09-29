@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { formatInr, priceDifference, rentalDays, todayStr } from '../lib/offers';
+import { useEffect, useState } from 'react';
+import { effectiveDailyRate, formatInr, priceDifference, rentalDays, todayStr } from '../lib/offers';
 import PriceCheck from './PriceCheck';
 
 const INPUT_CLASS =
@@ -14,10 +14,13 @@ const DIFF_TONE = {
 // Dates + "how much you'll pay per day", with the listed price and running
 // total alongside. Used for a first request (listing page, or "Make an
 // offer" in chat) and for counter-offers on an offer card. With a
-// listingId, it also shows the AI price check (PriceCheck).
+// listingId, it also shows the AI price check (PriceCheck). With `rates`
+// (the listing's day/week/month prices), a long enough rental uses the
+// cheaper weekly or monthly day rate as the listed price.
 export default function OfferForm({
   listingId,
   listedPrice,
+  rates,
   depositRequired = false,
   depositAmount = null,
   initial = {},
@@ -30,13 +33,23 @@ export default function OfferForm({
   const [startDate, setStartDate] = useState(initial.start_date || '');
   const [endDate, setEndDate] = useState(initial.end_date || '');
   const [price, setPrice] = useState(String(initial.price_per_day ?? listedPrice ?? ''));
+  const [priceTouched, setPriceTouched] = useState(initial.price_per_day != null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   const days = startDate && endDate && endDate >= startDate ? rentalDays(startDate, endDate) : 0;
+  const rate = rates && days ? effectiveDailyRate(rates, days) : null;
+  const effectiveListed = rate ? rate.rate : listedPrice;
+
+  // Until the renter types their own price, it follows the listed rate for
+  // the chosen dates (e.g. drops to the weekly rate at 7 days).
+  useEffect(() => {
+    if (!priceTouched && effectiveListed != null) setPrice(String(effectiveListed));
+  }, [effectiveListed, priceTouched]);
+
   const priceNum = Number(price);
   const priceValid = price !== '' && Number.isFinite(priceNum) && priceNum > 0;
-  const diff = priceValid ? priceDifference(priceNum, listedPrice) : null;
+  const diff = priceValid ? priceDifference(priceNum, effectiveListed) : null;
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -87,8 +100,8 @@ export default function OfferForm({
           <label htmlFor="offer-price" className="text-xs font-medium text-night-muted">
             Your price per day
           </label>
-          {listedPrice != null && (
-            <span className="text-xs text-night-muted">Listed {formatInr(listedPrice)}/day</span>
+          {effectiveListed != null && (
+            <span className="text-xs text-night-muted">{`Listed ${formatInr(effectiveListed)}/day`}</span>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -101,7 +114,10 @@ export default function OfferForm({
               min="1"
               step="any"
               value={price}
-              onChange={(e) => setPrice(e.target.value)}
+              onChange={(e) => {
+                setPrice(e.target.value);
+                setPriceTouched(true);
+              }}
               className={`${INPUT_CLASS} pl-7`}
               required
             />
@@ -113,6 +129,12 @@ export default function OfferForm({
           )}
         </div>
       </div>
+
+      {rate && rate.basis !== 'day' && (
+        <p className="text-xs text-emerald-400">
+          {`${rate.basis === 'week' ? 'Weekly' : 'Monthly'} price applies for ${days} days: ${formatInr(rate.rate)}/day instead of ${formatInr(rates.price_per_day)}.`}
+        </p>
+      )}
 
       {listingId && <PriceCheck listingId={listingId} price={priceValid ? priceNum : null} />}
 

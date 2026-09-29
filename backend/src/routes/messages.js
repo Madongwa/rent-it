@@ -12,7 +12,7 @@ import { isSupportedLanguage } from '../lib/languages.js';
 const router = Router();
 
 const CONVERSATION_SELECT =
-  '*, listing:listings(id, title, image_url, status, price_per_day, deposit_required, deposit_amount), owner:profiles!conversations_owner_id_fkey(id, full_name, avatar_url), renter:profiles!conversations_renter_id_fkey(id, full_name, avatar_url)';
+  '*, listing:listings(id, title, image_url, status, price_per_day, price_per_week, price_per_month, deposit_required, deposit_amount), owner:profiles!conversations_owner_id_fkey(id, full_name, avatar_url), renter:profiles!conversations_renter_id_fkey(id, full_name, avatar_url)';
 
 // Offer cards (kind 'offer') carry their offer, plus the rental's current
 // status and the price the listing had when the request was made, so the

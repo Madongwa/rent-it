@@ -66,4 +66,23 @@ describe('OfferForm', () => {
 
     expect(await screen.findByText('This item is already booked for part of those dates')).toBeInTheDocument();
   });
+
+  it('switches to the weekly rate for 7+ days, until the renter types their own price', async () => {
+    const rates = { price_per_day: 1000, price_per_week: 5600 };
+    const { container } = render(<OfferForm listedPrice={1000} rates={rates} onSubmit={vi.fn()} />);
+    const price = screen.getByLabelText('Your price per day');
+
+    setDates(container, '2099-10-01', '2099-10-03');
+    expect(price).toHaveValue(1000);
+
+    setDates(container, '2099-10-01', '2099-10-07');
+    expect(await screen.findByText('Weekly price applies for 7 days: ₹800/day instead of ₹1,000.')).toBeInTheDocument();
+    expect(price).toHaveValue(800);
+    expect(screen.getByText('Listed ₹800/day')).toBeInTheDocument();
+
+    await userEvent.clear(price);
+    await userEvent.type(price, '700');
+    setDates(container, '2099-10-01', '2099-10-03');
+    expect(price).toHaveValue(700); // their own price stays
+  });
 });

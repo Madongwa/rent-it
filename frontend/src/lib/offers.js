@@ -33,6 +33,18 @@ export function priceDifference(offered, listed) {
   };
 }
 
+// Weekly/monthly prices: for 7+ days the weekly rate applies (week / 7 per
+// day), for 30+ days the monthly (month / 30) - whichever is cheapest the
+// length allows. Mirrors backend/src/lib/rates.js, which sets the listed
+// price a request is recorded against. { rate, basis: 'day'|'week'|'month' }
+export function effectiveDailyRate(listing, days) {
+  const round2 = (n) => Math.round(n * 100) / 100;
+  const options = [{ rate: Number(listing?.price_per_day), basis: 'day' }];
+  if (days >= 7 && Number(listing?.price_per_week) > 0) options.push({ rate: round2(Number(listing.price_per_week) / 7), basis: 'week' });
+  if (days >= 30 && Number(listing?.price_per_month) > 0) options.push({ rate: round2(Number(listing.price_per_month) / 30), basis: 'month' });
+  return options.reduce((best, o) => (o.rate < best.rate ? o : best));
+}
+
 // Where a price sits against the usual range for the item (the AI price
 // check): 'below', 'within' or 'above' - null without a price or range.
 export function priceVsRange(price, low, high) {

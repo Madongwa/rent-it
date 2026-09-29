@@ -1080,3 +1080,12 @@ alter table public.listings
 update public.listings
   set image_urls = array[image_url]
   where image_url is not null and cardinality(image_urls) = 0;
+
+-- ---------------------------------------------------------------------------
+-- Optional weekly and monthly prices (cheaper per day for long rentals).
+-- For 7+ days the weekly rate applies, for 30+ the monthly - see
+-- backend/src/lib/rates.js. Safe to re-run.
+-- ---------------------------------------------------------------------------
+alter table public.listings
+  add column if not exists price_per_week numeric(10, 2) check (price_per_week is null or price_per_week >= 0),
+  add column if not exists price_per_month numeric(10, 2) check (price_per_month is null or price_per_month >= 0);

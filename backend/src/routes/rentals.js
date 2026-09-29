@@ -5,6 +5,7 @@ import { notify } from '../lib/notify.js';
 import { getOrCreateConversation, postMessage } from '../lib/conversations.js';
 import { parseOfferTerms, describeTerms, formatInr, whoseTurn } from '../lib/offers.js';
 import { releaseListingIfIdle } from '../lib/listingStatus.js';
+import { effectiveDailyRate, rentalDays } from '../lib/rates.js';
 
 // A rental request carries the renter's own per-day price, and the two
 // sides bargain in the listing's chat thread: every offer/counter-offer is
@@ -81,7 +82,7 @@ router.post('/', requireAuth, async (req, res) => {
 
   const { data: listing, error: listingError } = await supabase
     .from('listings')
-    .select('id, owner_id, status, title, price_per_day')
+    .select('id, owner_id, status, title, price_per_day, price_per_week, price_per_month')
     .eq('id', listing_id)
     .single();
 
@@ -131,7 +132,8 @@ router.post('/', requireAuth, async (req, res) => {
       listing_id,
       renter_id: req.user.id,
       ...terms,
-      listed_price_per_day: listing.price_per_day,
+      // The weekly/monthly rate when the dates are long enough (lib/rates.js).
+      listed_price_per_day: effectiveDailyRate(listing, rentalDays(terms.start_date, terms.end_date)).rate,
       conversation_id: conversation.id,
     })
     .select('id')

@@ -15,6 +15,8 @@ function toFormInitial(listing) {
     description: listing.description || '',
     category_id: String(listing.category_id),
     price_per_day: String(listing.price_per_day),
+    price_per_week: listing.price_per_week != null ? String(listing.price_per_week) : '',
+    price_per_month: listing.price_per_month != null ? String(listing.price_per_month) : '',
     location: listing.location || '',
     condition: listing.condition || 'Good',
     image_urls: listing.image_urls?.length ? listing.image_urls : listing.image_url ? [listing.image_url] : [],

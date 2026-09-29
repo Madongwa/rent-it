@@ -190,6 +190,8 @@ const WRITABLE_FIELDS = [
   'description',
   'category_id',
   'price_per_day',
+  'price_per_week',
+  'price_per_month',
   'location',
   'condition',
   'image_url',

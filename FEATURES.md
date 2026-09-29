@@ -64,13 +64,14 @@ Browse everything available to rent.
 - Save listings to **Favorites** with the heart on each card (needs login).
 
 ### Listing detail
-**Photo gallery** (all the owner's photos - arrows, arrow keys, thumbnails), category and condition badges, rating and review count, daily price,
+**Photo gallery** (all the owner's photos - arrows, arrow keys, thumbnails), category and condition badges, rating and review count, daily price
+(plus **weekly / monthly prices** where the owner set them),
 deposit, minimum rental period and supported durations, description, specs
 (power source, delivery, cancellation policy, owner type, accessories),
 a **calendar of booked dates** (rental history), reviews, and:
 
 - **Request to rent** - pick dates and your own price per day (starts at the
-  listed price). The form shows the total, the deposit, and an **AI price
+  listed price - the cheaper weekly rate for 7+ days, monthly for 30+). The form shows the total, the deposit, and an **AI price
   check** (see [§3](#3-renting-something)).
 - **Message the owner** - opens a chat about this item.
 
@@ -148,7 +149,8 @@ listing.
   Staff approve or reject them; automated checking via Digio can be switched
   on with API keys. Listing is blocked until approved.
 - **List an Item** form - title, description, category, condition, price per
-  day, location, **up to 8 photos** (first is the cover; "Make cover", remove), power source, delivery option, deposit (and amount),
+  day, optional **price per week** (used for 7+ day rentals) and **per month**
+  (30+ days), location, **up to 8 photos** (first is the cover; "Make cover", remove), power source, delivery option, deposit (and amount),
   cancellation policy, owner type, accessories (and what's included),
   minimum rental period, supported durations.
 - **AI listing writer** - at the top of the form: *"Describe your item and

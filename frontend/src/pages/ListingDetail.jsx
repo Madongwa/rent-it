@@ -8,6 +8,7 @@ import useSeo from '../hooks/useSeo';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 import OfferForm from '../components/OfferForm';
 import ListingGallery from '../components/ListingGallery';
+import { formatInr } from '../lib/offers';
 import {
   POWER_SOURCE_OPTIONS,
   DELIVERY_OPTIONS,
@@ -403,6 +404,18 @@ export default function ListingDetail() {
               ₹{Number(listing.price_per_day).toLocaleString('en-IN')}
               <span className="text-body font-normal text-night-muted"> /day</span>
             </p>
+            {(Number(listing.price_per_week) > 0 || Number(listing.price_per_month) > 0) && (
+              <p className="mt-1 text-body text-emerald-400">
+                {[
+                  Number(listing.price_per_week) > 0 &&
+                    `${formatInr(listing.price_per_week)} /week (${formatInr(Math.round(listing.price_per_week / 7))}/day for 7+ days)`,
+                  Number(listing.price_per_month) > 0 &&
+                    `${formatInr(listing.price_per_month)} /month (${formatInr(Math.round(listing.price_per_month / 30))}/day for 30+ days)`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            )}
             <div className="mt-1.5 space-y-0.5 text-body text-night-muted">
               {listing.deposit_required && (
                 <p>
@@ -483,6 +496,7 @@ export default function ListingDetail() {
                   <OfferForm
                     listingId={listing.id}
                     listedPrice={listing.price_per_day}
+                    rates={listing}
                     depositRequired={listing.deposit_required}
                     depositAmount={listing.deposit_amount}
                     onSubmit={handleRequestRent}
