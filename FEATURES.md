@@ -1,0 +1,342 @@
+# Rent It: every feature, in detail
+
+Rent It (live at [renthere.in](https://renthere.in)) is an Indian peer-to-peer
+equipment rental marketplace. People who own equipment they aren't using
+(tractors, cement mixers, drills, generators, wheelchairs, event gear…) rent it
+to people who need it for a day, a weekend or a project.
+
+**No money moves through the app.** Renter and owner agree a price in chat, and
+the renter pays the owner directly (plus any deposit) at pickup.
+
+This file describes what the site does today. It is kept up to date with every
+change - see [Keeping this file up to date](#keeping-this-file-up-to-date) and
+[CHANGELOG.md](CHANGELOG.md) for what changed when.
+
+---
+
+## Contents
+
+1. [Pages anyone can use](#1-pages-anyone-can-use)
+2. [Accounts](#2-accounts)
+3. [Renting something](#3-renting-something)
+4. [Listing your equipment](#4-listing-your-equipment)
+5. [Messages (chat)](#5-messages-chat)
+6. [Notifications](#6-notifications)
+7. [Your dashboard](#7-your-dashboard)
+8. [Languages and translation](#8-languages-and-translation)
+9. [AI features at a glance](#9-ai-features-at-a-glance)
+10. [Trust and safety](#10-trust-and-safety)
+11. [Staff dashboard](#11-staff-dashboard)
+12. [Privacy and data handling](#12-privacy-and-data-handling)
+13. [Under the hood](#13-under-the-hood)
+
+---
+
+## 1. Pages anyone can use
+
+### Home
+Animated hero ("Rent the right tool, right when you need it") and a category
+showcase for the six categories: **Farming Tools, Construction Tools,
+Household & DIY, Events, Moving, Medical**.
+
+### Marketplace
+Browse everything available to rent.
+
+- **Search box** - two ways to search:
+  - A few words ("drill") search listing titles and descriptions as typed.
+  - **A sentence, in any language** ("koi ladder hai kya mysuru me",
+    "cheap farming equipment under 500 a day", "tractor chahiye ludhiana me")
+    is turned into filters by AI. A line under the box shows how it was read,
+    with **"Search the exact words instead"**. If the AI is unavailable, the
+    words are searched as typed.
+- **Quick-filter pill bar** - categories, Nearby, Available now, Under ₹750/day,
+  Top rated.
+- **Filter sidebar** - price (₹ buckets or a custom range), availability
+  (today / this week), condition (New, Like New, Good, Fair), power source
+  (electric, petrol, diesel, manual, battery, not applicable), delivery
+  (owner delivers / pickup only / either), deposit, cancellation policy (free /
+  flexible / strict), owner type (individual / business), accessories included,
+  distance (within 2 / 5 / 10 / 25 km), rental duration (hourly / daily /
+  weekly / monthly), rating (3★ / 4★ and up), minimum rental period.
+- **"📍 Near <town>"** filter (set by a sentence search), removable as a chip.
+- **Sort** - relevance, price low→high / high→low, rating, newest, nearest.
+- All filters live in the page address, so a filtered view can be shared as a link.
+- Save listings to **Favorites** with the heart on each card (needs login).
+
+### Listing detail
+Photo, category and condition badges, rating and review count, daily price,
+deposit, minimum rental period and supported durations, description, specs
+(power source, delivery, cancellation policy, owner type, accessories),
+a **calendar of booked dates** (rental history), reviews, and:
+
+- **Request to rent** - pick dates and your own price per day (starts at the
+  listed price). The form shows the total, the deposit, and an **AI price
+  check** (see [§3](#3-renting-something)).
+- **Message the owner** - opens a chat about this item.
+
+### Owner storefront
+`/owner/:id` - an owner's public page with their listings.
+
+### How It Works / Why It Matters
+Step-by-step guides for renters and owners, and why renting beats buying.
+
+### Help / FAQ and the help assistant
+FAQ page plus a chat bubble with an **AI help assistant**. It:
+- answers questions about renting, listing, deposits, cancellations, fees,
+  accounts and every feature on this page;
+- replies **in the language you picked** with the language button;
+- **when you're logged in, knows your own account** - your rentals (both ways),
+  open offers and whose turn it is, your listings, seller verification status
+  and problems you've reported - so it can answer "what's happening with my
+  drill rental?". It only ever sees your own data (looked up from your login,
+  never from what you type) and refuses to show anyone else's. It never books
+  or changes anything - it tells you where on the site to do it.
+
+### Terms of Service and Privacy Policy
+Full pages at `/terms` and `/privacy`. A **terms gate** asks every visitor to
+accept them before using the site (logged-in users once per terms version;
+recorded as evidence in `terms_acceptances`).
+
+---
+
+## 2. Accounts
+
+- **Sign up** with email and password; a confirmation email must be clicked
+  before first login (can be re-sent).
+- **Log in / log out**, **forgot password** (emailed reset link) and **reset
+  password**.
+- **Profile** - name, phone, avatar.
+- **Favorites** - listings you've hearted.
+- **Language** - the language you pick is remembered in the browser and on your
+  account, so it follows you to other devices.
+
+---
+
+## 3. Renting something
+
+1. **Find it** in the Marketplace (filters or a plain-language search).
+2. **Send a request with your price** - dates plus the price per day you're
+   offering (the listed price, less, or more).
+3. **Bargain in chat** - the request lands in Messages as an **offer card**.
+   Whoever didn't make the open offer can **Accept**, **Decline** or
+   **Counter** (different price and/or dates). The first acceptance confirms
+   the rental at those terms. Only one offer is open at a time.
+4. **Price check while bargaining** - the offer form shows what items like this
+   usually rent for (AI estimate, clearly labelled), any genuinely similar
+   Rent It listings with their real prices, and whether the price being
+   offered is below, within or above the usual range.
+5. **Pick up, check and pay** - meet the owner (or get it delivered, where
+   offered), check the item, and pay the owner directly. Rent It never takes
+   payments and never asks for money in chat.
+6. **Pickup and return photos** - either side can record the item's condition
+   at pickup and at return.
+7. **Report a problem** - on an agreed rental, either side can raise a
+   dispute. The rental freezes (no status changes) for **15 days** while staff
+   review it.
+8. **Review** - rate the listing 1-5 with a comment (one review per listing;
+   not your own). Anyone can flag a review for staff.
+
+Deposits and cancellation policies are set by each owner and shown on the
+listing.
+
+---
+
+## 4. Listing your equipment
+
+- **Seller verification first** - owners submit ID documents once (uploaded to
+  a private bucket; Rent It stores the files, not parsed Aadhaar/PAN numbers).
+  Staff approve or reject them; automated checking via Digio can be switched
+  on with API keys. Listing is blocked until approved.
+- **List an Item** form - title, description, category, condition, price per
+  day, location, photo, power source, delivery option, deposit (and amount),
+  cancellation policy, owner type, accessories (and what's included),
+  minimum rental period, supported durations.
+- **AI listing writer** - at the top of the form: *"Describe your item and
+  we'll fill in the form"*. Type a few words in any language (Hinglish too),
+  e.g. "mahindra 575 tractor 2019, 45hp, achhi condition, trolley bhi saath me,
+  ludhiana", and the title, description, category, condition, power source,
+  accessories and location are filled in (in English). If a photo is uploaded
+  the AI looks at it too. Everything is checked against the form's real
+  options; nothing is saved until you publish.
+- **Suggest a price** - under the price field: what items like this usually
+  rent for in India (AI estimate with a one-line reason), genuinely similar
+  Rent It listings with their real prices, and a **"Use ₹X"** button.
+- **Edit / pause / delete** your listings from the Dashboard.
+
+---
+
+## 5. Messages (chat)
+
+WhatsApp-style chat page at `/messages`, one thread per listing and renter.
+
+- **Chat list** with the latest message, unread counts, and time.
+- **Read receipts** (✓ sent, ✓✓ read) and an unread badge on the Messages nav link.
+- **Offer cards** for every price offer, with Accept / Counter / Decline, and
+  status lines ("Deal agreed", "Declined"…).
+- **"+" menu** - send **photos** (gallery or camera, up to 10 MB), **documents**
+  (PDF, Word…, up to 20 MB) and a **location** (current location, search, or
+  pin on a map). Attachments are private to the two people (and staff reviewing
+  a dispute).
+- **Chat translation** - everyone reads the other person's messages in the
+  language **they** picked. A Hindi message shows in English to someone who
+  picked English, with **"Translated from Hindi · Show original"** under it.
+  Works between all 13 languages, including Hindi etc. typed in English
+  letters. **Translated before delivery**: when you send, if the other person
+  picked a different language, your message is translated first (≈0.2-0.3 s)
+  and arrives already in their language - their notification too. If the
+  translator is slow or down, the message is sent as typed after 8 seconds and
+  translated when opened. Your own messages always show as you typed them.
+- **Suggest replies** - one tap gives up to three short reply drafts in your
+  language and script, based on the latest messages and where the offer
+  stands. Tapping one fills the message box; nothing is sent automatically.
+- **Scam warnings** - a warning appears under the other person's message if it
+  asks for advance payment, an OTP / PIN / password, a QR scan "to receive
+  money", or shares a UPI ID or a link.
+- A reminder at the top of every deal: pay the owner at pickup, never in advance.
+
+---
+
+## 6. Notifications
+
+- **Bell** in the navbar with unread count: new rental request, counter-offer,
+  deal agreed, declined / completed / cancelled, a problem reported, new
+  message (shown in your language).
+- **Email** copies of every notification via Resend (when `RESEND_API_KEY` is set).
+
+---
+
+## 7. Your dashboard
+
+`/dashboard` with three tabs:
+- **My Listings** - your items, status, edit/delete.
+- **My Rental Requests** - what you've asked to rent, with offered/agreed price.
+- **Requests on My Items** - incoming requests, with pickup/return photos and
+  "report a problem".
+
+---
+
+## 8. Languages and translation
+
+- **Language button** (top right, a short label like "EN" / "हि"): English plus
+  **Hindi, Bengali, Telugu, Marathi, Tamil, Urdu, Gujarati, Kannada, Malayalam,
+  Odia, Punjabi, Assamese**. The menu lists each in its own script.
+- **The whole site is translated** - menus, buttons, filters, listing titles
+  and descriptions, the terms popup. Prices, numbers and brand names are kept.
+  Digits always stay 0-9.
+- **How**: text on screen is sent to the backend, translated by AI once per
+  language and stored in `ui_translations`; every later visitor gets it
+  instantly from there (and from their browser's own copy).
+- **Pre-translation**: `node backend/scripts/pretranslate.js` translates the
+  site's text (and every listing) into all languages ahead of visitors, paced
+  for free-tier limits, retrying when the AI is busy, and redoing anything a
+  backup model translated with the better one. Run it after adding pages or text.
+- **Chat translation** - see [§5](#5-messages-chat).
+- **Never translated**: what people type in chat (translated per reader
+  instead), people's names, file names, the staff dashboard.
+- If a translated language's longer labels don't fit the navbar, it switches to
+  the menu button instead of overlapping.
+
+---
+
+## 9. AI features at a glance
+
+| Feature | Where | AI used | What it receives |
+|---|---|---|---|
+| Site translation | Everywhere | Gemini, Groq as backup | Page text (public) |
+| Chat translation | Messages | **Groq only** | Chat messages |
+| Suggested replies | Messages | **Groq only** | Recent chat messages, offer state |
+| Help assistant | Help bubble | Groq | Your question; your own account summary when logged in |
+| Listing writer | List an Item | Gemini (sees the photo), Groq as backup | Your notes and listing photo |
+| Price suggestion / price check | Listing form, offer form | Gemini, Groq as backup | Item details and same-category listings (public) |
+| Plain-language search | Marketplace | Gemini, Groq as backup | Your search sentence |
+| Listing safety review | Staff dashboard → Safety | Gemini, Groq as backup | Public listing text |
+| Dispute summary | Staff dashboard → Disputes | Gemini, Groq as backup | Rental records and the problem report, **no names, no chat** |
+
+Common rules for all of them:
+- **Every AI answer is checked in code** before anyone sees it (allowed values,
+  sane numbers, no broken half-transliterated words, local numerals → 0-9).
+- **Nothing is decided automatically** - the AI suggests, people choose
+  (prices, replies, listing text, staff decisions).
+- **Chats never go to Gemini's free tier** (its terms let Google use data);
+  they go to Groq only.
+- **Results are stored** so the same thing is never paid for twice
+  (`ui_translations`, `message_translations`, `price_insights`,
+  `listing_safety_reviews`, `rental_disputes.ai_summary`).
+- **Fallbacks** - if Gemini is busy or rate-limited the next model is tried; if
+  everything fails, the page works without the AI part.
+
+---
+
+## 10. Trust and safety
+
+- **Seller verification** before anyone can list.
+- **Listing safety review** - fixed rules (phone numbers, UPI IDs,
+  advance-payment asks, OTP mentions, links) plus AI (impossible prices,
+  courier-deposit tricks, prohibited items like weapons or medicines, fake or
+  offensive text). Flagged listings wait for staff; nothing is removed
+  automatically. Edited listings are reviewed again.
+- **Chat scam warnings** (see [§5](#5-messages-chat)).
+- **Disputes** with a 15-day freeze and staff resolution.
+- **Review flagging** and moderation.
+- **Client database writes are blocked** - the browser can only read; every
+  change goes through the backend, which checks ownership and roles.
+- **Rate limits** on every AI endpoint and app-wide.
+
+---
+
+## 11. Staff dashboard
+
+`/admin` (staff only), in English, never sent for translation. Tabs:
+
+- **Overview** - draggable widget grid: totals, pending verifications, charts
+  of users, activity and listings by category.
+- **Rental requests** - every rental, filterable by status.
+- **Disputes** - open problems with the agreed terms and the report; **"Summarise
+  with AI"** gives a neutral summary, key facts and what to check before
+  deciding (from records only - never the chat - and it never picks a side).
+  Resolve by siding with the owner (completed) or renter (cancelled).
+- **Reviews** - moderation of flagged reviews (unflag or delete).
+- **Seller verification** - approve / reject submitted documents.
+- **Users** - roles (user / admin), ban / unban.
+- **Listings** - remove or restore any listing.
+- **Safety** - listings flagged by the safety review, most serious first, with
+  "Remove listing" / "Looks fine". Opening the tab reviews new or edited listings.
+- **Activity log** - every staff action.
+- **Settings** - maintenance mode.
+
+---
+
+## 12. Privacy and data handling
+
+- Payments never go through Rent It.
+- AI providers receive only what the table in [§9](#9-ai-features-at-a-glance)
+  lists; the Privacy Policy (`frontend/src/content/privacy.js`) says the same.
+- Chat translations are stored per reader language and deleted with the message.
+- KYC documents are in a private storage bucket, visible only to staff.
+- Errors are reported to Sentry (when `SENTRY_DSN` is set).
+
+---
+
+## 13. Under the hood
+
+- **Frontend**: React + Vite + Tailwind, React Router. Metal-ring navbar
+  pills (metal-fx), dark theme, SEO tags + sitemap.
+- **Backend**: Node.js + Express as a Vercel serverless function (60 s limit).
+- **Database / auth / storage**: Supabase (Postgres with row-level security).
+  `backend/schema.sql` is the full, re-runnable schema:
+  `cd backend && node scripts/run-migration.js`.
+- **AI**: Gemini (`GEMINI_API_KEY`, optional) and Groq (`GROQ_API_KEY`) through
+  the OpenAI SDK - `backend/src/lib/ai.js`, `translate.js`, and one file per
+  feature in `backend/src/lib/`.
+- **Tests**: `npx vitest run` in `backend/` and `frontend/`.
+- **Deploy**: pushing to `main` redeploys both Vercel projects
+  (frontend: renthere.in, backend: rent-it-api.vercel.app).
+- **Env vars**: see `backend/.env.example` and `frontend/.env.example`.
+
+---
+
+## Keeping this file up to date
+
+Whenever a feature is added, changed or removed, update this file **and** add
+an entry to [CHANGELOG.md](CHANGELOG.md) in the same commit. `CLAUDE.md` tells
+Claude Code to do this automatically.

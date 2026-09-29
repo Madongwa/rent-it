@@ -3,7 +3,8 @@
 A peer-to-peer equipment rental marketplace — rent out or borrow farming
 tools, construction equipment, and household/DIY tools.
 
-- **Home page** — pick a category: Farming, Construction, or Household & DIY
+- **Home page** — pick a category: Farming, Construction, Household & DIY,
+  Events, Moving or Medical
 - **Marketplace** — browse, search and filter listings
 - **Listing detail** — view an item and request to rent it for a date range,
   offering the listed daily price or your own
@@ -14,11 +15,15 @@ tools, construction equipment, and household/DIY tools.
 - **Dashboard** — manage your listings, your rental requests, and incoming
   requests on your items, with the offered/agreed price on each
 - **Language button** (top right) — the whole site in English or 12 Indian
-  languages (Hindi, Bengali, Telugu, Marathi, Tamil, Urdu, Gujarati,
-  Kannada, Malayalam, Odia, Punjabi, Assamese), translated by AI and stored
-  so each piece of text is only translated once. Chats always stay exactly
-  as typed. Run `node backend/scripts/pretranslate.js` after adding new
-  pages or text, so visitors don't wait on the AI.
+  languages, and chat messages shown to each person in their own language.
+  Run `node backend/scripts/pretranslate.js` after adding new pages or text,
+  so visitors don't wait on the AI.
+- **AI helpers** — listing writer, price suggestions, plain-language search,
+  suggested chat replies, a help assistant that knows your account, listing
+  safety review and dispute summaries for staff.
+
+**Every feature in detail: [FEATURES.md](FEATURES.md). What changed when:
+[CHANGELOG.md](CHANGELOG.md).**
 
 No money moves through the app: once a deal is agreed, the renter pays the
 owner directly (and any deposit) at pickup.

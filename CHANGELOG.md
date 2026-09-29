@@ -1,0 +1,83 @@
+# Changelog
+
+What changed on Rent It, newest first. Every change to a feature gets an
+entry here (and [FEATURES.md](FEATURES.md) is updated to match) in the same
+commit. Dates are when the change was pushed to `main`, which deploys it.
+
+## 2026-09-29
+
+- **Help assistant knows your account and speaks your language** - replies in
+  the language picked with the language button; when logged in it can answer
+  about your own rentals, offers (and whose turn it is), listings, seller
+  verification and reported problems - looked up from your login only, so it
+  can't show anyone else's data.
+- **Suggested chat replies** - "Suggest replies" drafts up to three short
+  replies in your language and script; tapping one fills the message box.
+  Groq only; drafts with contact/payment details or advance-payment asks are dropped.
+- **Chat: translate first, deliver second** - a message is translated into the
+  recipient's language before it's delivered (≈0.2-0.3 s), so it arrives
+  already translated, notification included. Sent as typed after 8 s if the
+  translator is slow.
+- **Chat translation** - each person reads the other's messages in their own
+  language, with "Show original". Groq only (never Gemini's free tier).
+  Privacy Policy updated.
+- **Plain-language search** on the Marketplace, plus a new "Near <town>" filter.
+- **AI listing writer** on List an Item (notes in any language, plus the photo).
+- **AI dispute summaries** for staff, from the rental's records - never the chat.
+- **Navbar fixes** - no logo overlap; all 8 links (Home … Staff) are identical
+  metal pills; Dashboard/Staff only render when they apply (fixed them showing
+  over the logo for logged-out visitors); bell sized to match; burger menu when
+  a translated navbar doesn't fit; React StrictMode removed so the metal halo
+  also shows in local development.
+
+## 2026-09-28
+
+- **Safety checks** - rule + AI review of every listing, shown to staff in a
+  new Safety tab (remove / looks fine); scam warnings under risky chat messages.
+- **AI price help** - "Suggest a price" on the listing form; a price check in
+  the offer / counter-offer form.
+- **Language button** - the site in English and 12 Indian languages, translated
+  by AI (Gemini first, Groq as backup) and stored; pre-translation script.
+
+## 2026-09-27
+
+- Chat attachments (photos, documents, location) via a "+" menu.
+- Accept-the-terms gate; full Terms of Service and Privacy Policy pages.
+- Browser can no longer write to the database directly - all writes go through
+  the backend.
+- WhatsApp-style Messages page in the nav, with unread counts and read receipts.
+- Fixed booking races and dropped notifications.
+- **Replaced Razorpay payments with in-chat price offers and counter-offers** -
+  no money moves through the app any more.
+
+## 2026-09-24
+
+- Razorpay checkout error messages and receipt fixes (since replaced by offers).
+- Fixed the "Message the owner" button on Listing Detail.
+
+## 2026-09-19
+
+- Staff Overview as a draggable widget grid with real data.
+- Razorpay payments, Digio KYC document checks, email notifications (Resend),
+  Sentry error tracking and CI.
+
+## 2026-09-17
+
+- Notifications, staff user and listing management, dark theme, SEO.
+- Home hero, navbar and typography redesign.
+
+## 2026-09-12 - 2026-09-14
+
+- Core marketplace: rentals, favorites, messaging, reviews.
+- Seller verification (KYC), staff admin panel, rental disputes.
+- Help/FAQ page with an AI support chatbot (Groq).
+- Password reset flow and email templates.
+- Marketplace filters (pill bar + sidebar) and a rebuilt Listing Detail with
+  reviews and rental history; How It Works and Why It Matters pages.
+- Allowed Vercel preview URLs through CORS.
+
+## 2026-09-06 - 2026-09-11
+
+- First version of Rent It; deployable to Vercel (frontend + serverless backend).
+- Rebrand, dark Home, category expansion, prices in ₹ and Indian locations,
+  redesigned login/signup with a demo account.
