@@ -1050,3 +1050,21 @@ alter table public.listing_safety_reviews enable row level security;
 -- once made: { summary, facts[], check[], model, generated_at }. Built from
 -- the rental's records only, never the chat.
 alter table public.rental_disputes add column if not exists ai_summary jsonb;
+
+-- ---------------------------------------------------------------------------
+-- Chat translation: a message as one reader sees it, in the language they
+-- picked with the language button (backend/src/lib/translate.js,
+-- translateMessages - Groq only, never Gemini's free tier). Deleted with its
+-- message. Backend-only: private chat content, served only to the chat's
+-- two participants by /api/translate/messages.
+-- ---------------------------------------------------------------------------
+create table if not exists public.message_translations (
+  message_id uuid not null references public.messages (id) on delete cascade,
+  lang text not null,
+  body text not null,
+  source_lang text,
+  created_at timestamptz not null default now(),
+  primary key (message_id, lang)
+);
+
+alter table public.message_translations enable row level security;

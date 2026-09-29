@@ -56,7 +56,7 @@ router.get('/conversations', requireAuth, async (req, res) => {
   if (data.length > 0) {
     const { data: recent, error: recentError } = await supabase
       .from('messages')
-      .select('conversation_id, body, kind, sender_id, created_at')
+      .select('id, conversation_id, body, kind, sender_id, created_at')
       .in('conversation_id', Object.keys(byId))
       .order('created_at', { ascending: false });
     if (recentError) return res.status(500).json({ error: recentError.message });

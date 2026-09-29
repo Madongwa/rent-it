@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, IndianRupee, MessageCircle, Search, ShieldAlert } from 'lucide-react';
 import { api } from '../lib/api';
@@ -12,6 +12,9 @@ import { checkAttachment, shrinkImage, uploadAttachment } from '../lib/chatAttac
 import { MESSAGES_READ_EVENT } from '../hooks/useUnreadMessages';
 import { formatDay, formatInr, priceDifference, rentalDays } from '../lib/offers';
 import { chatWarnings } from '../lib/chatSafety';
+import useMessageTranslations from '../hooks/useMessageTranslations';
+import { useLanguage } from '../context/LanguageContext';
+import { getLanguage } from '../lib/languages';
 
 // Leaflet (the map) only downloads when someone opens the location picker.
 const LocationPicker = lazy(() => import('../components/chat/LocationPicker'));
@@ -218,9 +221,22 @@ function otherPersonOf(conversation, userId) {
   return conversation.owner_id === userId ? conversation.renter : conversation.owner;
 }
 
-function ConversationRow({ conversation, userId, active, onOpen }) {
+// "hi" -> "Hindi", for "Translated from Hindi". Languages outside the
+// language button's list (a message in French) use the browser's names.
+function languageName(code) {
+  if (!code) return null;
+  if (getLanguage(code)) return getLanguage(code).name;
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'language' }).of(code);
+  } catch {
+    return null;
+  }
+}
+
+function ConversationRow({ conversation, userId, active, onOpen, translation }) {
   const other = otherPersonOf(conversation, userId);
   const last = conversation.last_message;
+  const lastText = translation?.translated ? translation.text : last?.body;
   const mineLast = last && last.sender_id === userId && last.kind !== 'system';
   const unread = conversation.unread_count || 0;
   const read =
@@ -253,13 +269,13 @@ function ConversationRow({ conversation, userId, active, onOpen }) {
                 <Ticks read={read} />{' '}
               </>
             )}
-            {/* What people type stays exactly as typed - the language button
-                translates the site, never chats. App-written lines (offers,
-                status updates) are ordinary site text and do get translated. */}
+            {/* A person's message is translated per reader (useMessageTranslations),
+                never by the page translator; app-written lines (offers, status
+                updates) are ordinary site text and go through the page translator. */}
             {last ? (
               (last.kind || 'text') === 'text' ? (
                 <span translate="no" dir="auto">
-                  {last.body}
+                  {lastText}
                 </span>
               ) : (
                 last.body
@@ -310,6 +326,25 @@ export default function Messages() {
   // Photos/documents on their way up: { id, name, status: 'uploading' | 'failed', error }
   const [uploads, setUploads] = useState([]);
   const bottomRef = useRef(null);
+
+  // The other person's messages - in the open chat and the chat list's
+  // preview lines - in the language picked with the language button.
+  const { lang } = useLanguage();
+  const translatable = useMemo(
+    () => [...messages, ...conversations.map((c) => c.last_message).filter(Boolean)],
+    [messages, conversations]
+  );
+  const translations = useMessageTranslations(translatable, user?.id, lang);
+  const [showingOriginal, setShowingOriginal] = useState(() => new Set());
+
+  function toggleOriginal(id) {
+    setShowingOriginal((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   function loadConversations() {
     return api
@@ -607,6 +642,7 @@ export default function Messages() {
                   userId={user?.id}
                   active={c.id === activeId}
                   onOpen={() => openConversation(c.id)}
+                  translation={c.last_message && translations[c.last_message.id]}
                 />
               ))}
             </div>
@@ -737,6 +773,13 @@ export default function Messages() {
                         </div>
                       );
                     } else {
+                      // Their messages show in my language (the original a tap away);
+                      // mine always show as I typed them. The page translator never
+                      // touches message text (translate="no") - this is its own,
+                      // per-reader translation.
+                      const tx = !mine ? translations[m.id] : null;
+                      const showTranslation = tx?.translated && !showingOriginal.has(m.id);
+                      const fromName = languageName(tx?.source);
                       body = (
                         <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                           <div
@@ -744,10 +787,18 @@ export default function Messages() {
                               mine ? 'rounded-br-md bg-accent text-white' : 'rounded-bl-md bg-night-elevated/90 text-night-text'
                             }`}
                           >
-                            {/* Chats are never translated - see the chat list above. */}
                             <p className="whitespace-pre-line break-words" translate="no" dir="auto">
-                              {m.body}
+                              {showTranslation ? tx.text : m.body}
                             </p>
+                            {tx?.translated && (
+                              <button
+                                type="button"
+                                onClick={() => toggleOriginal(m.id)}
+                                className="mt-1 text-left text-[11px] text-night-muted underline-offset-2 hover:text-night-text hover:underline"
+                              >
+                                {showTranslation ? `Translated${fromName ? ` from ${fromName}` : ''} · Show original` : 'Show translation'}
+                              </button>
+                            )}
                             {!mine &&
                               chatWarnings(m.body).map((w) => (
                                 <p

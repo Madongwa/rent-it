@@ -8,6 +8,8 @@ import {
   parseTranslations,
   toAsciiDigits,
   translateUiTexts,
+  translateMessages,
+  chatModels,
 } from './translate.js';
 
 // Every test passes its own fake client/db - the real ones need API keys.
@@ -177,5 +179,41 @@ describe('redo', () => {
     expect(db.writes.ui_translations).toEqual([
       { lang: 'hi', source_hash: hashText('Home'), source: 'Home', translated: 'होम', model: TRANSLATE_MODEL },
     ]);
+  });
+});
+
+describe('translateMessages (chat)', () => {
+  const conversation = { owner_id: 'owner', renter_id: 'renter' };
+  const messages = [
+    { id: 'm1', body: 'kal milega kya?', kind: 'text', sender_id: 'renter', conversation },
+    { id: 'm2', body: 'Offer accepted', kind: 'system', sender_id: 'renter', conversation },
+    { id: 'm3', body: 'secret', kind: 'text', sender_id: 'x', conversation: { owner_id: 'x', renter_id: 'y' } },
+    { id: 'm4', body: 'Yes, 7am', kind: 'text', sender_id: 'owner', conversation },
+  ];
+
+  it("translates only the other person's text messages in the reader's own chats", async () => {
+    const db = fakeDb({ messages });
+    const client = fakeClient((texts) => texts.map((t) => ({ text: `en:${t}`, source: 'hi' })));
+
+    const result = await translateMessages(['m1', 'm2', 'm3', 'm4'], 'en', 'owner', { client, db });
+
+    // m2 is a status line, m3 another chat, m4 the reader's own message.
+    expect(result).toEqual({ m1: { text: 'en:kal milega kya?', source: 'hi', translated: true } });
+    expect(db.writes.message_translations).toEqual([{ message_id: 'm1', lang: 'en', body: 'en:kal milega kya?', source_lang: 'hi' }]);
+  });
+
+  it('uses stored translations, and marks a message already in the reader\'s language', async () => {
+    const db = fakeDb({ messages, message_translations: [{ message_id: 'm1', lang: 'en', body: 'Will I get it tomorrow?', source_lang: 'hi' }] });
+    const client = fakeClient((texts) => texts.map((t) => ({ text: t, source: 'en' })));
+
+    const result = await translateMessages(['m1', 'm4'], 'en', 'renter', { client, db });
+    expect(result).toEqual({ m4: { text: 'Yes, 7am', source: 'en', translated: false } });
+
+    const owner = await translateMessages(['m1'], 'en', 'owner', { client, db });
+    expect(owner.m1).toEqual({ text: 'Will I get it tomorrow?', source: 'hi', translated: true });
+  });
+
+  it('sends chats to Groq models only, never Gemini', () => {
+    expect(chatModels().every(({ model }) => !model.startsWith('gemini'))).toBe(true);
   });
 });

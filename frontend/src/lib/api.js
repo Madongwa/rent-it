@@ -112,6 +112,8 @@ export const api = {
 
   translateUi: (lang, texts) =>
     request('/translate/ui', { method: 'POST', body: JSON.stringify({ lang, texts }) }),
+  translateMessages: (lang, ids) =>
+    request('/translate/messages', { method: 'POST', body: JSON.stringify({ lang, ids }) }),
 
   getDisputeQueue: () => request('/admin/disputes'),
   getDisputeSummary: (disputeId, refresh = false) =>

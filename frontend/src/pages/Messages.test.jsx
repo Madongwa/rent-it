@@ -15,6 +15,7 @@ const { api, auth } = vi.hoisted(() => ({
     markConversationRead: vi.fn(),
     sendAttachment: vi.fn(),
     getPriceCheck: vi.fn(),
+    translateMessages: vi.fn(),
   },
   auth: { user: null },
 }));
@@ -26,6 +27,7 @@ vi.mock('../lib/chatAttachments', async (importOriginal) => ({ ...(await importO
 
 vi.mock('../lib/api', () => ({ api }));
 vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: auth.user }) }));
+vi.mock('../context/LanguageContext', () => ({ useLanguage: () => ({ lang: auth.lang || 'en', setLang: () => {} }) }));
 vi.mock('../lib/supabaseClient', () => {
   const channel = { on: () => channel, subscribe: () => channel };
   return { supabase: { channel: () => channel, removeChannel: () => {} } };
@@ -82,6 +84,8 @@ beforeEach(() => {
   Object.values(api).forEach((fn) => fn.mockReset());
   api.markConversationRead.mockResolvedValue({});
   api.getPriceCheck.mockResolvedValue({ estimate: null, similar: [], similar_stats: null });
+  api.translateMessages.mockResolvedValue({ translations: {} });
+  auth.lang = undefined;
   Object.values(uploads).forEach((fn) => fn.mockReset());
   uploads.shrinkImage.mockImplementation(async (f) => f);
   uploads.signedAttachmentUrl.mockResolvedValue('https://signed.example/file');
@@ -385,8 +389,8 @@ describe('Messages - the + menu (photos, documents, location)', () => {
   });
 });
 
-describe('Messages - chats are never translated', () => {
-  it('marks what people typed, and their names, so the language button leaves them as typed', async () => {
+describe('Messages - chat text is kept away from the page translator', () => {
+  it('marks what people typed, and their names, so the page translator leaves them alone', async () => {
     renderAs(OWNER, [
       { id: 't1', conversation_id: 'conv-1', sender_id: RENTER.id, kind: 'text', body: 'kal milega kya?', created_at: '2099-01-01T09:00:00Z', offer: null },
     ]);
@@ -404,5 +408,38 @@ describe('Messages - safety warnings', () => {
     await screen.findByText('Send me the OTP please');
     expect(screen.getAllByRole('note')).toHaveLength(1);
     expect(screen.getByRole('note')).toHaveTextContent('Never share these');
+  });
+});
+
+describe("Messages - translation into the reader's language", () => {
+  const theirs = { id: 't1', conversation_id: 'conv-1', sender_id: RENTER.id, kind: 'text', body: 'kal milega kya?', created_at: '2099-01-01T09:00:00Z', offer: null };
+  const mine = { id: 't2', conversation_id: 'conv-1', sender_id: OWNER.id, kind: 'text', body: 'Haan', created_at: '2099-01-01T09:05:00Z', offer: null };
+
+  it("shows the other person's message in my language, with the original a tap away", async () => {
+    api.translateMessages.mockResolvedValue({ translations: { t1: { text: 'Will I get it tomorrow?', source: 'hi', translated: true } } });
+    renderAs(OWNER, [theirs, mine]);
+
+    expect(await screen.findByText('Will I get it tomorrow?')).toBeInTheDocument();
+    expect(api.translateMessages).toHaveBeenCalledWith('en', ['t1']); // never my own message
+    expect(screen.getByText('Haan')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Translated from Hindi · Show original' }));
+    expect(screen.getByText('kal milega kya?')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Show translation' }));
+    expect(screen.getByText('Will I get it tomorrow?')).toBeInTheDocument();
+  });
+
+  it('asks for the language the reader picked', async () => {
+    auth.lang = 'ta';
+    renderAs(OWNER, [theirs]);
+    await waitFor(() => expect(api.translateMessages).toHaveBeenCalledWith('ta', ['t1']));
+  });
+
+  it('shows a message as written, with no toggle, when it was already in my language', async () => {
+    api.translateMessages.mockResolvedValue({ translations: { t1: { text: 'kal milega kya?', source: 'en', translated: false } } });
+    renderAs(OWNER, [theirs]);
+    const bubble = await screen.findByText('kal milega kya?');
+    await waitFor(() => expect(api.translateMessages).toHaveBeenCalled());
+    expect(within(bubble.parentElement).queryByRole('button')).not.toBeInTheDocument();
   });
 });
