@@ -19,6 +19,8 @@ import chatRouter from './routes/chat.js';
 import translateRouter from './routes/translate.js';
 import pricingRouter from './routes/pricing.js';
 import wantedRouter from './routes/wanted.js';
+import savedSearchesRouter from './routes/savedSearches.js';
+import cronRouter from './routes/cron.js';
 
 // The Express app itself, with no app.listen() call. Shared between the
 // local dev server (server.js) and the Vercel serverless entry (api/index.js).
@@ -77,6 +79,9 @@ app.use(express.json());
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'rent-it-backend' }));
 
+// Scheduled jobs - before the rate limiter, and protected by CRON_SECRET.
+app.use('/api/cron', cronRouter);
+
 // Applied after /api/health, so uptime pings are never at risk of tripping it.
 app.use('/api', globalRateLimiter);
 
@@ -94,6 +99,7 @@ app.use('/api/chat', chatRouter);
 app.use('/api/translate', translateRouter);
 app.use('/api/pricing', pricingRouter);
 app.use('/api/wanted', wantedRouter);
+app.use('/api/saved-searches', savedSearchesRouter);
 
 // Reports any error thrown or passed to next() below to Sentry - a no-op if
 // SENTRY_DSN isn't set. Must be registered after every route and before the

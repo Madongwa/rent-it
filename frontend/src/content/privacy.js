@@ -30,6 +30,7 @@ export const PRIVACY_SECTIONS = [
           'Rental data: your Requests, every Offer and counter-offer (dates and prices), accepted Deals, cancellations, disputes and their resolution, and pickup/return condition photos.',
           'Chat data: the messages you send and receive, and anything you send from the "+" menu - photos (including camera photos), documents (such as PDFs or Word files) and locations you choose to share (coordinates and any place name).',
           'Reviews, ratings, reports and flags you submit, and messages you send to our support assistant or to us.',
+          'Searches you save to be alerted about, and Wanted posts you create.',
         ],
       },
       { heading: 'Data created when you use the Platform' },

@@ -14,6 +14,7 @@ import { matchNewListing, searchAlternatives } from '../lib/wanted.js';
 // Vercel nothing can run after the response, so it's done before, but
 // capped - a slow AI just means no match alerts this time.
 const MATCH_WAIT_MS = 8000;
+import { applyListingFilters, DISTANCE_BUCKET_KM } from '../lib/listingFilters.js';
 import { PIN_SELECT, pinChange, savePin, validLatLng, withDistance, withExactPin } from '../lib/geo.js';
 
 const router = Router();
@@ -36,19 +37,6 @@ function publicOwner(listing) {
 // Marketplace grid (30+ cards) doesn't pull every review row for every card.
 const LISTING_DETAIL_SELECT = `${LISTING_SELECT}, reviews(*), rental_history(*)`;
 
-// Query params that accept a comma-separated list for "any of these" (OR
-// within the field, AND across different fields) - e.g. condition=Good,Fair.
-const MULTI_VALUE_FILTERS = {
-  condition: 'condition',
-  powerSource: 'power_source',
-  delivery: 'delivery_option',
-  cancellation: 'cancellation_policy',
-  ownerType: 'owner_type',
-};
-
-// Max km for each "Within X km" distance-filter option.
-const DISTANCE_BUCKET_KM = { '2': 2, '5': 5, '10': 10, '25': 25 };
-
 // Page size cap - the previous version had no limit at all (fine at 30 seed
 // rows, not fine once real listings accumulate).
 const DEFAULT_LIMIT = 60;
@@ -63,10 +51,7 @@ const MAP_LIMIT = 500;
 //   &distance=10&duration=daily,weekly&minRating=4&minRentalPeriod=1_day
 //   &availability=today,week&ownerId=<uuid>&limit=60&page=1
 router.get('/', async (req, res) => {
-  const {
-    category, q, minPrice, maxPrice, sort, deposit, accessories,
-    distance, duration, minRating, minRentalPeriod, availability, ownerId, limit, page, near,
-  } = req.query;
+  const { sort, distance, availability, limit, page } = req.query;
 
   // "Verified owners" needs an inner join so the owner filter drops rows.
   const verifiedOnly = req.query.verified === 'true';
@@ -74,57 +59,18 @@ router.get('/', async (req, res) => {
     .from('listings')
     .select(verifiedOnly ? LISTING_SELECT.replace('owner:profiles(', 'owner:profiles!inner(') : LISTING_SELECT)
     .eq('status', 'available');
-  if (verifiedOnly) query = query.eq('owner.seller_status', 'approved');
-
-  if (category) {
-    const { data: cat } = await supabase
-      .from('categories')
-      .select('id')
-      .eq('slug', category)
-      .single();
-    if (cat) query = query.eq('category_id', cat.id);
-    else return res.json({ data: [], page: 1, pageSize: DEFAULT_LIMIT, hasMore: false }); // unknown category slug -> no results
-  }
-
-  if (ownerId) query = query.eq('owner_id', ownerId);
-
-  // Full-text search (title weighted over description) instead of a plain
-  // substring scan - handles multi-word queries and word-order/prefix
-  // matching better, and can use the search_vector GIN index.
-  if (q) {
-    query = query.textSearch('search_vector', q, { type: 'websearch', config: 'english' });
-  }
-
-  // "Near Mandya" - listings whose location mentions the town. % and _ are
-  // stripped so the text can't act as a wildcard pattern of its own.
-  if (near) {
-    const town = String(near).replace(/[%_,()]/g, '').trim().slice(0, 60);
-    if (town) query = query.ilike('location', `%${town}%`);
-  }
-
-  if (minPrice) query = query.gte('price_per_day', Number(minPrice));
-  if (maxPrice) query = query.lte('price_per_day', Number(maxPrice));
-
-  for (const [param, column] of Object.entries(MULTI_VALUE_FILTERS)) {
-    const raw = req.query[param];
-    if (raw) query = query.in(column, raw.split(','));
-  }
-
-  if (deposit) query = query.eq('deposit_required', deposit === 'true');
-  if (accessories) query = query.eq('accessories_included', accessories === 'true');
 
   // "Near me": with the renter's (rounded) location, distances are real and
   // worked out below; without it, the distance filter falls back to the
-  // owner-entered distance_km as before.
+  // owner-entered distance_km (lib/listingFilters.js).
   const origin = validLatLng(req.query.lat, req.query.lng);
   const maxKm = distance && DISTANCE_BUCKET_KM[distance] !== undefined ? DISTANCE_BUCKET_KM[distance] : null;
-  if (maxKm != null && !origin) query = query.lte('distance_km', maxKm);
+  const filtered = await applyListingFilters(query, req.query, { origin });
+  if (!filtered) return res.json({ data: [], page: 1, pageSize: DEFAULT_LIMIT, hasMore: false }); // unknown category slug -> no results
+  query = filtered.query;
   // Distance filtering/sorting and the map need every match, not one page.
   // So does "Trending" (ranked by recent requests and saves, below).
   const wholeSet = (origin && (maxKm != null || sort === 'nearest')) || req.query.view === 'map' || sort === 'trending';
-  if (duration) query = query.overlaps('supported_durations', duration.split(','));
-  if (minRating) query = query.gte('avg_rating', Number(minRating));
-  if (minRentalPeriod) query = query.eq('min_rental_period', minRentalPeriod);
 
   if (sort === 'price_asc') query = query.order('price_per_day', { ascending: true });
   else if (sort === 'price_desc') query = query.order('price_per_day', { ascending: false });

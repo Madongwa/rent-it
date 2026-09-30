@@ -1164,3 +1164,24 @@ create table if not exists public.wanted_matches (
 );
 
 alter table public.wanted_matches enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Saved searches: a Marketplace search someone asked to be alerted about.
+-- The daily job (routes/cron.js) looks for listings published since
+-- last_checked_at that match `filters` (the same filters the Marketplace
+-- sends - lib/listingFilters.js) and sends one notification per search.
+-- url_query reopens the search on the Marketplace. Backend-only.
+-- ---------------------------------------------------------------------------
+create table if not exists public.saved_searches (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  label text not null check (char_length(label) between 1 and 200),
+  filters jsonb not null default '{}'::jsonb,
+  url_query text not null default '' check (char_length(url_query) <= 1000),
+  created_at timestamptz not null default now(),
+  last_checked_at timestamptz not null default now()
+);
+
+create index if not exists saved_searches_user_idx on public.saved_searches (user_id, created_at desc);
+
+alter table public.saved_searches enable row level security;

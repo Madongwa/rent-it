@@ -52,6 +52,10 @@ export const api = {
   interpretSearch: (text) => request('/listings/search-intent', { method: 'POST', body: JSON.stringify({ text }) }),
   searchAlternatives: (text) => request('/listings/alternatives', { method: 'POST', body: JSON.stringify({ text }) }),
 
+  getSavedSearches: () => request('/saved-searches'),
+  saveSearch: (payload) => request('/saved-searches', { method: 'POST', body: JSON.stringify(payload) }),
+  deleteSavedSearch: (id) => request(`/saved-searches/${id}`, { method: 'DELETE' }),
+
   // Wanted posts
   getWanted: (params = {}) => {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();

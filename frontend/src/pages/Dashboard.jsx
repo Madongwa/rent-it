@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import RentalPhotoSection from '../components/RentalPhotos';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
+import SavedSearches from '../components/SavedSearches';
 import { findOpenOffer, formatInr, rentalDays, whoseTurn } from '../lib/offers';
 
 // Condition photos are only meaningful once a handoff has actually
@@ -14,6 +15,7 @@ const TABS = [
   { key: 'listings', label: 'My Listings' },
   { key: 'mine', label: 'My Rental Requests' },
   { key: 'incoming', label: 'Requests on My Items' },
+  { key: 'searches', label: 'Saved searches' },
 ];
 
 // Was bg-amber-100/bg-green-100/etc mixed with a couple of literal
@@ -243,12 +245,12 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <div className="mt-6 flex gap-1 border-b border-night-border/15">
+      <div className="mt-6 flex gap-1 overflow-x-auto border-b border-night-border/15 [scrollbar-width:none]">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+            className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
               tab === t.key ? 'border-accent text-night-text' : 'border-transparent text-night-muted hover:text-night-text'
             }`}
           >
@@ -260,6 +262,8 @@ export default function Dashboard() {
       {loading && <div className="py-16 text-center text-night-muted">Loading…</div>}
       {error && <div className="py-16 text-center text-red-400">{error}</div>}
       {actionError && <p className="mt-4 text-sm text-red-400">{actionError}</p>}
+
+      {tab === 'searches' && <SavedSearches />}
 
       {!loading && !error && tab === 'listings' && (
         <div className="mt-6 space-y-3">

@@ -6,7 +6,7 @@ import FilterSidebar, { PRICE_BUCKETS, SORT_OPTIONS, countActiveFilters } from '
 import { useFavorites } from '../hooks/useFavorites';
 import useSeo from '../hooks/useSeo';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
-import { LayoutGrid, Loader2, Map as MapIcon, Sparkles } from 'lucide-react';
+import { Bell, LayoutGrid, Loader2, Map as MapIcon, Sparkles } from 'lucide-react';
 import { describeIntent, intentToParams } from '../lib/searchIntent';
 import { forgetLocation, locateMe, locationError, savedLocation } from '../lib/myLocation';
 
@@ -160,6 +160,30 @@ export default function Marketplace() {
   const minPrice = filters.customMin || bucket?.min || '';
   const maxPrice = filters.customMax || bucket?.max || '';
 
+  // The filters as the server understands them - also what a saved search
+  // stores, so its daily alert matches exactly what this page shows.
+  const apiFilters = {
+    category: filters.category,
+    q,
+    minPrice,
+    maxPrice,
+    condition: filters.condition.join(','),
+    powerSource: filters.powerSource.join(','),
+    delivery: filters.delivery.join(','),
+    deposit: filters.deposit,
+    cancellation: filters.cancellation.join(','),
+    ownerType: filters.ownerType.join(','),
+    accessories: filters.accessories,
+    distance: filters.maxDistance,
+    duration: filters.duration.join(','),
+    minRating: filters.minRating,
+    minRentalPeriod: filters.minRentalPeriod,
+    near: filters.near,
+    verified: filters.verified,
+  };
+  const hasSearch = Object.values(apiFilters).some(Boolean);
+  const [saved, setSaved] = useState(''); // '' | 'saving' | 'saved' | error text
+
   const multiParams = MULTI_KEYS.map((k) => filters[k].join(',')).join('|');
   const filterKey = [
     filters.category, q, filters.sort, minPrice, maxPrice, multiParams, filters.deposit,
@@ -184,27 +208,12 @@ export default function Marketplace() {
 
     setLoading(true);
     setError('');
+    setSaved('');
     api
       .getListings({
-        category: filters.category,
-        q,
+        ...apiFilters,
         sort: filters.sort,
-        minPrice,
-        maxPrice,
-        condition: filters.condition.join(','),
-        powerSource: filters.powerSource.join(','),
-        delivery: filters.delivery.join(','),
-        deposit: filters.deposit,
-        cancellation: filters.cancellation.join(','),
-        ownerType: filters.ownerType.join(','),
-        accessories: filters.accessories,
         availability: filters.availability.join(','),
-        distance: filters.maxDistance,
-        duration: filters.duration.join(','),
-        minRating: filters.minRating,
-        minRentalPeriod: filters.minRentalPeriod,
-        near: filters.near,
-        verified: filters.verified,
         lat: me?.lat,
         lng: me?.lng,
         view: mapView ? 'map' : undefined,
@@ -327,6 +336,29 @@ export default function Marketplace() {
 
   function setView(view) {
     updateParam('view', view === 'map' ? 'map' : '');
+  }
+
+  // "Alert me": saves this search; a daily check notifies about new matches.
+  async function saveThisSearch() {
+    if (!isLoggedIn) {
+      navigate('/login', { state: { from: { pathname: '/marketplace' } } });
+      return;
+    }
+    const parts = [];
+    if (q) parts.push(q.replace(/"/g, ''));
+    if (activeCategory) parts.push(activeCategory.name);
+    if (filters.near) parts.push(`near ${filters.near}`);
+    if (maxPrice) parts.push(`under ₹${Number(maxPrice).toLocaleString('en-IN')}/day`);
+    const label = (aiReading?.text || parts.join(', ') || 'My filtered search').slice(0, 200);
+    const urlQuery = new URLSearchParams(searchParams);
+    ['page', 'view'].forEach((k) => urlQuery.delete(k));
+    setSaved('saving');
+    try {
+      await api.saveSearch({ label, filters: apiFilters, url_query: urlQuery.toString() });
+      setSaved('saved');
+    } catch (err) {
+      setSaved(err.message);
+    }
   }
 
   const openListing = useCallback((id) => navigate(`/listing/${id}`), [navigate]);
@@ -467,7 +499,25 @@ export default function Marketplace() {
           >
             {interpreting ? 'Searching…' : 'Search'}
           </button>
+          {hasSearch && (
+            <button
+              type="button"
+              onClick={saveThisSearch}
+              disabled={saved === 'saving' || saved === 'saved'}
+              title="Get a notification when new listings match this search"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-btn border border-night-border/20 px-3 text-sm font-medium text-night-text hover:border-night-border/40 disabled:opacity-60"
+            >
+              <Bell className="h-4 w-4" aria-hidden="true" />
+              {saved === 'saved' ? 'Alert on' : saved === 'saving' ? 'Saving…' : 'Alert me'}
+            </button>
+          )}
         </form>
+        {saved === 'saved' && (
+          <p className="-mt-2 mb-4 text-sm text-emerald-400" role="status">
+            Saved. We'll notify you each morning if new listings match - manage it under Dashboard → Saved searches.
+          </p>
+        )}
+        {saved && !['saved', 'saving'].includes(saved) && <p className="-mt-2 mb-4 text-sm text-red-400">{saved}</p>}
 
         {aiReading && (
           <p className="-mt-2 mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-night-muted" role="status">

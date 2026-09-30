@@ -74,6 +74,12 @@ Browse everything available to rent.
   distance (within 2 / 5 / 10 / 25 km - from you when you've shared your
   location, otherwise the owner-entered distance), rental duration (hourly / daily /
   weekly / monthly), rating (3★ / 4★ and up), minimum rental period.
+- **🔔 Alert me** (needs login) - saves the current search and filters (up to
+  10). Every morning at 9:00 IST the daily job checks each saved search for
+  listings published since the last check - with exactly the Marketplace's
+  filters - and sends one notification ("2 new listings for 'tractor near
+  Mandya'") that opens the search. Your own listings and "available today"
+  don't count. Manage them under Dashboard → Saved searches.
 - **No results?** The AI suggests other search words that do have listings
   ("wedding speakers" → speakers, PA system), and offers to **post it as a
   Wanted request**.
@@ -268,18 +274,20 @@ WhatsApp-style chat page at `/messages`, one thread per listing and renter.
 - **Bell** in the navbar with unread count: new rental request, counter-offer,
   deal agreed, declined / completed / cancelled, a problem reported, new
   message (shown in your language), an owner replied to your Wanted post, a new
-  listing may match your Wanted post.
+  listing may match your Wanted post, new listings for a saved search.
 - **Email** copies of every notification via Resend (when `RESEND_API_KEY` is set).
 
 ---
 
 ## 7. Your dashboard
 
-`/dashboard` with three tabs:
+`/dashboard` with four tabs:
 - **My Listings** - your items, status, edit/delete.
 - **My Rental Requests** - what you've asked to rent, with offered/agreed price.
 - **Requests on My Items** - incoming requests, with pickup/return photos and
   "report a problem".
+- **Saved searches** - searches saved with "Alert me" on the Marketplace; open
+  or delete them.
 
 ---
 
@@ -409,6 +417,10 @@ Common rules for all of them:
 - **Tests**: `npx vitest run` in `backend/` and `frontend/`.
 - **Deploy**: pushing to `main` redeploys both Vercel projects
   (frontend: renthere.in, backend: rent-it-api.vercel.app).
+- **Daily job**: Vercel Cron calls `GET /api/cron/daily` at 03:30 UTC (9:00 IST)
+  - `backend/vercel.json`. It runs saved-search alerts. Protected by
+  `CRON_SECRET` (set it in the backend's Vercel environment variables; without
+  it the endpoint refuses every call and nothing runs).
 - **Env vars**: see `backend/.env.example` and `frontend/.env.example`.
 
 ---
