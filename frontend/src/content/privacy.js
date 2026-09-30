@@ -90,7 +90,7 @@ export const PRIVACY_SECTIONS = [
     id: 'kyc',
     title: 'Identity documents get special handling',
     body: [
-      'Identity and address-proof documents are stored in a private, access-restricted storage area - separate from public listing photos - and are never shown to other Users. They can be viewed only by you, by Staff reviewing your verification or a dispute, and, where automated verification is used, by our identity-verification provider for that check.',
+      'Identity and address-proof documents are stored in a private, access-restricted storage area - separate from public listing photos - and are never shown to other Users. They can be viewed only by you, by Staff reviewing your verification or a dispute, and, where automated verification is used, by our identity-verification provider for that check. Staff may also ask an AI provider (Groq, never our other AI providers) to look at the ID photos to help them check it: it is asked only whether the document looks genuine and readable and whether the name matches, not to read out your ID number or other details, and its answer is not stored.',
       'Aadhaar is optional. If you use it, we recommend a masked Aadhaar showing only the last four digits. We do not perform Aadhaar authentication.',
     ],
   },

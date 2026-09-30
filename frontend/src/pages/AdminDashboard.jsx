@@ -7,6 +7,7 @@ import { formatInr } from '../lib/offers';
 import SafetyTab from '../components/admin/SafetyTab';
 import DisputeSummary from '../components/admin/DisputeSummary';
 import ConditionCompare from '../components/ConditionCompare';
+import IdAiCheck from '../components/admin/IdAiCheck';
 
 // The agreed (or, while pending, latest offered) price next to the listed
 // one - no money moves through the app, so this is staff's record of the
@@ -430,6 +431,7 @@ export default function AdminDashboard() {
                   <DocLink path={k.address_proof_url}>address proof</DocLink>
                 </div>
               </div>
+              <IdAiCheck userId={k.user_id} />
               <div className="mt-3 flex items-center gap-2">
                 <button
                   onClick={() => approve(k.user_id)}

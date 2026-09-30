@@ -376,6 +376,7 @@ never go to an AI. **Print / Save as PDF** uses the browser's print dialog
 | Photo check | List an Item / Edit listing | **Gemini only** (the model that can see images) | Your listing photos (public anyway) and title |
 | Review summary | Listing page → Reviews | Gemini, Groq as backup | The listing's written reviews and ratings (no reviewer names) |
 | Seasonal demand hint | Dashboard → My Listings → Tips | Gemini, Groq as backup (cached per category/state/month) | Item title, category, state and month only |
+| Staff ID check | Staff → Seller verification | **Groq only** (Qwen) - never Gemini | The applicant's ID photos and the name they gave (answer holds checks only, not the ID's details) |
 | Wanted-post writer | Post what you need | Gemini, Groq as backup | The sentence you type |
 | Wanted matching | When a listing is published | Gemini, Groq as backup | The new listing's title, description, town, and open Wanted posts' text (no names) |
 | Listing safety review | Staff dashboard → Safety | Gemini, Groq as backup | Public listing text |
@@ -426,7 +427,13 @@ Common rules for all of them:
   deciding (from records only - never the chat - and it never picks a side).
   Resolve by siding with the owner (completed) or renter (cancelled).
 - **Reviews** - moderation of flagged reviews (unflag or delete).
-- **Seller verification** - approve / reject submitted documents.
+- **Seller verification** - approve / reject submitted documents. **✨ AI check**
+  (optional, per application): the ID photos go to Groq's image model, which
+  answers only "looks like a real ID?", "readable?", "name matches the
+  application?", the document type and short issues - never the ID's number,
+  date of birth or address (and long digit runs are scrubbed from its answer).
+  Nothing is stored; each use is in the staff activity log. ID photos are
+  resized in the browser when uploaded.
 - **Users** - roles (user / admin), ban / unban.
 - **Listings** - remove or restore any listing.
 - **Safety** - listings flagged by the safety review, most serious first, with

@@ -6,6 +6,10 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-09-30
 
+- **AI help for staff checking IDs** - an optional "AI check" on each seller
+  application: real-looking ID, readable, name matches, document type. It
+  never reads out ID numbers, stores nothing and staff still decide. Groq
+  only. Privacy Policy updated.
 - **💡 Tips for owners** - Dashboard → My Listings → Tips: what to improve on
   each listing, how many recent searches match it, and an AI seasonal hint
   (e.g. "tractor demand in Punjab rises before rabi sowing"). Searches are now

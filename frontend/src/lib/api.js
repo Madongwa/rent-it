@@ -138,6 +138,7 @@ export const api = {
     request(`/rentals/${rentalId}/dispute`, { method: 'POST', body: JSON.stringify({ reason }) }),
 
   getKycQueue: () => request('/admin/kyc-queue'),
+  aiCheckKyc: (userId) => request(`/admin/kyc/${userId}/ai-check`, { method: 'POST' }),
   approveKyc: (userId) => request(`/admin/kyc/${userId}/approve`, { method: 'POST' }),
   rejectKyc: (userId, reason) =>
     request(`/admin/kyc/${userId}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),

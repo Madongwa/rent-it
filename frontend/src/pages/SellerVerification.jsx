@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { api } from '../lib/api';
+import { shrinkImage } from '../lib/chatAttachments';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 
 // Deliberately does NOT collect an Aadhaar/PAN number as text anywhere -
@@ -69,7 +70,10 @@ export default function SellerVerification() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function uploadDoc(file, label) {
+  async function uploadDoc(original, label) {
+    // Big phone photos are resized first (still sharp enough to read) -
+    // faster uploads, and within what staff's AI check can look at.
+    const file = original.type?.startsWith('image/') ? await shrinkImage(original) : original;
     const path = `${user.id}/${Date.now()}-${label}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
     const { error: uploadError } = await supabase.storage.from('kyc-documents').upload(path, file);
     if (uploadError) throw uploadError;

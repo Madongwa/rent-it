@@ -7,6 +7,7 @@ import { recomputeListingRating } from './reviews.js';
 import { dismissFlag, flaggedListings, pendingListings, reviewPending } from '../lib/safety.js';
 import { summarizeDispute } from '../lib/disputeSummary.js';
 import { compareConditionPhotos } from '../lib/conditionCompare.js';
+import { checkIdDocuments } from '../lib/idCheck.js';
 
 const router = Router();
 
@@ -27,6 +28,21 @@ router.get('/kyc-queue', async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
+});
+
+// POST /api/admin/kyc/:userId/ai-check - staff-triggered AI look at the
+// uploaded ID (lib/idCheck.js): checks only, never the ID's details, and
+// nothing stored. Logged like any staff action.
+router.post('/kyc/:userId/ai-check', async (req, res) => {
+  try {
+    const out = await checkIdDocuments(req.params.userId);
+    if (out.error) return res.status(out.status).json({ error: out.error });
+    await logAdminAction(req.user.id, 'kyc.ai_check', 'user', req.params.userId);
+    res.json(out.result);
+  } catch (err) {
+    console.error('[admin] ID check failed:', err.message);
+    res.status(502).json({ error: 'The AI check is busy right now - please try again in a minute.' });
+  }
 });
 
 // POST /api/admin/kyc/:userId/approve
