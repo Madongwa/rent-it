@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth } from '../middleware/auth.js';
+import { PIN_SELECT, withDistance } from '../lib/geo.js';
 
 const router = Router();
 
 const LISTING_SELECT =
-  '*, category:categories(id, slug, name, icon), owner:profiles(id, full_name, avatar_url)';
+  `*, category:categories(id, slug, name, icon), owner:profiles(id, full_name, avatar_url), ${PIN_SELECT}`;
 
 // GET /api/favorites - my saved listings
 router.get('/', requireAuth, async (req, res) => {
@@ -18,7 +19,8 @@ router.get('/', requireAuth, async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
   // Flatten to a plain list of listings (with the save date attached) -
   // callers just want "my saved listings", not the join shape.
-  res.json(data.map((row) => ({ ...row.listing, saved_at: row.created_at })));
+  // Map pins are rounded to ~1 km, like every public listing (lib/geo.js).
+  res.json(data.map((row) => ({ ...withDistance(row.listing, null), saved_at: row.created_at })));
 });
 
 // GET /api/favorites/ids - just the listing ids I've saved, for cheaply

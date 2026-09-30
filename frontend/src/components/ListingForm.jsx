@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import PriceSuggestion from './PriceSuggestion';
 import ListingDraftAssistant from './ListingDraftAssistant';
 import ListingPhotos from './ListingPhotos';
+
+// Leaflet only downloads when the owner opens the map.
+const MapPinPicker = lazy(() => import('./MapPinPicker'));
 import {
   CONDITION_OPTIONS,
   POWER_SOURCE_OPTIONS,
@@ -39,6 +42,8 @@ const FIELD_DEFAULTS = {
   accessories_note: '',
   min_rental_period: 'no_minimum',
   supported_durations: ['daily'],
+  latitude: null,
+  longitude: null,
 };
 
 const inputClass =
@@ -64,6 +69,8 @@ export default function ListingForm({ initial, listingId, onSubmit, submitLabel 
   const [form, setForm] = useState({ ...FIELD_DEFAULTS, ...initial });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [pinOpen, setPinOpen] = useState(false);
+  const hasPin = form.latitude != null && form.longitude != null;
 
   useEffect(() => {
     api
@@ -200,6 +207,29 @@ export default function ListingForm({ initial, listingId, onSubmit, submitLabel 
               className={inputClass}
             />
           </Field>
+        </div>
+
+        <div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className={labelClass + ' mb-0'}>Pin on map</span>
+            <button type="button" onClick={() => setPinOpen((o) => !o)} className="text-sm font-medium text-accent hover:underline">
+              {pinOpen ? 'Hide map' : hasPin ? '📍 Pinned - change' : '📍 Add a map pin'}
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-night-muted">
+            Lets renters nearby find it with "Nearby" and on the Marketplace map. Optional.
+          </p>
+          {pinOpen && (
+            <div className="mt-3">
+              <Suspense fallback={<p className="text-sm text-night-muted">Loading map…</p>}>
+                <MapPinPicker
+                  value={{ latitude: form.latitude, longitude: form.longitude }}
+                  onChange={(p) => setForm((f) => ({ ...f, latitude: p.latitude, longitude: p.longitude }))}
+                  placeHint={form.location}
+                />
+              </Suspense>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

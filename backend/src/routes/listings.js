@@ -1,17 +1,20 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabaseClient.js';
-import { requireAuth } from '../middleware/auth.js';
+import { attachUserIfPresent, requireAuth } from '../middleware/auth.js';
 import rateLimit from 'express-rate-limit';
 import { draftListing } from '../lib/listingDraft.js';
 import { interpretSearch } from '../lib/searchIntent.js';
 import { normalizePhotos } from '../lib/listingPhotos.js';
 import { BOOKED_STATUSES, unavailableRanges, unavailableSoon } from '../lib/availability.js';
 import { ownerTrust } from '../lib/trust.js';
+import { PIN_SELECT, pinChange, savePin, validLatLng, withDistance, withExactPin } from '../lib/geo.js';
 
 const router = Router();
 
+// Includes the map pin - every response passes through withDistance (rounds
+// it) or, for the owner, withExactPin, so the raw pin never leaves as-is.
 const LISTING_SELECT =
-  '*, category:categories(id, slug, name, icon), owner:profiles(id, full_name, avatar_url, seller_status)';
+  `*, category:categories(id, slug, name, icon), owner:profiles(id, full_name, avatar_url, seller_status), ${PIN_SELECT}`;
 
 // Public listing responses show whether the owner is a verified seller -
 // as a yes/no, never their actual verification status (e.g. 'rejected').
@@ -43,6 +46,9 @@ const DISTANCE_BUCKET_KM = { '2': 2, '5': 5, '10': 10, '25': 25 };
 // rows, not fine once real listings accumulate).
 const DEFAULT_LIMIT = 60;
 const MAX_LIMIT = 120;
+// The map view, and distance filtering/sorting, look at up to this many
+// matching listings at once.
+const MAP_LIMIT = 500;
 
 // GET /api/listings?category=farming&q=drill&minPrice=&maxPrice=&sort=...
 //   &condition=Good,Fair&powerSource=electric,battery&delivery=either
@@ -55,7 +61,13 @@ router.get('/', async (req, res) => {
     distance, duration, minRating, minRentalPeriod, availability, ownerId, limit, page, near,
   } = req.query;
 
-  let query = supabase.from('listings').select(LISTING_SELECT).eq('status', 'available');
+  // "Verified owners" needs an inner join so the owner filter drops rows.
+  const verifiedOnly = req.query.verified === 'true';
+  let query = supabase
+    .from('listings')
+    .select(verifiedOnly ? LISTING_SELECT.replace('owner:profiles(', 'owner:profiles!inner(') : LISTING_SELECT)
+    .eq('status', 'available');
+  if (verifiedOnly) query = query.eq('owner.seller_status', 'approved');
 
   if (category) {
     const { data: cat } = await supabase
@@ -94,31 +106,54 @@ router.get('/', async (req, res) => {
   if (deposit) query = query.eq('deposit_required', deposit === 'true');
   if (accessories) query = query.eq('accessories_included', accessories === 'true');
 
-  if (distance && DISTANCE_BUCKET_KM[distance] !== undefined) {
-    query = query.lte('distance_km', DISTANCE_BUCKET_KM[distance]);
-  }
+  // "Near me": with the renter's (rounded) location, distances are real and
+  // worked out below; without it, the distance filter falls back to the
+  // owner-entered distance_km as before.
+  const origin = validLatLng(req.query.lat, req.query.lng);
+  const maxKm = distance && DISTANCE_BUCKET_KM[distance] !== undefined ? DISTANCE_BUCKET_KM[distance] : null;
+  if (maxKm != null && !origin) query = query.lte('distance_km', maxKm);
+  // Distance filtering/sorting and the map need every match, not one page.
+  const wholeSet = (origin && (maxKm != null || sort === 'nearest')) || req.query.view === 'map';
   if (duration) query = query.overlaps('supported_durations', duration.split(','));
   if (minRating) query = query.gte('avg_rating', Number(minRating));
   if (minRentalPeriod) query = query.eq('min_rental_period', minRentalPeriod);
 
   if (sort === 'price_asc') query = query.order('price_per_day', { ascending: true });
   else if (sort === 'price_desc') query = query.order('price_per_day', { ascending: false });
+  else if (sort === 'rating_desc') {
+    query = query.order('avg_rating', { ascending: false, nullsFirst: false }).order('review_count', { ascending: false });
+  }
   else query = query.order('created_at', { ascending: false }); // 'relevance'/'newest' default
 
-  const limitNum = Math.min(Number(limit) || DEFAULT_LIMIT, MAX_LIMIT);
+  const limitNum = req.query.view === 'map' ? MAP_LIMIT : Math.min(Number(limit) || DEFAULT_LIMIT, MAX_LIMIT);
   const pageNum = Math.max(Number(page) || 1, 1);
   const from = (pageNum - 1) * limitNum;
   // Fetch one extra row past the page size so we can tell the frontend
   // whether a next page exists, without a separate count query (a count
   // would double the DB round-trips, and wouldn't account for the
   // availability post-filter below anyway).
-  query = query.range(from, from + limitNum);
+  query = wholeSet ? query.limit(MAP_LIMIT) : query.range(from, from + limitNum);
 
   let { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
 
-  const hasMore = data.length > limitNum;
-  data = data.slice(0, limitNum);
+  data = data.map((l) => withDistance(l, origin));
+  let hasMore;
+  if (wholeSet) {
+    if (origin && maxKm != null) data = data.filter((l) => l.distance_from_you_km != null && l.distance_from_you_km <= maxKm);
+    if (origin && sort === 'nearest') {
+      data.sort((a, b) => (a.distance_from_you_km ?? Infinity) - (b.distance_from_you_km ?? Infinity));
+    }
+    if (req.query.view !== 'map') {
+      hasMore = data.length > from + limitNum;
+      data = data.slice(from, from + limitNum);
+    } else {
+      hasMore = false;
+    }
+  } else {
+    hasMore = data.length > limitNum;
+    data = data.slice(0, limitNum);
+  }
 
   // Availability isn't a listings column - it's derived by checking whether
   // any rental_history row for a listing overlaps the requested window(s),
@@ -155,12 +190,12 @@ router.get('/mine', requireAuth, async (req, res) => {
     .order('created_at', { ascending: false });
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  res.json(data.map(withExactPin));
 });
 
 // GET /api/listings/:id - includes reviews + rental_history for the detail
 // page's reviews section and rental-history calendar/list.
-router.get('/:id', async (req, res) => {
+router.get('/:id', attachUserIfPresent, async (req, res) => {
   const { data, error } = await supabase
     .from('listings')
     .select(LISTING_DETAIL_SELECT)
@@ -193,7 +228,10 @@ router.get('/:id', async (req, res) => {
     data.owner_trust = null;
   }
 
-  res.json(publicOwner(data));
+  // The exact pin is only for the owner (editing it); everyone else gets it
+  // rounded to ~1 km, plus their distance when they shared a location.
+  const shown = req.user?.id === data.owner_id ? withExactPin(data) : withDistance(data, validLatLng(req.query.lat, req.query.lng));
+  res.json(publicOwner(shown));
 });
 
 async function assertOwner(listingId, userId) {
@@ -371,6 +409,9 @@ router.post('/', requireAuth, async (req, res) => {
     if (field in req.body) fields[field] = req.body[field];
   }
   Object.assign(fields, normalizePhotos(req.body));
+  // The map pin is stored separately (backend-only table, lib/geo.js).
+  const pin = pinChange(req.body);
+  if (pin?.error) return res.status(400).json({ error: pin.error });
 
   const { data, error } = await supabase
     .from('listings')
@@ -379,7 +420,14 @@ router.post('/', requireAuth, async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-  res.status(201).json(data);
+  try {
+    await savePin(supabase, data.id, pin);
+  } catch (err) {
+    console.error('[listings] saving map pin failed:', err.message);
+    return res.status(201).json({ ...withExactPin(data), pin_error: 'The listing was saved, but its map pin was not - please set it again.' });
+  }
+  if (pin?.point) data.pin = { latitude: pin.point.lat, longitude: pin.point.lng };
+  res.status(201).json(withExactPin(data));
 });
 
 // PATCH /api/listings/:id - update your own listing (e.g. status, price)
@@ -399,6 +447,14 @@ router.patch('/:id', requireAuth, async (req, res) => {
     if (field in req.body) updates[field] = req.body[field];
   }
   Object.assign(updates, normalizePhotos(req.body));
+  const pin = pinChange(req.body);
+  if (pin?.error) return res.status(400).json({ error: pin.error });
+
+  try {
+    await savePin(supabase, req.params.id, pin);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 
   const { data, error } = await supabase
     .from('listings')
@@ -408,7 +464,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  res.json(withExactPin(data));
 });
 
 // DELETE /api/listings/:id - remove your own listing

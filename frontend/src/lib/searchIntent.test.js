@@ -21,6 +21,16 @@ describe('intentToParams', () => {
     });
     expect(intentToParams({ category: 'farming' }, 'relevance').toString()).toBe('category=farming');
   });
+
+  it('"near me" sorts nearest first and keeps a distance', () => {
+    expect(Object.fromEntries(intentToParams({ q: 'drill', nearMe: true, maxDistance: '5' }, 'price_asc'))).toEqual({
+      q: 'drill',
+      distance: '5',
+      sort: 'nearest',
+    });
+    expect(describeIntent({ q: 'drill', nearMe: true })).toBe('drill · near you');
+    expect(describeIntent({ q: 'drill', nearMe: true, maxDistance: '5' })).toBe('drill · within 5 km');
+  });
 });
 
 describe('describeIntent', () => {

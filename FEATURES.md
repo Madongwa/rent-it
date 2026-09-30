@@ -48,18 +48,33 @@ Browse everything available to rent.
     "cheap farming equipment under 500 a day", "tractor chahiye ludhiana me")
     is turned into filters by AI. A line under the box shows how it was read,
     with **"Search the exact words instead"**. If the AI is unavailable, the
-    words are searched as typed.
-- **Quick-filter pill bar** - categories, Nearby, Available now, Under ₹750/day,
-  Top rated.
+    words are searched as typed. "Near me" / "nearby" / "mere paas" sorts the
+    nearest first, and "within 5 km" sets the distance filter (both ask for
+    your location).
+- **Quick-filter pill bar** - categories, **Nearby** (asks for your location,
+  then shows the nearest first), Available now, Under ₹750/day, Top rated,
+  **Verified owners** (only owners who passed seller verification), New listings,
+  Free delivery.
+- **"Near me" and distances** - once you share your location (Nearby, "Nearest
+  to me" sort, or "Use my location" under Distance) every card and listing
+  page shows **"3.2 km away"**, and the distance filter measures from you. Your
+  location is rounded to about 1 km in your browser, sent only to Rent It's
+  server to work out distances, never saved, and remembered only for that
+  browser tab. "Stop using my location" forgets it.
+- **List / Map switch** - the Map view shows every matching listing as a pin on
+  an OpenStreetMap map (tap a pin for the title, price, distance and "View
+  listing"). Pins show the area (about 1 km), never the owner's exact spot.
+  Listings without a pin are counted under the map.
 - **Filter sidebar** - price (₹ buckets or a custom range), availability
   (today / this week - counts agreed bookings and owner-blocked dates), condition (New, Like New, Good, Fair), power source
   (electric, petrol, diesel, manual, battery, not applicable), delivery
   (owner delivers / pickup only / either), deposit, cancellation policy (free /
   flexible / strict), owner type (individual / business), accessories included,
-  distance (within 2 / 5 / 10 / 25 km), rental duration (hourly / daily /
+  distance (within 2 / 5 / 10 / 25 km - from you when you've shared your
+  location, otherwise the owner-entered distance), rental duration (hourly / daily /
   weekly / monthly), rating (3★ / 4★ and up), minimum rental period.
 - **"📍 Near <town>"** filter (set by a sentence search), removable as a chip.
-- **Sort** - relevance, price low→high / high→low, rating, newest, nearest.
+- **Sort** - relevance, price low→high / high→low, rating, newest, nearest to me.
 - All filters live in the page address, so a filtered view can be shared as a link.
 - Save listings to **Favorites** with the heart on each card (needs login).
 
@@ -69,7 +84,8 @@ Browse everything available to rent.
 deposit, minimum rental period and supported durations, description, specs
 (power source, delivery, cancellation policy, owner type, accessories),
 an **availability calendar** (upcoming dates that are booked or that the owner
-blocked, plus a list), past rental history, reviews, and:
+blocked, plus a list), past rental history, reviews, how far away it is (if
+you've shared your location on the Marketplace), and:
 
 - **Request to rent** - pick dates and your own price per day (starts at the
   listed price - the cheaper weekly rate for 7+ days, monthly for 30+). The form shows the total, the deposit, and an **AI price
@@ -170,6 +186,10 @@ listing.
   accessories and location are filled in (in English). If photos are uploaded
   the AI looks at up to three of them too. Everything is checked against the form's real
   options; nothing is saved until you publish.
+- **Pin on map** (optional) - search a village or landmark, tap the map, or
+  use your current location. The exact pin is visible only to you; renters
+  see the area (about 1 km), and it puts the item on the Marketplace map and in
+  "Nearby". It's stored in a separate table the public can't read.
 - **Suggest a price** - under the price field: what items like this usually
   rent for in India (AI estimate with a one-line reason), genuinely similar
   Rent It listings with their real prices, and a **"Use ₹X"** button.
@@ -265,7 +285,7 @@ WhatsApp-style chat page at `/messages`, one thread per listing and renter.
 | Help assistant | Help bubble | Groq | Your question; your own account summary when logged in |
 | Listing writer | List an Item | Gemini (sees the photos), Groq as backup | Your notes and up to 3 listing photos |
 | Price suggestion / price check | Listing form, offer form | Gemini, Groq as backup | Item details and same-category listings (public) |
-| Plain-language search | Marketplace | Gemini, Groq as backup | Your search sentence |
+| Plain-language search (incl. "near me", "within 5 km") | Marketplace | Gemini, Groq as backup | Your search sentence (never your location) |
 | Listing safety review | Staff dashboard → Safety | Gemini, Groq as backup | Public listing text |
 | Dispute summary | Staff dashboard → Disputes | Gemini, Groq as backup | Rental records and the problem report, **no names, no chat** |
 
@@ -329,6 +349,11 @@ Common rules for all of them:
 - AI providers receive only what the table in [§9](#9-ai-features-at-a-glance)
   lists; the Privacy Policy (`frontend/src/content/privacy.js`) says the same.
 - Chat translations are stored per reader language and deleted with the message.
+- **Locations**: a renter's location is rounded to ~1 km in the browser, used
+  only to work out distances and never stored. A listing's exact map pin is
+  kept in `listing_locations` (backend-only, no public access) and shown to
+  anyone but its owner rounded to ~1 km. Map tiles and place search come from
+  OpenStreetMap.
 - KYC documents are in a private storage bucket, visible only to staff.
 - Errors are reported to Sentry (when `SENTRY_DSN` is set).
 

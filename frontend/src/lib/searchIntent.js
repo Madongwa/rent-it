@@ -15,7 +15,10 @@ export function intentToParams(intent, sort) {
   if (intent.maxPrice) params.set('maxPrice', String(intent.maxPrice));
   for (const key of MULTI) if (intent[key]?.length) params.set(key, intent[key].join(','));
   if (intent.near) params.set('near', intent.near);
-  if (sort && sort !== 'relevance') params.set('sort', sort);
+  if (intent.maxDistance) params.set('distance', intent.maxDistance);
+  // "near me" sorts nearest first (the Marketplace asks for the location).
+  if (intent.nearMe) params.set('sort', 'nearest');
+  else if (sort && sort !== 'relevance') params.set('sort', sort);
   return params;
 }
 
@@ -36,5 +39,7 @@ export function describeIntent(intent, categories = []) {
   if (intent.availability?.includes('today')) parts.push('available today');
   else if (intent.availability?.includes('week')) parts.push('available this week');
   if (intent.near) parts.push(`near ${intent.near}`);
+  if (intent.maxDistance) parts.push(`within ${intent.maxDistance} km`);
+  else if (intent.nearMe) parts.push('near you');
   return parts.join(' · ');
 }

@@ -31,6 +31,9 @@ function toFormInitial(listing) {
     accessories_note: listing.accessories_note || '',
     min_rental_period: listing.min_rental_period,
     supported_durations: listing.supported_durations?.length ? listing.supported_durations : ['daily'],
+    // The owner gets their exact pin back from the API (lib/geo.js).
+    latitude: listing.latitude ?? null,
+    longitude: listing.longitude ?? null,
   };
 }
 

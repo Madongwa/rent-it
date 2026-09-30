@@ -102,6 +102,14 @@ export const PRIVACY_SECTIONS = [
     ],
   },
   {
+    id: 'locations',
+    title: 'Your location and listing map pins',
+    body: [
+      'If you choose to use "Nearby" or "Nearest to me" on the Marketplace, your browser asks for your location. It is rounded to about 1 km on your device, sent only to our server to work out distances, and is not stored; your browser remembers it only until you close the tab, and "Stop using my location" forgets it sooner. It is never sent to our AI providers.',
+      'If you add a map pin to a Listing, the exact pin is stored in a restricted area only our server can read. Other Users see only the approximate area (about 1 km) and their distance from it; you see the exact pin when editing your Listing. The Marketplace map and pin editor load map images from OpenStreetMap and send place searches to OpenStreetMap\'s Nominatim service, which receive your IP address and the requested area under their own privacy policies.',
+    ],
+  },
+  {
     id: 'sharing',
     title: 'Whom we share data with',
     body: [

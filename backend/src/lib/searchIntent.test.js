@@ -30,6 +30,13 @@ describe('validateIntent', () => {
     ).toEqual({ q: 'tractor', maxPrice: 2000, condition: ['Good'], powerSource: ['diesel'], availability: ['week'], near: 'Ludhiana DROP' });
   });
 
+  it('reads "near me" and rounds a distance up to a Marketplace bucket', () => {
+    expect(validateIntent({ q: 'drill', nearMe: true, maxDistanceKm: 3 }, categories)).toEqual({ q: 'drill', nearMe: true, maxDistance: '5' });
+    expect(validateIntent({ q: 'drill', maxDistanceKm: 2 }, categories).maxDistance).toBe('2');
+    // Past 25 km there's no filter for it, and "yes" isn't true.
+    expect(validateIntent({ q: 'drill', nearMe: 'yes', maxDistanceKm: 80 }, categories)).toEqual({ q: 'drill' });
+  });
+
   it('is null when nothing usable came back', () => {
     expect(validateIntent({ category: 'nope', maxPrice: -1 }, categories)).toBeNull();
     expect(validateIntent(null, categories)).toBeNull();

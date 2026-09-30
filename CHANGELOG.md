@@ -4,6 +4,19 @@ What changed on Rent It, newest first. Every change to a feature gets an
 entry here (and [FEATURES.md](FEATURES.md) is updated to match) in the same
 commit. Dates are when the change was pushed to `main`, which deploys it.
 
+## 2026-09-30
+
+- **"Near me" search and a Marketplace map** - the Nearby pill (and "Nearest
+  to me" sort) ask for your location and show the closest items first, with
+  "3.2 km away" on every card and listing page; the distance filter now
+  measures from you. A List / Map switch shows matching listings as pins.
+  Owners can add an optional **map pin** on List an Item / Edit listing.
+  Privacy: your location is rounded to ~1 km and never stored; renters only
+  ever see a listing's area (~1 km), never the exact spot. Plain-language
+  search understands "near me" and "within 5 km". Privacy Policy updated.
+- **"Verified Owners" filter and "Rating: high to low" sort** now work on the
+  Marketplace (both were greyed out as "coming soon").
+
 ## 2026-09-29
 
 - **Trust badges** - verified seller, typical reply time, rentals completed,

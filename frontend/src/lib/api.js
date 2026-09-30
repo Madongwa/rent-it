@@ -36,7 +36,9 @@ export const api = {
     ).toString();
     return request(`/listings${qs ? `?${qs}` : ''}`);
   },
-  getListing: (id) => request(`/listings/${id}`),
+  // near: the renter's rounded location, for "X km away" (optional).
+  getListing: (id, near) =>
+    request(`/listings/${id}${near ? `?lat=${near.lat}&lng=${near.lng}` : ''}`),
   getMyListings: () => request('/listings/mine'),
   createListing: (payload) =>
     request('/listings', { method: 'POST', body: JSON.stringify(payload) }),

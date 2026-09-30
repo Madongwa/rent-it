@@ -5,7 +5,7 @@
 // user - guests and account holders - to accept again, so only change it
 // when the Terms or Privacy Policy change materially.
 export const TERMS_VERSION = '2026-09-27';
-export const LEGAL_LAST_UPDATED = '27 September 2026';
+export const LEGAL_LAST_UPDATED = '30 September 2026';
 
 // FILL THESE IN before relying on the Terms in production. They're left as
 // visible, highlighted placeholders rather than guessed, because the legal

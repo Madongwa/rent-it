@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { GlowingEffect } from './ui/GlowingEffect';
 import './ListingCardGlass.css';
 import { BadgeCheck } from 'lucide-react';
+import { formatKm } from '../lib/myLocation';
 
 function PinIcon(props) {
   return (
@@ -83,6 +84,7 @@ export default function ListingCard({ listing, isFavorited, onToggleFavorite }) 
             <p className="listing-card-location">
               <PinIcon className="h-3.5 w-3.5 shrink-0" />
               {listing.location}
+              {listing.distance_from_you_km != null && <span className="ml-1 text-emerald-400">· {formatKm(listing.distance_from_you_km)}</span>}
             </p>
           )}
 

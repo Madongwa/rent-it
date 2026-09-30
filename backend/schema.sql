@@ -1108,3 +1108,21 @@ create table if not exists public.listing_blocked_dates (
 create index if not exists listing_blocked_dates_listing_idx on public.listing_blocked_dates (listing_id, end_date);
 
 alter table public.listing_blocked_dates enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Map pin for "near me" search and the Marketplace map. The exact pin (often
+-- the owner's home) lives in its own backend-only table - RLS on, no
+-- policies - because listings are readable by everyone. Public responses
+-- only ever show it rounded to ~1 km (backend/src/lib/geo.js). Safe to re-run.
+-- ---------------------------------------------------------------------------
+alter table public.listings drop column if exists latitude;
+alter table public.listings drop column if exists longitude;
+
+create table if not exists public.listing_locations (
+  listing_id uuid primary key references public.listings (id) on delete cascade,
+  latitude double precision not null check (latitude between -90 and 90),
+  longitude double precision not null check (longitude between -180 and 180),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.listing_locations enable row level security;

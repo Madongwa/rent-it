@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import ListingCard from '../components/ListingCard';
@@ -6,8 +6,12 @@ import FilterSidebar, { PRICE_BUCKETS, countActiveFilters } from '../components/
 import { useFavorites } from '../hooks/useFavorites';
 import useSeo from '../hooks/useSeo';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
-import { Sparkles } from 'lucide-react';
+import { LayoutGrid, Loader2, Map as MapIcon, Sparkles } from 'lucide-react';
 import { describeIntent, intentToParams } from '../lib/searchIntent';
+import { forgetLocation, locateMe, locationError, savedLocation } from '../lib/myLocation';
+
+// Leaflet only downloads when someone opens the map.
+const ListingsMap = lazy(() => import('../components/ListingsMap'));
 
 const MULTI_KEYS = ['condition', 'powerSource', 'delivery', 'cancellation', 'ownerType', 'duration', 'availability'];
 // Filter keys whose URL param name differs from the filter-state key name.
@@ -31,6 +35,7 @@ const CLEARABLE_PARAMS = [
   'minRating',
   'minRentalPeriod',
   'page',
+  'verified',
 ];
 
 function readFilters(searchParams) {
@@ -47,6 +52,7 @@ function readFilters(searchParams) {
   filters.minRating = searchParams.get('minRating') || '';
   filters.minRentalPeriod = searchParams.get('minRentalPeriod') || '';
   filters.near = searchParams.get('near') || '';
+  filters.verified = searchParams.get('verified') || '';
   return filters;
 }
 
@@ -133,6 +139,11 @@ export default function Marketplace() {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const page = Math.max(Number(searchParams.get('page')) || 1, 1);
+  const mapView = searchParams.get('view') === 'map';
+  // "Near me": the renter's location, rounded to ~1 km (lib/myLocation.js).
+  const [me, setMe] = useState(savedLocation);
+  const [locating, setLocating] = useState(false);
+  const [locError, setLocError] = useState('');
 
   useEffect(() => {
     api.getCategories().then(setCategories).catch(() => {});
@@ -149,7 +160,8 @@ export default function Marketplace() {
   const multiParams = MULTI_KEYS.map((k) => filters[k].join(',')).join('|');
   const filterKey = [
     filters.category, q, filters.sort, minPrice, maxPrice, multiParams, filters.deposit,
-    filters.accessories, filters.maxDistance, filters.minRating, filters.minRentalPeriod, filters.near,
+    filters.accessories, filters.maxDistance, filters.minRating, filters.minRentalPeriod, filters.near, filters.verified,
+    me ? `${me.lat},${me.lng}` : '', mapView ? 'map' : 'list',
   ].join('::');
   // Tracks the previous filterKey so a filter change (as opposed to a plain
   // page change) can snap the page back to 1 - browsing page 4 of one filter
@@ -189,6 +201,10 @@ export default function Marketplace() {
         minRating: filters.minRating,
         minRentalPeriod: filters.minRentalPeriod,
         near: filters.near,
+        verified: filters.verified,
+        lat: me?.lat,
+        lng: me?.lng,
+        view: mapView ? 'map' : undefined,
         page,
       })
       .then((result) => {
@@ -273,6 +289,45 @@ export default function Marketplace() {
     toggleMulti('availability', 'today');
   }
 
+  // Asks the browser for the renter's location; resolves to it, or null
+  // (with a message) when they said no or it failed.
+  async function requestLocation() {
+    setLocating(true);
+    setLocError('');
+    try {
+      const here = await locateMe();
+      setMe(here);
+      return here;
+    } catch (err) {
+      setLocError(locationError(err));
+      return null;
+    } finally {
+      setLocating(false);
+    }
+  }
+
+  const nearbyActive = !!me && filters.sort === 'nearest';
+
+  async function toggleNearby() {
+    if (nearbyActive) {
+      setSingle('sort', 'relevance');
+      return;
+    }
+    if (me || (await requestLocation())) setSingle('sort', 'nearest');
+  }
+
+  function stopUsingLocation() {
+    forgetLocation();
+    setMe(null);
+    if (filters.sort === 'nearest') setSingle('sort', 'relevance');
+  }
+
+  function setView(view) {
+    updateParam('view', view === 'map' ? 'map' : '');
+  }
+
+  const openListing = useCallback((id) => navigate(`/listing/${id}`), [navigate]);
+
   function toggleTopRated() {
     setSingle('minRating', filters.minRating === '4' ? '' : '4');
   }
@@ -292,7 +347,12 @@ export default function Marketplace() {
     setInterpreting(true);
     try {
       const intent = await api.interpretSearch(text);
-      setSearchParams(intentToParams(intent, filters.sort));
+      // "near me" / "within 5 km" need the renter's location; without it
+      // the rest of the search still runs.
+      if ((intent.nearMe || intent.maxDistance) && !me) await requestLocation();
+      const next = intentToParams(intent, filters.sort);
+      if (mapView) next.set('view', 'map'); // stay on the map
+      setSearchParams(next);
       setAiReading({ text, intent });
     } catch {
       updateParam('q', text);
@@ -351,6 +411,9 @@ export default function Marketplace() {
     onToggleMulti: toggleMulti,
     onApplyCustomPrice: applyCustomPrice,
     onClearAll: clearAll,
+    hasLocation: !!me,
+    locating,
+    onUseLocation: requestLocation,
   };
 
   return (
@@ -443,8 +506,8 @@ export default function Marketplace() {
 
             <span className="mx-1 w-px shrink-0 self-stretch bg-night-border/15" aria-hidden="true" />
 
-            <Pill disabled title="Coming soon - location isn't collected yet">
-              📍 Nearby
+            <Pill active={nearbyActive} onClick={toggleNearby} title="Show the nearest listings first">
+              {locating ? '📍 Finding you…' : '📍 Nearby'}
             </Pill>
             <Pill active={filters.availability.includes('today')} onClick={toggleAvailableToday}>
               Available Now
@@ -458,7 +521,7 @@ export default function Marketplace() {
             <Pill active={filters.sort === 'newest'} onClick={toggleNewest}>
               New Listings
             </Pill>
-            <Pill disabled title="Coming soon - owner verification isn't built yet">
+            <Pill active={filters.verified === 'true'} onClick={() => updateParam('verified', filters.verified === 'true' ? '' : 'true')} title="Only owners who passed seller verification">
               Verified Owners
             </Pill>
             <Pill active={freeDeliveryActive} onClick={toggleFreeDelivery}>
@@ -472,6 +535,20 @@ export default function Marketplace() {
             </Pill>
           </div>
         </div>
+
+        {(me || locError) && (
+          <div className="-mt-3 mb-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm" role="status">
+            {locError && <span className="text-red-400">{locError}</span>}
+            {me && (
+              <>
+                <span className="text-night-muted">Showing distances from your approximate location.</span>
+                <button type="button" onClick={stopUsingLocation} className="text-night-text underline-offset-2 hover:underline">
+                  Stop using my location
+                </button>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Mobile filters trigger */}
         <button
@@ -522,6 +599,27 @@ export default function Marketplace() {
           {/* Listings grid - sits directly on the page's own dark background
               now (see the wrapper above), no boxed insert. */}
           <div>
+            <div className="mb-4 flex justify-end">
+              <div className="inline-flex rounded-full border border-night-border/20 p-0.5" role="group" aria-label="Show listings as">
+                <button
+                  type="button"
+                  onClick={() => setView('list')}
+                  aria-pressed={!mapView}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ${!mapView ? 'bg-white text-black' : 'text-night-muted hover:text-night-text'}`}
+                >
+                  <LayoutGrid className="h-4 w-4" aria-hidden="true" /> List
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setView('map')}
+                  aria-pressed={mapView}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ${mapView ? 'bg-white text-black' : 'text-night-muted hover:text-night-text'}`}
+                >
+                  <MapIcon className="h-4 w-4" aria-hidden="true" /> Map
+                </button>
+              </div>
+            </div>
+
             {loading && <div className="py-16 text-center text-night-muted">Loading listings…</div>}
             {error && <div className="py-16 text-center text-red-400">{error}</div>}
 
@@ -535,7 +633,13 @@ export default function Marketplace() {
               </div>
             )}
 
-            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+            {mapView && !error && (
+              <Suspense fallback={<div className="flex justify-center py-16 text-night-muted"><Loader2 className="h-6 w-6 animate-spin" /></div>}>
+                <ListingsMap listings={loading ? [] : listings} me={me} onOpen={openListing} />
+              </Suspense>
+            )}
+
+            <div className={mapView ? 'hidden' : 'grid gap-6 sm:grid-cols-2 xl:grid-cols-3'}>
               {listings.map((listing) => (
                 <ListingCard
                   key={listing.id}
@@ -546,7 +650,7 @@ export default function Marketplace() {
               ))}
             </div>
 
-            {!loading && !error && (page > 1 || hasMore) && (
+            {!mapView && !loading && !error && (page > 1 || hasMore) && (
               <div className="mt-10 flex items-center justify-center gap-4">
                 <button
                   type="button"

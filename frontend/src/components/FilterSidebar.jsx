@@ -15,9 +15,9 @@ const SORT_OPTIONS = [
   { value: 'relevance', label: 'Relevance' },
   { value: 'price_asc', label: 'Price: low to high' },
   { value: 'price_desc', label: 'Price: high to low' },
-  { value: 'rating_desc', label: 'Rating: high to low', disabled: true },
+  { value: 'rating_desc', label: 'Rating: high to low' },
   { value: 'newest', label: 'Newest' },
-  { value: 'nearest', label: 'Nearest', disabled: true },
+  { value: 'nearest', label: 'Nearest to me' },
 ];
 
 export const CONDITION_OPTIONS = ['New', 'Like New', 'Good', 'Fair'];
@@ -204,6 +204,9 @@ export default function FilterSidebar({
   onToggleMulti,
   onApplyCustomPrice,
   onClearAll,
+  hasLocation = false,
+  locating = false,
+  onUseLocation,
 }) {
   const activeCount = countActiveFilters(filters);
   const selectedCategory = categories.find((c) => c.slug === filters.category);
@@ -241,9 +244,14 @@ export default function FilterSidebar({
             label={opt.label}
             checked={filters.sort === opt.value}
             disabled={opt.disabled}
-            onChange={() => onSetSingle('sort', opt.value)}
+            onChange={async () => {
+              // "Nearest" needs the renter's location first.
+              if (opt.value === 'nearest' && !hasLocation && !(await onUseLocation?.())) return;
+              onSetSingle('sort', opt.value);
+            }}
           />
         ))}
+        {locating && <p className="text-xs text-night-muted">Finding your location…</p>}
       </Section>
 
       {/* Availability - real, derived from rental_history on the backend
@@ -337,10 +345,14 @@ export default function FilterSidebar({
         ))}
       </Section>
 
-      {/* Distance - real, filtered against the static distance_km field
-          (no live geolocation yet, so it's a fixed per-listing value
-          rather than a true "distance from me"). */}
+      {/* Distance - from the renter's (rounded) location when they've shared
+          it; otherwise the owner-entered distance_km, as before. */}
       <Section title="Distance">
+        {!hasLocation && onUseLocation && (
+          <button type="button" onClick={onUseLocation} disabled={locating} className="text-left text-sm font-medium text-accent hover:underline disabled:opacity-60">
+            {locating ? 'Finding your location…' : '📍 Use my location for real distances'}
+          </button>
+        )}
         {DISTANCE_BUCKETS.map((bucket) => (
           <RadioRow
             key={bucket.id}

@@ -11,6 +11,7 @@ import ListingGallery from '../components/ListingGallery';
 import AvailabilityCalendar from '../components/AvailabilityCalendar';
 import TrustBadges from '../components/TrustBadges';
 import { formatInr } from '../lib/offers';
+import { formatKm, savedLocation } from '../lib/myLocation';
 import {
   POWER_SOURCE_OPTIONS,
   DELIVERY_OPTIONS,
@@ -284,7 +285,8 @@ export default function ListingDetail() {
   });
 
   function reload() {
-    return api.getListing(id).then(setListing);
+    // With the renter's shared (rounded) location, the API adds "X km away".
+    return api.getListing(id, savedLocation()).then(setListing);
   }
 
   useEffect(() => {
@@ -398,6 +400,7 @@ export default function ListingDetail() {
               </>
             )}
             {listing.location && <span>📍 {listing.location}</span>}
+            {listing.distance_from_you_km != null && <span className="text-emerald-400">· {formatKm(listing.distance_from_you_km)}</span>}
           </p>
 
           {/* 2. Price, deposit, min rental period, supported durations */}
