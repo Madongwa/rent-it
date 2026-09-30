@@ -4,35 +4,29 @@ import HomeHero from '../components/HomeHero';
 import Starfield from '../components/Starfield';
 import useSeo from '../hooks/useSeo';
 
-// ---------------------------------------------------------------------------
-// NOTE ON FIGURES BELOW: every number in this file (355 days, 6 weeks/year,
-// 80% idle, 13 minutes lifetime use) is an illustrative placeholder chosen
-// to make the "equipment sits idle" narrative concrete - none of them are
-// sourced or verified statistics. They must be replaced with properly
-// cited figures (or softened to non-numeric language) before this copy
-// goes live.
-// ---------------------------------------------------------------------------
+// No made-up statistics: these describe the idle-equipment problem in plain
+// words instead of numbers, until there are sourced figures to cite.
 const IDLE_EXAMPLES = [
   {
     icon: '🌾',
     category: 'Farming',
-    stat: '6',
-    unit: 'weeks a year',
-    detail: "A tractor bought for the whole season only actually runs the fields for a few weeks of it.",
+    stat: 'A few',
+    unit: 'weeks of work a season',
+    detail: 'A tractor or seed drill is bought for the whole year, but the fields only need it at sowing and harvest.',
   },
   {
     icon: '🏗️',
     category: 'Construction',
-    stat: '80%',
-    unit: 'of its life in storage',
-    detail: 'A generator bought for one job sits in a truck or a shed between every job after that.',
+    stat: 'Most',
+    unit: 'of its life between jobs',
+    detail: 'A generator or mixer bought for one job waits in a truck or a shed until the next one comes along.',
   },
   {
     icon: '🛠️',
     category: 'Household & DIY',
-    stat: '13',
-    unit: 'minutes, total',
-    detail: 'A drill bought "just in case" is often cited as getting only minutes of use across its entire lifetime.',
+    stat: 'One',
+    unit: 'job, then the cupboard',
+    detail: 'A drill or ladder bought "just in case" gets used for one job, then spends years out of sight.',
   },
 ];
 

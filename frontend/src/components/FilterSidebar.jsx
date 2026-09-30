@@ -11,12 +11,13 @@ export const PRICE_BUCKETS = [
   { id: 'o3500', label: 'Over ₹3,500', min: '3500', max: '' },
 ];
 
-const SORT_OPTIONS = [
+export const SORT_OPTIONS = [
   { value: 'relevance', label: 'Relevance' },
   { value: 'price_asc', label: 'Price: low to high' },
   { value: 'price_desc', label: 'Price: high to low' },
   { value: 'rating_desc', label: 'Rating: high to low' },
   { value: 'newest', label: 'Newest' },
+  { value: 'trending', label: 'Trending (most requested)' },
   { value: 'nearest', label: 'Nearest to me' },
 ];
 
@@ -209,7 +210,6 @@ export default function FilterSidebar({
   onUseLocation,
 }) {
   const activeCount = countActiveFilters(filters);
-  const selectedCategory = categories.find((c) => c.slug === filters.category);
 
   // Local, uncontrolled-feeling copies of the price inputs so typing doesn't
   // fire a new request on every keystroke - only "Go" applies them. Synced
@@ -256,8 +256,7 @@ export default function FilterSidebar({
 
       {/* Availability - real, derived from rental_history on the backend
           (a listing is excluded from a checked window if a past-rental row
-          overlaps it - see listings.js). "Instant book" has no backing
-          concept yet, so it stays disabled. */}
+          overlaps it - see listings.js). */}
       <Section title="Availability">
         <CheckboxRow
           label="Available today"
@@ -269,7 +268,6 @@ export default function FilterSidebar({
           checked={filters.availability.includes('week')}
           onChange={() => onToggleMulti('availability', 'week')}
         />
-        <CheckboxRow label="Instant book" checked={false} disabled onChange={() => {}} />
       </Section>
 
       {/* Price per day - real, expanded by default */}
@@ -322,16 +320,6 @@ export default function FilterSidebar({
           />
         ))}
       </Section>
-
-      {/* Subcategory - hidden entirely until a category is picked, per spec;
-          no subcategory taxonomy exists yet so it's a coming-soon note. */}
-      {selectedCategory && (
-        <Section title="Subcategory" badge="Coming soon">
-          <p className="text-xs text-night-muted">
-            Subcategories for {selectedCategory.name} aren't available yet.
-          </p>
-        </Section>
-      )}
 
       {/* Condition - real */}
       <Section title="Condition">

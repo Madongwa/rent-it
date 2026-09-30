@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import ScrollToTop from './components/ScrollToTop';
@@ -5,27 +6,29 @@ import ProtectedRoute from './components/ProtectedRoute';
 import TermsGate from './components/TermsGate';
 import AdminRoute from './components/AdminRoute';
 import Home from './pages/Home';
-import Marketplace from './pages/Marketplace';
-import ListingDetail from './pages/ListingDetail';
-import ListItem from './pages/ListItem';
-import EditListing from './pages/EditListing';
-import Dashboard from './pages/Dashboard';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import HowItWorks from './pages/HowItWorks';
-import WhyItMatters from './pages/WhyItMatters';
-import Profile from './pages/Profile';
-import Messages from './pages/Messages';
-import Favorites from './pages/Favorites';
-import OwnerStorefront from './pages/OwnerStorefront';
-import SellerVerification from './pages/SellerVerification';
-import AdminDashboard from './pages/AdminDashboard';
-import Help from './pages/Help';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import Terms from './pages/Terms';
-import Privacy from './pages/Privacy';
 import { DarkGradientBg } from './components/ui/elegant-dark-pattern';
+// Every other page is its own download, fetched when first opened, so the
+// first visit doesn't load the whole site (staff dashboard, chat, maps...).
+const Marketplace = lazy(() => import('./pages/Marketplace'));
+const ListingDetail = lazy(() => import('./pages/ListingDetail'));
+const ListItem = lazy(() => import('./pages/ListItem'));
+const EditListing = lazy(() => import('./pages/EditListing'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Login = lazy(() => import('./pages/Login'));
+const Signup = lazy(() => import('./pages/Signup'));
+const HowItWorks = lazy(() => import('./pages/HowItWorks'));
+const WhyItMatters = lazy(() => import('./pages/WhyItMatters'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Messages = lazy(() => import('./pages/Messages'));
+const Favorites = lazy(() => import('./pages/Favorites'));
+const OwnerStorefront = lazy(() => import('./pages/OwnerStorefront'));
+const SellerVerification = lazy(() => import('./pages/SellerVerification'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const Help = lazy(() => import('./pages/Help'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const Terms = lazy(() => import('./pages/Terms'));
+const Privacy = lazy(() => import('./pages/Privacy'));
 
 export default function App() {
   // Nav is fixed/floating so it can sit transparently over Home's video
@@ -44,6 +47,7 @@ export default function App() {
       <TermsGate />
       <Navbar />
       <main className={`flex-1 ${isHome ? '' : 'rh-nav-offset'} ${isChat ? 'flex min-h-0 flex-col' : ''}`}>
+        <Suspense fallback={<PageLoading />}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/marketplace" element={<Marketplace />} />
@@ -126,6 +130,7 @@ export default function App() {
           <Route path="/about" element={<Navigate to="/why-it-matters" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </main>
       {!isChat && (
         <footer className="border-t border-night-border/15 bg-night-bg py-6 text-center text-caption text-night-muted">
@@ -142,6 +147,10 @@ export default function App() {
       )}
     </div>
   );
+}
+
+function PageLoading() {
+  return <div className="min-h-[calc(100vh-4rem)] bg-night-bg" aria-busy="true" />;
 }
 
 function NotFound() {

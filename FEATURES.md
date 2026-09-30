@@ -37,7 +37,8 @@ change - see [Keeping this file up to date](#keeping-this-file-up-to-date) and
 ### Home
 Animated hero ("Rent the right tool, right when you need it") and a category
 showcase for the six categories: **Farming Tools, Construction Tools,
-Household & DIY, Events, Moving, Medical**.
+Household & DIY, Events, Moving, Medical**. The "idle equipment" section
+describes the problem in plain words (no unsourced statistics).
 
 ### Marketplace
 Browse everything available to rent.
@@ -54,7 +55,7 @@ Browse everything available to rent.
 - **Quick-filter pill bar** - categories, **Nearby** (asks for your location,
   then shows the nearest first), Available now, Under ₹750/day, Top rated,
   **Verified owners** (only owners who passed seller verification), New listings,
-  Free delivery.
+  Free delivery, **Trending**.
 - **"Near me" and distances** - once you share your location (Nearby, "Nearest
   to me" sort, or "Use my location" under Distance) every card and listing
   page shows **"3.2 km away"**, and the distance filter measures from you. Your
@@ -74,7 +75,9 @@ Browse everything available to rent.
   location, otherwise the owner-entered distance), rental duration (hourly / daily /
   weekly / monthly), rating (3★ / 4★ and up), minimum rental period.
 - **"📍 Near <town>"** filter (set by a sentence search), removable as a chip.
-- **Sort** - relevance, price low→high / high→low, rating, newest, nearest to me.
+- **Sort** - relevance, price low→high / high→low, rating, newest, **trending**
+  (most requested and saved in the last 30 days - a request counts 3× a save),
+  nearest to me. On phones a Sort menu sits next to the Filters button.
 - All filters live in the page address, so a filtered view can be shared as a link.
 - Save listings to **Favorites** with the heart on each card (needs login).
 
@@ -207,7 +210,8 @@ listing.
 WhatsApp-style chat page at `/messages`, one thread per listing and renter.
 
 - **Chat list** with the latest message, unread counts, and time.
-- **Read receipts** (✓ sent, ✓✓ read) and an unread badge on the Messages nav link.
+- **Read receipts** (✓ sent, ✓✓ read) and an unread badge on the Messages nav
+  link (shown once you're logged in, like Dashboard).
 - **Offer cards** for every price offer, with Accept / Counter / Decline, and
   status lines ("Deal agreed", "Declined"…).
 - **"+" menu** - send **photos** (gallery or camera, up to 10 MB), **documents**
@@ -362,7 +366,9 @@ Common rules for all of them:
 ## 13. Under the hood
 
 - **Frontend**: React + Vite + Tailwind, React Router. Metal-ring navbar
-  pills (metal-fx), dark theme, SEO tags + sitemap.
+  pills (metal-fx), dark theme, SEO tags + sitemap. Every page except Home is
+  its own download (loaded when first opened), and Supabase / React / motion
+  libraries are separate cached files.
 - **Backend**: Node.js + Express as a Vercel serverless function (60 s limit).
 - **Database / auth / storage**: Supabase (Postgres with row-level security).
   `backend/schema.sql` is the full, re-runnable schema:

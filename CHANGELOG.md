@@ -6,6 +6,13 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-09-30
 
+- **Marketplace clean-up** - "Trending" works (most requested and saved in the
+  last 30 days); the greyed-out "Same-Day Pickup", "Instant book" and
+  "Subcategory" placeholders are gone; phones get a Sort menu next to Filters.
+- **Messages link** only shows once you're logged in.
+- **Home page** - the made-up statistics (6 weeks, 80%, 13 minutes) are
+  replaced with plain wording.
+- **Faster first load** - each page downloads only when it's opened.
 - **"Near me" search and a Marketplace map** - the Nearby pill (and "Nearest
   to me" sort) ask for your location and show the closest items first, with
   "3.2 km away" on every card and listing page; the distance filter now

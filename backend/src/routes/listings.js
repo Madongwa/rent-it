@@ -7,6 +7,7 @@ import { interpretSearch } from '../lib/searchIntent.js';
 import { normalizePhotos } from '../lib/listingPhotos.js';
 import { BOOKED_STATUSES, unavailableRanges, unavailableSoon } from '../lib/availability.js';
 import { ownerTrust } from '../lib/trust.js';
+import { sortByTrending, trendingScores } from '../lib/trending.js';
 import { PIN_SELECT, pinChange, savePin, validLatLng, withDistance, withExactPin } from '../lib/geo.js';
 
 const router = Router();
@@ -113,7 +114,8 @@ router.get('/', async (req, res) => {
   const maxKm = distance && DISTANCE_BUCKET_KM[distance] !== undefined ? DISTANCE_BUCKET_KM[distance] : null;
   if (maxKm != null && !origin) query = query.lte('distance_km', maxKm);
   // Distance filtering/sorting and the map need every match, not one page.
-  const wholeSet = (origin && (maxKm != null || sort === 'nearest')) || req.query.view === 'map';
+  // So does "Trending" (ranked by recent requests and saves, below).
+  const wholeSet = (origin && (maxKm != null || sort === 'nearest')) || req.query.view === 'map' || sort === 'trending';
   if (duration) query = query.overlaps('supported_durations', duration.split(','));
   if (minRating) query = query.gte('avg_rating', Number(minRating));
   if (minRentalPeriod) query = query.eq('min_rental_period', minRentalPeriod);
@@ -143,6 +145,13 @@ router.get('/', async (req, res) => {
     if (origin && maxKm != null) data = data.filter((l) => l.distance_from_you_km != null && l.distance_from_you_km <= maxKm);
     if (origin && sort === 'nearest') {
       data.sort((a, b) => (a.distance_from_you_km ?? Infinity) - (b.distance_from_you_km ?? Infinity));
+    }
+    if (sort === 'trending') {
+      try {
+        data = sortByTrending(data, await trendingScores());
+      } catch (err) {
+        console.error('[listings] trending failed:', err.message); // newest first instead
+      }
     }
     if (req.query.view !== 'map') {
       hasMore = data.length > from + limitNum;

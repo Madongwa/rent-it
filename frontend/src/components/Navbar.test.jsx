@@ -29,7 +29,7 @@ function renderNavbar() {
 }
 
 const primaryLinks = () => within(screen.getByRole('navigation', { name: 'Primary' })).getAllByRole('link').map((a) => a.textContent);
-const PUBLIC = ['Home', 'Marketplace', 'How It Works', 'Why It Matters', 'Help / FAQ', 'Messages'];
+const PUBLIC = ['Home', 'Marketplace', 'How It Works', 'Why It Matters', 'Help / FAQ'];
 
 beforeEach(() => {
   auth.user = null;
@@ -37,9 +37,10 @@ beforeEach(() => {
 });
 
 describe('Navbar - which links show', () => {
-  it('logged out: no Dashboard or Staff anywhere, and "Log in"', () => {
+  it('logged out: no Messages, Dashboard or Staff anywhere, and "Log in"', () => {
     renderNavbar();
     expect(primaryLinks()).toEqual(PUBLIC);
+    expect(screen.queryByText('Messages')).not.toBeInTheDocument();
     expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     expect(screen.queryByText('Staff')).not.toBeInTheDocument();
     expect(screen.getAllByText('Log in').length).toBeGreaterThan(0);
@@ -51,7 +52,7 @@ describe('Navbar - which links show', () => {
     api.getMyProfile.mockResolvedValue({ role: 'user' });
     renderNavbar();
     await waitFor(() => expect(api.getMyProfile).toHaveBeenCalled());
-    expect(primaryLinks()).toEqual([...PUBLIC, 'Dashboard']);
+    expect(primaryLinks()).toEqual([...PUBLIC, 'Messages', 'Dashboard']);
     expect(screen.queryByText('Staff')).not.toBeInTheDocument();
   });
 
@@ -59,7 +60,7 @@ describe('Navbar - which links show', () => {
     auth.user = { id: 'a1' };
     api.getMyProfile.mockResolvedValue({ role: 'admin' });
     renderNavbar();
-    await waitFor(() => expect(primaryLinks()).toEqual([...PUBLIC, 'Dashboard', 'Staff']));
+    await waitFor(() => expect(primaryLinks()).toEqual([...PUBLIC, 'Messages', 'Dashboard', 'Staff']));
     expect(screen.getByLabelText('Notifications')).toBeInTheDocument();
   });
 
@@ -68,6 +69,6 @@ describe('Navbar - which links show', () => {
     api.getMyProfile.mockImplementation(() => Promise.reject(new Error('offline')));
     renderNavbar();
     await waitFor(() => expect(api.getMyProfile).toHaveBeenCalled());
-    expect(primaryLinks()).toEqual([...PUBLIC, 'Dashboard']);
+    expect(primaryLinks()).toEqual([...PUBLIC, 'Messages', 'Dashboard']);
   });
 });

@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import ListingCard from '../components/ListingCard';
-import FilterSidebar, { PRICE_BUCKETS, countActiveFilters } from '../components/FilterSidebar';
+import FilterSidebar, { PRICE_BUCKETS, SORT_OPTIONS, countActiveFilters } from '../components/FilterSidebar';
 import { useFavorites } from '../hooks/useFavorites';
 import useSeo from '../hooks/useSeo';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
@@ -527,10 +527,7 @@ export default function Marketplace() {
             <Pill active={freeDeliveryActive} onClick={toggleFreeDelivery}>
               Free Delivery
             </Pill>
-            <Pill disabled title="Coming soon - pickup/delivery timing isn't tracked yet">
-              Same-Day Pickup
-            </Pill>
-            <Pill disabled title="Coming soon - rental counts aren't tracked yet">
+            <Pill active={filters.sort === 'trending'} onClick={() => setSingle('sort', filters.sort === 'trending' ? 'relevance' : 'trending')} title="Most requested and saved in the last 30 days">
               Trending
             </Pill>
           </div>
@@ -550,11 +547,13 @@ export default function Marketplace() {
           </div>
         )}
 
-        {/* Mobile filters trigger */}
+        {/* Mobile filters trigger + the sort order, visible without opening
+            the drawer */}
+        <div className="mb-6 flex items-center gap-2 lg:hidden">
         <button
           type="button"
           onClick={() => setMobileFiltersOpen(true)}
-          className="mb-6 flex items-center gap-2 rounded-btn border border-night-border/20 px-4 py-2 text-sm font-medium text-night-muted lg:hidden"
+          className="flex items-center gap-2 rounded-btn border border-night-border/20 px-4 py-2 text-sm font-medium text-night-muted"
         >
           <FilterListIcon className="h-4 w-4" />
           Filters
@@ -562,6 +561,23 @@ export default function Marketplace() {
             <span className="rounded-full bg-accent px-1.5 py-0.5 text-xs font-semibold text-white">{activeCount}</span>
           )}
         </button>
+        <label className="flex min-w-0 items-center gap-2 text-sm text-night-muted">
+          <span className="shrink-0">Sort</span>
+          <select
+            value={filters.sort}
+            onChange={async (e) => {
+              const value = e.target.value;
+              if (value === 'nearest' && !me && !(await requestLocation())) return;
+              setSingle('sort', value);
+            }}
+            className="min-w-0 rounded-btn border border-night-border/20 bg-night-bg px-2 py-2 text-sm text-night-text [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-accent"
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </label>
+        </div>
 
         <div className="lg:grid lg:grid-cols-[260px_1fr] lg:items-start lg:gap-10">
           {/* LEFT SIDEBAR - desktop. Sticky below the navbar (top-16 matches

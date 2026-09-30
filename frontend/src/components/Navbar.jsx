@@ -29,8 +29,8 @@ function NavBadge({ count }) {
 // mounted but invisible and absolutely positioned (for metal-fx's sake) -
 // metal-fx's own styles overrode the hiding and they showed over the logo
 // for logged-out visitors, so never again: not rendered = not shown.
-// Messages is shown to everyone; logged-out visitors who click it are sent
-// to log in by ProtectedRoute.
+// Messages, like Dashboard, only shows once you're logged in - for a
+// visitor it could only ever bounce them to the login page.
 export function navLinks(user, isAdmin, unreadChats) {
   const links = [
     { to: '/', label: 'Home', end: true },
@@ -38,9 +38,8 @@ export function navLinks(user, isAdmin, unreadChats) {
     { to: '/how-it-works', label: 'How It Works' },
     { to: '/why-it-matters', label: 'Why It Matters' },
     { to: '/help', label: 'Help / FAQ' },
-    { to: '/messages', label: 'Messages', badge: unreadChats },
   ];
-  if (user) links.push({ to: '/dashboard', label: 'Dashboard' });
+  if (user) links.push({ to: '/messages', label: 'Messages', badge: unreadChats }, { to: '/dashboard', label: 'Dashboard' });
   if (user && isAdmin) links.push({ to: '/admin', label: 'Staff' });
   return links;
 }
