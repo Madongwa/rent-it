@@ -6,6 +6,9 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-09-30
 
+- **Compare pickup and return photos** - the AI points out visible new damage
+  (or says it sees none, or can't tell) for the renter, owner and staff. A
+  suggestion only; private photos go to Groq only. Privacy Policy updated.
 - **Check my photos** - on the listing form, the AI points out photos renters
   won't like (blurry, dark, not the item, contact details, stock photos).
   Advice only.

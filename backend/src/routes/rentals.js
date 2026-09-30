@@ -8,6 +8,17 @@ import { releaseListingIfIdle } from '../lib/listingStatus.js';
 import { effectiveDailyRate, rentalDays } from '../lib/rates.js';
 import { hasBlockedConflict } from '../lib/availability.js';
 import { buildAgreement } from '../lib/agreement.js';
+import { compareConditionPhotos } from '../lib/conditionCompare.js';
+import rateLimit from 'express-rate-limit';
+
+// Each comparison may be an AI call on several photos.
+const compareLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 4,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests - please wait a minute and try again.' },
+});
 
 // A rental request carries the renter's own per-day price, and the two
 // sides bargain in the listing's chat thread: every offer/counter-offer is
@@ -402,6 +413,20 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
   });
 
   res.json(data);
+});
+
+// POST /api/rentals/:id/compare-photos - the AI's read of visible changes
+// between pickup and return photos (lib/conditionCompare.js). Either of the
+// two people; a suggestion only.
+router.post('/:id/compare-photos', requireAuth, compareLimiter, async (req, res) => {
+  try {
+    const out = await compareConditionPhotos(req.params.id, req.user.id);
+    if (out.error) return res.status(out.status).json({ error: out.error });
+    res.json(out);
+  } catch (err) {
+    console.error('[rentals] compare photos failed:', err.message);
+    res.status(502).json({ error: 'The photo comparison is busy right now - please try again in a minute.' });
+  }
 });
 
 // GET /api/rentals/:id/agreement - the rental agreement page's data, for

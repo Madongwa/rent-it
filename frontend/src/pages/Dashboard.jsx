@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import RentalPhotoSection from '../components/RentalPhotos';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 import SavedSearches from '../components/SavedSearches';
+import ConditionCompare from '../components/ConditionCompare';
 import { findOpenOffer, formatInr, rentalDays, whoseTurn } from '../lib/offers';
 
 // Condition photos are only meaningful once a handoff has actually
@@ -135,6 +136,11 @@ function RentalPhotosPanel({ rental, onChange }) {
         editable
         onChange={onChange}
       />
+      {rental.pickup_photo_urls?.length > 0 && rental.return_photo_urls?.length > 0 && (
+        <div className="sm:col-span-2">
+          <ConditionCompare rentalId={rental.id} />
+        </div>
+      )}
     </div>
   );
 }

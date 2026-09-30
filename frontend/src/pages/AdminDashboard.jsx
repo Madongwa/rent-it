@@ -6,6 +6,7 @@ import AdminOverviewGrid from '../components/admin/AdminOverviewGrid';
 import { formatInr } from '../lib/offers';
 import SafetyTab from '../components/admin/SafetyTab';
 import DisputeSummary from '../components/admin/DisputeSummary';
+import ConditionCompare from '../components/ConditionCompare';
 
 // The agreed (or, while pending, latest offered) price next to the listed
 // one - no money moves through the app, so this is staff's record of the
@@ -484,6 +485,11 @@ export default function AdminDashboard() {
                 Freezes until {new Date(d.freeze_until).toLocaleDateString()}
               </p>
               <DisputeSummary disputeId={d.id} initial={d.ai_summary} />
+              {d.rental?.id && (
+                <div className="mt-2">
+                  <ConditionCompare rentalId={d.rental.id} staff />
+                </div>
+              )}
 
               {resolvingId === d.id ? (
                 <div className="mt-3 space-y-2">

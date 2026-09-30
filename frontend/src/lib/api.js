@@ -83,6 +83,8 @@ export const api = {
     request(`/rentals/${id}/offers`, { method: 'POST', body: JSON.stringify(terms) }),
   acceptOffer: (id) => request(`/rentals/${id}/accept`, { method: 'POST' }),
   getAgreement: (id) => request(`/rentals/${id}/agreement`),
+  comparePhotos: (id) => request(`/rentals/${id}/compare-photos`, { method: 'POST' }),
+  adminComparePhotos: (id) => request(`/admin/rentals/${id}/compare-photos`, { method: 'POST' }),
 
   getMyProfile: () => request('/profiles/me'),
   getPublicProfile: (id) => request(`/profiles/${id}`),

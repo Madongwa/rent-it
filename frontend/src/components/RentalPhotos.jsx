@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { shrinkImage } from '../lib/chatAttachments';
 import { api } from '../lib/api';
 
 const STAGE_LABEL = { pickup: 'Pickup condition photos', return: 'Return condition photos' };
@@ -44,8 +45,11 @@ export default function RentalPhotoSection({ rentalId, stage, photoPaths = [], e
     try {
       const uploaded = [];
       for (const file of files) {
-        const path = `${rentalId}/${stage}-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-        const { error: uploadError } = await supabase.storage.from('rental-photos').upload(path, file);
+        // Resized in the browser first (like chat photos): quicker on
+        // mobile data, and small enough for the AI photo comparison.
+        const small = await shrinkImage(file);
+        const path = `${rentalId}/${stage}-${Date.now()}-${small.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const { error: uploadError } = await supabase.storage.from('rental-photos').upload(path, small);
         if (uploadError) throw uploadError;
         uploaded.push(path);
       }

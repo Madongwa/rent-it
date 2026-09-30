@@ -306,6 +306,12 @@ WhatsApp-style chat page at `/messages`, one thread per listing and renter.
 - **My Rental Requests** - what you've asked to rent, with offered/agreed price.
 - **Requests on My Items** - incoming requests, with pickup/return photos and
   "report a problem".
+- **✨ Compare pickup and return photos** (under Photos, once both sets exist,
+  for both people; staff also get it on each dispute) - the AI looks at up to 3
+  pickup and 3 return photos and says "No visible change spotted", "Possible new
+  damage" (with what it saw) or "Can't tell from these photos". A suggestion to
+  check together, never a decision; saved and only redone when the photos
+  change. Rental photos are resized in the browser before upload.
 - **Saved searches** - searches saved with "Alert me" on the Marketplace; open
   or delete them.
 
@@ -364,6 +370,7 @@ never go to an AI. **Print / Save as PDF** uses the browser's print dialog
 | Wanted-post writer | Post what you need | Gemini, Groq as backup | The sentence you type |
 | Wanted matching | When a listing is published | Gemini, Groq as backup | The new listing's title, description, town, and open Wanted posts' text (no names) |
 | Listing safety review | Staff dashboard → Safety | Gemini, Groq as backup | Public listing text |
+| Pickup/return photo compare | Dashboard → Photos; Staff → Disputes | **Groq only** (Qwen, which can see images) - private photos never go to Gemini | Up to 3 pickup + 3 return photos and the item's title |
 | Dispute summary | Staff dashboard → Disputes | Gemini, Groq as backup | Rental records and the problem report, **no names, no chat** |
 
 Common rules for all of them:

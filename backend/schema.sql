@@ -1228,3 +1228,18 @@ set allowed_mime_types = array[
     'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/wav', 'audio/aac'
   ]
 where id = 'chat-attachments';
+
+-- ---------------------------------------------------------------------------
+-- Pickup vs return photo comparison (lib/conditionCompare.js): the AI's
+-- read of visible changes, kept so the same photos are only looked at
+-- once (input_hash covers the photo lists). Backend-only.
+-- ---------------------------------------------------------------------------
+create table if not exists public.rental_condition_checks (
+  rental_id uuid primary key references public.rentals (id) on delete cascade,
+  input_hash text not null,
+  result jsonb not null,
+  model text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.rental_condition_checks enable row level security;

@@ -6,6 +6,7 @@ import { releaseListingIfIdle } from '../lib/listingStatus.js';
 import { recomputeListingRating } from './reviews.js';
 import { dismissFlag, flaggedListings, pendingListings, reviewPending } from '../lib/safety.js';
 import { summarizeDispute } from '../lib/disputeSummary.js';
+import { compareConditionPhotos } from '../lib/conditionCompare.js';
 
 const router = Router();
 
@@ -239,6 +240,19 @@ router.get('/disputes', async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
+});
+
+// POST /api/admin/rentals/:id/compare-photos - the same pickup/return photo
+// comparison the renter and owner can run, for staff reviewing a dispute.
+router.post('/rentals/:id/compare-photos', async (req, res) => {
+  try {
+    const out = await compareConditionPhotos(req.params.id, req.user.id, { isStaff: true });
+    if (out.error) return res.status(out.status).json({ error: out.error });
+    res.json(out);
+  } catch (err) {
+    console.error('[admin] compare photos failed:', err.message);
+    res.status(502).json({ error: 'The photo comparison is busy right now - please try again in a minute.' });
+  }
 });
 
 // POST /api/admin/disputes/:id/summary - body: { refresh? }. The AI
