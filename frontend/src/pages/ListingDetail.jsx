@@ -227,7 +227,7 @@ function ReviewsSection({ reviews, avgRating, reviewCount, canReview, listingId,
       </div>
 
       {canReview && (
-        <div className="mt-6">
+        <div id="write-review" className="mt-6 scroll-mt-24">
           <WriteReviewForm listingId={listingId} onSubmitted={onReviewSubmitted} />
         </div>
       )}
@@ -296,6 +296,13 @@ export default function ListingDetail() {
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // The "How was it?" reminder links to #write-review - scroll there once
+  // the page (and the form) is on screen.
+  useEffect(() => {
+    if (!listing || window.location.hash !== '#write-review') return;
+    document.getElementById('write-review')?.scrollIntoView({ behavior: 'smooth' });
+  }, [listing]);
 
   function handleToggleFavorite() {
     if (!isLoggedIn) {

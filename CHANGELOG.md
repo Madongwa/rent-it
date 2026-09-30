@@ -6,6 +6,9 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-09-30
 
+- **Reminders** - "Pickup tomorrow" and "Return due tomorrow" notifications to
+  both people on an agreed rental, and a "How was it?" review nudge to the
+  renter the day after it ends (sent each morning, once each).
 - **Saved searches and alerts** - "Alert me" on the Marketplace saves a search;
   every morning (9:00 IST) you get a notification if new listings match it.
   Manage them under Dashboard → Saved searches. Needs `CRON_SECRET` set on the

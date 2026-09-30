@@ -1185,3 +1185,18 @@ create table if not exists public.saved_searches (
 create index if not exists saved_searches_user_idx on public.saved_searches (user_id, created_at desc);
 
 alter table public.saved_searches enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Reminders sent by the daily job (lib/reminders.js): pickup tomorrow,
+-- return due tomorrow, and a review nudge after the rental. One row per
+-- rental and kind, so a reminder is never sent twice even if the job runs
+-- again. Backend-only.
+-- ---------------------------------------------------------------------------
+create table if not exists public.rental_reminders (
+  rental_id uuid not null references public.rentals (id) on delete cascade,
+  kind text not null check (kind in ('pickup', 'return', 'review')),
+  sent_at timestamptz not null default now(),
+  primary key (rental_id, kind)
+);
+
+alter table public.rental_reminders enable row level security;

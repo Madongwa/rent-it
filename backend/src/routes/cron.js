@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { timingSafeEqual } from 'crypto';
 import { runSavedSearchAlerts } from '../lib/savedSearches.js';
+import { runRentalReminders } from '../lib/reminders.js';
 
 // Scheduled jobs. Vercel Cron calls GET /api/cron/daily once a day (see
 // backend/vercel.json) with "Authorization: Bearer <CRON_SECRET>". Without
@@ -18,6 +19,7 @@ export function authorized(header, secret) {
 // Each job runs on its own - one failing doesn't stop the others.
 export const DAILY_JOBS = {
   savedSearches: () => runSavedSearchAlerts(),
+  rentalReminders: () => runRentalReminders(),
 };
 
 router.get('/daily', async (req, res) => {

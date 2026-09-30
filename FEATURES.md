@@ -275,6 +275,11 @@ WhatsApp-style chat page at `/messages`, one thread per listing and renter.
   deal agreed, declined / completed / cancelled, a problem reported, new
   message (shown in your language), an owner replied to your Wanted post, a new
   listing may match your Wanted post, new listings for a saved search.
+- **Reminders** (daily at 9:00 IST, once each): **pickup tomorrow** and **return
+  due tomorrow** to both renter and owner of an agreed rental (with a safety
+  tip - pay in person, take photos), and **"How was it?"** to the renter the day
+  after a rental ends, unless they've already reviewed - it opens the listing
+  at the review form.
 - **Email** copies of every notification via Resend (when `RESEND_API_KEY` is set).
 
 ---
@@ -418,7 +423,8 @@ Common rules for all of them:
 - **Deploy**: pushing to `main` redeploys both Vercel projects
   (frontend: renthere.in, backend: rent-it-api.vercel.app).
 - **Daily job**: Vercel Cron calls `GET /api/cron/daily` at 03:30 UTC (9:00 IST)
-  - `backend/vercel.json`. It runs saved-search alerts. Protected by
+  - `backend/vercel.json`. It runs saved-search alerts and rental reminders
+  (`rental_reminders` makes each reminder send once, even if the job reruns). Protected by
   `CRON_SECRET` (set it in the backend's Vercel environment variables; without
   it the endpoint refuses every call and nothing runs).
 - **Env vars**: see `backend/.env.example` and `frontend/.env.example`.

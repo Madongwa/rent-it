@@ -2,6 +2,9 @@ import { supabase } from './supabaseClient.js';
 import { chatJson } from './ai.js';
 import { ruleFlags } from './safety.js';
 import { notify } from './notify.js';
+import { addDays, indiaToday } from './dates.js';
+
+export { indiaToday };
 
 // Wanted posts: a renter describes what they need ("Need a JCB in Pune next
 // week") and owners who have one reply with a listing. Three AI helpers,
@@ -13,16 +16,9 @@ import { notify } from './notify.js';
 //     words to try (only ones that actually have listings).
 // Wanted posts are public, so this text may go to Gemini as well as Groq.
 
-const DAY = 24 * 60 * 60 * 1000;
 const MAX_AHEAD_DAYS = 365;
 const MAX_PRICE = 1_000_000;
 
-// Today in India, as YYYY-MM-DD.
-export function indiaToday(now = new Date()) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
-}
-
-const addDays = (iso, n) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * DAY).toISOString().slice(0, 10);
 const isDate = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
 const text = (v, max) => (typeof v === 'string' && v.trim() ? v.trim().replace(/\s+/g, ' ').slice(0, max) : null);
 
