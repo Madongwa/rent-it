@@ -1,6 +1,8 @@
 // Validation for chat messages sent from the "+" menu - photos, documents
-// and locations. Pure (no Supabase access), so it's unit-tested directly
+// and locations - and voice notes. Pure (no Supabase access), so it's unit-tested directly
 // in attachments.test.js; messages.js then checks the file really exists.
+
+import { baseAudioType, MAX_AUDIO_BYTES, MAX_VOICE_SECONDS } from './audio.js';
 
 export const ATTACHMENT_BUCKET = 'chat-attachments';
 
@@ -64,10 +66,36 @@ function parseLocation(attachment) {
   };
 }
 
+// A voice note: the recording in this thread's folder. The body is a
+// placeholder until the backend has turned the audio into text.
+function parseVoice(attachment, conversationId) {
+  const { path, size, mime_type: mimeType, duration } = attachment;
+  if (typeof path !== 'string' || !path.startsWith(`${conversationId}/`) || path.includes('..') || path.length > 500) {
+    return { error: 'Invalid attachment path' };
+  }
+  const type = baseAudioType(mimeType);
+  if (!type) return { error: 'That audio type isn’t supported' };
+  const bytes = Number(size);
+  if (!Number.isFinite(bytes) || bytes <= 0) return { error: 'Invalid file size' };
+  if (bytes > MAX_AUDIO_BYTES) return { error: 'Voice message is too long' };
+  const seconds = Math.round(Number(duration));
+  if (!Number.isFinite(seconds) || seconds < 1) return { error: 'That voice message is empty' };
+  if (seconds > MAX_VOICE_SECONDS + 5) return { error: `Voice messages can be up to ${MAX_VOICE_SECONDS / 60} minutes` };
+  return {
+    attachment: { path, size: bytes, mime_type: type, duration: Math.min(seconds, MAX_VOICE_SECONDS), transcribed: false },
+    body: '🎤 Voice message',
+  };
+}
+
 // Returns { kind, body, attachment } ready to insert, or { error }.
 export function parseAttachmentMessage({ kind, attachment }, conversationId) {
-  if (!['image', 'file', 'location'].includes(kind)) return { error: 'Unsupported message type' };
+  if (!['image', 'file', 'location', 'voice'].includes(kind)) return { error: 'Unsupported message type' };
   if (!attachment || typeof attachment !== 'object') return { error: 'attachment is required' };
-  const parsed = kind === 'location' ? parseLocation(attachment) : parseFile(kind, attachment, conversationId);
+  const parsed =
+    kind === 'location'
+      ? parseLocation(attachment)
+      : kind === 'voice'
+        ? parseVoice(attachment, conversationId)
+        : parseFile(kind, attachment, conversationId);
   return parsed.error ? parsed : { kind, ...parsed };
 }

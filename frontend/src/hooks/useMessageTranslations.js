@@ -24,7 +24,12 @@ export default function useMessageTranslations(messages, userId, lang) {
     if (!userId) return;
     const ids = messages
       .filter(
-        (m) => m?.id && (m.kind || 'text') === 'text' && m.body && m.sender_id !== userId && !requestedRef.current.has(m.id)
+        (m) =>
+          m?.id &&
+          ((m.kind || 'text') === 'text' || (m.kind === 'voice' && m.attachment?.transcribed)) &&
+          m.body &&
+          m.sender_id !== userId &&
+          !requestedRef.current.has(m.id)
       )
       .map((m) => m.id);
     if (ids.length === 0) return;

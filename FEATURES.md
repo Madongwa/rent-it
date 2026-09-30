@@ -80,6 +80,10 @@ Browse everything available to rent.
   filters - and sends one notification ("2 new listings for 'tractor near
   Mandya'") that opens the search. Your own listings and "available today"
   don't count. Manage them under Dashboard → Saved searches.
+- **🎤 Voice search** - the mic next to the search box listens (up to 15 s, tap
+  ■ to stop early); what you said lands in the box and is searched like typed
+  words, so a spoken sentence in any language goes through the plain-language
+  search. The recording isn't stored.
 - **No results?** The AI suggests other search words that do have listings
   ("wedding speakers" → speakers, PA system), and offers to **post it as a
   Wanted request**.
@@ -246,6 +250,13 @@ WhatsApp-style chat page at `/messages`, one thread per listing and renter.
   link (shown once you're logged in, like Dashboard).
 - **Offer cards** for every price offer, with Accept / Counter / Decline, and
   status lines ("Deal agreed", "Declined"…).
+- **🎤 Voice messages** - with the message box empty, the mic records a voice
+  note (up to 2 minutes; Delete or Send). It uploads to the private chat
+  storage, the server writes out what was said (Groq Whisper) and translates
+  that text into the other person's language before delivering it - so they
+  get a playable recording **plus the words, in their language**. If nothing
+  could be made out it still arrives as a recording. The notification reads
+  "🎤 <what was said>".
 - **"+" menu** - send **photos** (gallery or camera, up to 10 MB), **documents**
   (PDF, Word…, up to 20 MB) and a **location** (current location, search, or
   pin on a map). Attachments are private to the two people (and staff reviewing
@@ -336,6 +347,8 @@ never go to an AI. **Print / Save as PDF** uses the browser's print dialog
 |---|---|---|---|
 | Site translation | Everywhere | Gemini, Groq as backup | Page text (public) |
 | Chat translation | Messages | **Groq only** | Chat messages |
+| Voice messages → text | Messages | **Groq only** (Whisper) | Your voice recording |
+| Voice search | Marketplace | **Groq only** (Whisper), then the search AI | Your spoken search (not stored) |
 | Suggested replies | Messages | **Groq only** | Recent chat messages, offer state |
 | Help assistant | Help bubble | Groq | Your question; your own account summary when logged in |
 | Listing writer | List an Item | Gemini (sees the photos), Groq as backup | Your notes and up to 3 listing photos |

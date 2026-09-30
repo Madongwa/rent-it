@@ -309,7 +309,8 @@ export async function translateMessages(ids, lang, userId, { client, db = supaba
 
   const allowed = messages.filter(
     (m) =>
-      m.kind === 'text' &&
+      // Voice notes carry their transcript as the body.
+      (m.kind === 'text' || m.kind === 'voice') &&
       m.body &&
       m.sender_id !== userId &&
       (m.conversation?.owner_id === userId || m.conversation?.renter_id === userId)

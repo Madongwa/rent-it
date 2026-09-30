@@ -7,6 +7,7 @@ import { ATTACHMENT_BUCKET, parseAttachmentMessage } from '../lib/attachments.js
 import { translateForReader } from '../lib/translate.js';
 import { suggestReplies } from '../lib/replySuggestions.js';
 import rateLimit from 'express-rate-limit';
+import { transcribeAudio } from '../lib/voice.js';
 import { isSupportedLanguage } from '../lib/languages.js';
 
 const router = Router();
@@ -244,6 +245,15 @@ router.post('/conversations/:id/messages', requireAuth, async (req, res) => {
     row = parsed;
   }
 
+  // Voice notes become text (Groq Whisper, lib/voice.js), so the reader
+  // can read it - and, below, read it in their own language. If nothing
+  // could be made out, it still arrives as a playable voice message.
+  if (row.kind === 'voice') {
+    const { data: blob, error: downloadError } = await supabase.storage.from(ATTACHMENT_BUCKET).download(row.attachment.path);
+    const transcript = downloadError ? null : await transcribeAudio(Buffer.from(await blob.arrayBuffer()), row.attachment.mime_type);
+    if (transcript) row = { ...row, body: transcript, attachment: { ...row.attachment, transcribed: true } };
+  }
+
   const recipientId = participant.owner_id === req.user.id ? participant.renter_id : participant.owner_id;
 
   // Translate first, deliver second: if the other person picked a different
@@ -252,7 +262,7 @@ router.post('/conversations/:id/messages', requireAuth, async (req, res) => {
   // notification reads - in their language. `lang` is the sender's own
   // choice; the same language on both sides skips the translator entirely.
   let forReader = null;
-  if (row.kind === 'text') {
+  if (row.kind === 'text' || (row.kind === 'voice' && row.attachment.transcribed)) {
     const { data: recipient } = await supabase.from('profiles').select('preferred_language').eq('id', recipientId).maybeSingle();
     const readerLang = recipient?.preferred_language || 'en';
     const writerLang = isSupportedLanguage(req.body.lang) ? req.body.lang : null;
@@ -283,7 +293,7 @@ router.post('/conversations/:id/messages', requireAuth, async (req, res) => {
     userId: recipientId,
     type: 'new_message',
     title: `New message from ${senderProfile?.full_name || 'a Rent It user'}`,
-    body: (forReader?.translated ? forReader.text : row.body).slice(0, 140),
+    body: `${row.kind === 'voice' && row.attachment.transcribed ? '🎤 ' : ''}${forReader?.translated ? forReader.text : row.body}`.slice(0, 140),
     link: `/messages?c=${req.params.id}`,
   });
 

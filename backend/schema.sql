@@ -1200,3 +1200,31 @@ create table if not exists public.rental_reminders (
 );
 
 alter table public.rental_reminders enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Voice messages in chat: the audio goes to the private chat-attachments
+-- bucket like any file; the backend turns it into text (Groq Whisper) and
+-- stores that as the message body, so it's translated for the reader like
+-- a typed message. attachment for 'voice': { path, size, mime_type,
+-- duration, transcribed }. Safe to re-run.
+-- ---------------------------------------------------------------------------
+alter table public.messages drop constraint if exists messages_kind_check;
+alter table public.messages
+  add constraint messages_kind_check
+    check (kind in ('text', 'offer', 'system', 'image', 'file', 'location', 'voice'));
+
+update storage.buckets
+set allowed_mime_types = array[
+    'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.oasis.opendocument.text',
+    'application/rtf',
+    'text/plain',
+    'text/csv',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/wav', 'audio/aac'
+  ]
+where id = 'chat-attachments';

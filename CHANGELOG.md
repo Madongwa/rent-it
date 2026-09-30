@@ -6,6 +6,10 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-09-30
 
+- **Voice messages** - record a voice note in chat (up to 2 minutes); the other
+  person gets the recording plus what was said, written out and translated
+  into their language. **Voice search** on the Marketplace - speak instead of
+  typing. Both use Groq's Whisper (never Gemini). Privacy Policy updated.
 - **Rental agreement** - every agreed rental gets a printable agreement (items,
   dates, price, total, deposit, terms) in English and both people's languages,
   from "📄 Agreement" on the Dashboard; "Print / Save as PDF" makes a PDF.

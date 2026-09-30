@@ -6,9 +6,13 @@ import FilterSidebar, { PRICE_BUCKETS, SORT_OPTIONS, countActiveFilters } from '
 import { useFavorites } from '../hooks/useFavorites';
 import useSeo from '../hooks/useSeo';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
-import { Bell, LayoutGrid, Loader2, Map as MapIcon, Sparkles } from 'lucide-react';
+import { Bell, LayoutGrid, Loader2, Map as MapIcon, Mic, Sparkles, Square } from 'lucide-react';
 import { describeIntent, intentToParams } from '../lib/searchIntent';
 import { forgetLocation, locateMe, locationError, savedLocation } from '../lib/myLocation';
+import { micError, recordingSupported, startRecording } from '../lib/voiceRecorder';
+
+// Voice search listens for at most this long.
+const VOICE_SEARCH_SECONDS = 15;
 
 // Leaflet only downloads when someone opens the map.
 const ListingsMap = lazy(() => import('../components/ListingsMap'));
@@ -373,7 +377,53 @@ export default function Marketplace() {
   // typed, like before.
   async function handleSearchSubmit(e) {
     e.preventDefault();
-    const text = searchInput.trim();
+    await runSearch(searchInput.trim());
+  }
+
+  // Voice search: speak instead of typing - the words land in the box and
+  // are searched like typed ones (Groq Whisper on the server).
+  const [voice, setVoice] = useState({ state: 'idle' }); // idle | listening | working
+  const voiceRecRef = useRef(null);
+  const voiceTimerRef = useRef(null);
+
+  async function toggleVoiceSearch() {
+    if (voice.state === 'listening') return finishVoiceSearch();
+    if (voice.state !== 'idle') return;
+    setVoice({ state: 'listening' });
+    try {
+      voiceRecRef.current = await startRecording();
+      voiceTimerRef.current = setTimeout(finishVoiceSearch, VOICE_SEARCH_SECONDS * 1000);
+    } catch (err) {
+      setVoice({ state: 'idle', error: micError(err) });
+    }
+  }
+
+  async function finishVoiceSearch() {
+    clearTimeout(voiceTimerRef.current);
+    const rec = voiceRecRef.current;
+    voiceRecRef.current = null;
+    if (!rec) return;
+    setVoice({ state: 'working' });
+    try {
+      const { blob, type } = await rec.stop();
+      const { text } = await api.voiceSearch(blob, type);
+      setSearchInput(text);
+      setVoice({ state: 'idle' });
+      await runSearch(text);
+    } catch (err) {
+      setVoice({ state: 'idle', error: err.message });
+    }
+  }
+
+  useEffect(
+    () => () => {
+      clearTimeout(voiceTimerRef.current);
+      voiceRecRef.current?.cancel();
+    },
+    []
+  );
+
+  async function runSearch(text) {
     setAiReading(null);
     if (text.split(/\s+/).length < 3) {
       updateParam('q', text);
@@ -484,6 +534,20 @@ export default function Marketplace() {
 
         {/* Search + sort-adjacent row (kept simple; sort itself lives in the sidebar) */}
         <form onSubmit={handleSearchSubmit} className="mb-4 flex max-w-xl gap-2">
+          {recordingSupported() && (
+            <button
+              type="button"
+              onClick={toggleVoiceSearch}
+              disabled={voice.state === 'working'}
+              aria-label={voice.state === 'listening' ? 'Stop and search' : 'Search by voice'}
+              title="Say what you need, in any language"
+              className={`inline-flex h-auto w-10 shrink-0 items-center justify-center rounded-btn border ${
+                voice.state === 'listening' ? 'animate-pulse border-red-500 bg-red-500/20 text-red-300' : 'border-night-border/20 text-night-text hover:border-night-border/40'
+              } disabled:opacity-60`}
+            >
+              {voice.state === 'working' ? <Loader2 className="h-4 w-4 animate-spin" /> : voice.state === 'listening' ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </button>
+          )}
           <input
             type="text"
             value={searchInput}
@@ -519,6 +583,10 @@ export default function Marketplace() {
         )}
         {saved && !['saved', 'saving'].includes(saved) && <p className="-mt-2 mb-4 text-sm text-red-400">{saved}</p>}
 
+        {voice.state === 'listening' && (
+          <p className="-mt-2 mb-4 text-sm text-red-300" role="status">Listening… say what you need, then tap ■ to search.</p>
+        )}
+        {voice.error && <p className="-mt-2 mb-4 text-sm text-red-400">{voice.error}</p>}
         {aiReading && (
           <p className="-mt-2 mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-night-muted" role="status">
             <Sparkles className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />

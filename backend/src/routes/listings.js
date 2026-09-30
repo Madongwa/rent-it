@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { supabase } from '../lib/supabaseClient.js';
 import { attachUserIfPresent, requireAuth } from '../middleware/auth.js';
 import rateLimit from 'express-rate-limit';
@@ -9,6 +9,8 @@ import { BOOKED_STATUSES, unavailableRanges, unavailableSoon } from '../lib/avai
 import { ownerTrust } from '../lib/trust.js';
 import { sortByTrending, trendingScores } from '../lib/trending.js';
 import { matchNewListing, searchAlternatives } from '../lib/wanted.js';
+import { transcribeAudio } from '../lib/voice.js';
+import { MAX_AUDIO_BYTES } from '../lib/audio.js';
 
 // How long publishing waits for the Wanted-post matching (an AI call). On
 // Vercel nothing can run after the response, so it's done before, but
@@ -321,6 +323,22 @@ router.post('/search-intent', searchRateLimiter, async (req, res) => {
     res.status(502).json({ error: 'Could not understand that search right now.' });
   }
 });
+
+// POST /api/listings/voice-search - body: the recording itself
+// (Content-Type audio/webm, audio/mp4, ...). Returns { text } - what was
+// said - which the Marketplace then searches like typed words. Groq
+// Whisper only; the audio isn't stored.
+router.post(
+  '/voice-search',
+  searchRateLimiter,
+  express.raw({ type: 'audio/*', limit: MAX_AUDIO_BYTES }),
+  async (req, res) => {
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'No recording received.' });
+    const text = await transcribeAudio(req.body, req.headers['content-type']);
+    if (!text) return res.status(422).json({ error: "Couldn't make that out - try again, a little closer to the phone." });
+    res.json({ text: text.slice(0, 300) });
+  }
+);
 
 // POST /api/listings/alternatives - body: { text }. When a search found
 // nothing: other search words that do have listings (lib/wanted.js).

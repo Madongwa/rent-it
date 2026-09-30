@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Download, FileText, MapPin } from 'lucide-react';
+import { Download, FileText, MapPin, Mic } from 'lucide-react';
 import { formatBytes, mapsLink, signedAttachmentUrl, tileFor } from '../../lib/chatAttachments';
+import { formatSeconds } from '../../lib/voiceRecorder';
 
 // Files are in a private bucket, so each one gets a short-lived signed URL
 // (Supabase only issues it to the two people in the chat, or staff).
@@ -114,8 +115,33 @@ function LocationAttachment({ attachment }) {
   );
 }
 
-export default function AttachmentMessage({ message, mine }) {
+// A voice note: the recording, plus what was said as text (in the
+// reader's language when it was translated - `text` from Messages).
+function VoiceAttachment({ attachment, text, mine }) {
+  const { url, failed } = useSignedUrl(attachment.path);
+  return (
+    <div className="w-64 max-w-full px-1 py-1">
+      <div className="flex items-center gap-2">
+        <Mic className="h-4 w-4 shrink-0 opacity-80" aria-hidden="true" />
+        {url ? (
+          <audio controls preload="metadata" src={url} className="h-9 min-w-0 flex-1" />
+        ) : (
+          <span className="text-xs opacity-80">{failed ? 'Recording unavailable' : 'Loading…'}</span>
+        )}
+        <span className="shrink-0 text-[11px] opacity-70">{formatSeconds(attachment.duration)}</span>
+      </div>
+      {attachment.transcribed && text && (
+        <p className={`mt-1.5 whitespace-pre-line break-words text-sm ${mine ? 'text-white/90' : ''}`} dir="auto">
+          {text}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export default function AttachmentMessage({ message, mine, text }) {
   const { kind, attachment } = message;
+  if (kind === 'voice' && attachment) return <VoiceAttachment attachment={attachment} text={text ?? message.body} mine={mine} />;
   if (!attachment) return <p className="whitespace-pre-line break-words">{message.body}</p>;
   if (kind === 'image') return <ImageAttachment attachment={attachment} />;
   if (kind === 'file') return <FileAttachment attachment={attachment} mine={mine} />;

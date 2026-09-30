@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, IndianRupee, MessageCircle, Search, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, IndianRupee, MessageCircle, Mic, Search, ShieldAlert } from 'lucide-react';
 import { api } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
@@ -10,6 +10,8 @@ import AttachMenu from '../components/chat/AttachMenu';
 import AttachmentMessage from '../components/chat/AttachmentMessage';
 import SuggestReplies from '../components/chat/SuggestReplies';
 import { checkAttachment, shrinkImage, uploadAttachment } from '../lib/chatAttachments';
+import { recordingSupported } from '../lib/voiceRecorder';
+import VoiceRecorderBar from '../components/chat/VoiceRecorderBar';
 import { MESSAGES_READ_EVENT } from '../hooks/useUnreadMessages';
 import { formatDay, formatInr, priceDifference, rentalDays } from '../lib/offers';
 import { chatWarnings } from '../lib/chatSafety';
@@ -20,7 +22,7 @@ import { getLanguage } from '../lib/languages';
 // Leaflet (the map) only downloads when someone opens the location picker.
 const LocationPicker = lazy(() => import('../components/chat/LocationPicker'));
 
-const ATTACHMENT_KINDS = ['image', 'file', 'location'];
+const ATTACHMENT_KINDS = ['image', 'file', 'location', 'voice'];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -326,6 +328,7 @@ export default function Messages() {
   const [locationOpen, setLocationOpen] = useState(false);
   // Photos/documents on their way up: { id, name, status: 'uploading' | 'failed', error }
   const [uploads, setUploads] = useState([]);
+  const [recordingVoice, setRecordingVoice] = useState(false);
   const bottomRef = useRef(null);
 
   // The other person's messages - in the open chat and the chat list's
@@ -389,6 +392,7 @@ export default function Messages() {
   useEffect(() => {
     setOfferFormOpen(false);
     setLocationOpen(false);
+    setRecordingVoice(false);
     setUploads([]);
     setThreadError('');
     setDraft('');
@@ -578,6 +582,26 @@ export default function Messages() {
     loadConversations();
   }
 
+  // Voice notes: upload the recording, then the server turns it into text
+  // (and translates that for the other person) before delivering it.
+  async function sendVoice({ blob, type, seconds }) {
+    const conversationId = activeId;
+    const id = `${Date.now()}-voice`;
+    setThreadError('');
+    setUploads((u) => [...u, { id, name: 'Voice message', kind: 'voice', status: 'uploading' }]);
+    try {
+      const ext = type === 'audio/mp4' ? 'm4a' : type.split('/')[1] || 'webm';
+      const file = new File([blob], `voice.${ext}`, { type });
+      const attachment = await uploadAttachment(conversationId, file);
+      const sent = await api.sendAttachment(conversationId, 'voice', { ...attachment, duration: Math.max(1, Math.round(seconds)) });
+      if (activeIdRef.current === conversationId) addSent(sent);
+      setUploads((u) => u.filter((x) => x.id !== id));
+    } catch (err) {
+      setUploads((u) => u.map((x) => (x.id === id ? { ...x, status: 'failed', error: err.message } : x)));
+    }
+    loadConversations();
+  }
+
   // Throws on failure so the picker can show the error.
   async function sendLocation(location) {
     const sent = await api.sendAttachment(activeId, 'location', location);
@@ -757,6 +781,8 @@ export default function Messages() {
                         />
                       );
                     } else if (ATTACHMENT_KINDS.includes(m.kind) && m.attachment) {
+                      // A voice note's text shows in my language, like typed messages.
+                      const vtx = m.kind === 'voice' && !mine ? translations[m.id] : null;
                       body = (
                         <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                           <div
@@ -766,7 +792,7 @@ export default function Messages() {
                           >
                             {/* File names and shared places are what people typed/chose - left as is. */}
                             <div translate="no">
-                              <AttachmentMessage message={m} mine={mine} />
+                              <AttachmentMessage message={m} mine={mine} text={vtx?.translated ? vtx.text : undefined} />
                             </div>
                             <p className={`mt-1 flex items-center justify-end gap-1 px-1.5 text-[10px] ${mine ? 'text-white/70' : 'text-night-muted'}`}>
                               {formatClock(m.created_at)}
@@ -833,7 +859,7 @@ export default function Messages() {
                     <div key={u.id} className="flex justify-end">
                       <div className="flex max-w-[85%] items-center gap-2 rounded-2xl rounded-br-md bg-accent/60 px-3.5 py-2 text-sm text-white sm:max-w-[65%]">
                         <span className="truncate">
-                          {u.kind === 'image' ? '📷' : '📄'} {u.name}
+                          {u.kind === 'image' ? '📷' : u.kind === 'voice' ? '🎤' : '📄'} {u.name}
                         </span>
                         {u.status === 'uploading' ? (
                           <span className="shrink-0 text-[11px] text-white/80">Sending…</span>
@@ -879,6 +905,10 @@ export default function Messages() {
                 )}
 
                 <form onSubmit={handleSend} className="flex items-center gap-2 border-t border-night-border/15 bg-night-elevated/60 p-2.5 sm:p-3">
+                  {recordingVoice ? (
+                    <VoiceRecorderBar onSend={sendVoice} onClose={() => setRecordingVoice(false)} />
+                  ) : (
+                  <>
                   {canMakeOffer && !offerFormOpen && (
                     <button
                       type="button"
@@ -904,13 +934,27 @@ export default function Messages() {
                     onDocument={(files) => sendFiles(files, 'file')}
                     onLocation={() => setLocationOpen(true)}
                   />
-                  <button
-                    type="submit"
-                    disabled={sending || !draft.trim()}
-                    className="h-10 shrink-0 rounded-full bg-white px-4 text-sm font-medium text-black hover:opacity-90 disabled:opacity-60"
-                  >
-                    {sending ? 'Sending…' : 'Send'}
-                  </button>
+                  {!draft.trim() && !sending && recordingSupported() ? (
+                    <button
+                      type="button"
+                      onClick={() => setRecordingVoice(true)}
+                      aria-label="Record a voice message"
+                      title="Record a voice message - it's written out (and translated) for the other person"
+                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-black hover:opacity-90"
+                    >
+                      <Mic className="h-5 w-5" />
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={sending || !draft.trim()}
+                      className="h-10 shrink-0 rounded-full bg-white px-4 text-sm font-medium text-black hover:opacity-90 disabled:opacity-60"
+                    >
+                      {sending ? 'Sending…' : 'Send'}
+                    </button>
+                  )}
+                  </>
+                  )}
                 </form>
 
                 {locationOpen && (

@@ -50,6 +50,9 @@ export const api = {
   removeBlockedDates: (id, blockId) => request(`/listings/${id}/blocked-dates/${blockId}`, { method: 'DELETE' }),
   draftListing: (payload) => request('/listings/draft', { method: 'POST', body: JSON.stringify(payload) }),
   interpretSearch: (text) => request('/listings/search-intent', { method: 'POST', body: JSON.stringify({ text }) }),
+  // Voice search: the recording itself as the body; returns { text }.
+  voiceSearch: (blob, type) =>
+    request('/listings/voice-search', { method: 'POST', body: blob, headers: { 'Content-Type': type } }),
   searchAlternatives: (text) => request('/listings/alternatives', { method: 'POST', body: JSON.stringify({ text }) }),
 
   getSavedSearches: () => request('/saved-searches'),
