@@ -48,6 +48,8 @@ export const api = {
   getBlockedDates: (id) => request(`/listings/${id}/blocked-dates`),
   addBlockedDates: (id, payload) => request(`/listings/${id}/blocked-dates`, { method: 'POST', body: JSON.stringify(payload) }),
   removeBlockedDates: (id, blockId) => request(`/listings/${id}/blocked-dates/${blockId}`, { method: 'DELETE' }),
+  checkPhotos: (imageUrls, title) =>
+    request('/listings/photo-check', { method: 'POST', body: JSON.stringify({ image_urls: imageUrls, title }) }),
   draftListing: (payload) => request('/listings/draft', { method: 'POST', body: JSON.stringify(payload) }),
   interpretSearch: (text) => request('/listings/search-intent', { method: 'POST', body: JSON.stringify({ text }) }),
   // Voice search: the recording itself as the body; returns { text }.

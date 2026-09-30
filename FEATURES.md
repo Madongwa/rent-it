@@ -225,6 +225,10 @@ listing.
   accessories and location are filled in (in English). If photos are uploaded
   the AI looks at up to three of them too. Everything is checked against the form's real
   options; nothing is saved until you publish.
+- **✨ Check my photos** - under the photos: the AI looks at them and marks any
+  that are blurry, too dark, don't clearly show the item, have a phone number
+  or contact details on them, look like a catalogue/stock photo, or show the
+  item too small. Advice only - nothing is blocked.
 - **Pin on map** (optional) - search a village or landmark, tap the map, or
   use your current location. The exact pin is visible only to you; renters
   see the area (about 1 km), and it puts the item on the Marketplace map and in
@@ -356,6 +360,7 @@ never go to an AI. **Print / Save as PDF** uses the browser's print dialog
 | Plain-language search (incl. "near me", "within 5 km") | Marketplace | Gemini, Groq as backup | Your search sentence (never your location) |
 | "No results" suggestions | Marketplace | Gemini, Groq as backup | Your search words |
 | Rental agreement wording | Agreement page | Gemini, Groq as backup (cached once per language) | Only the fixed agreement wording - no names, prices or dates |
+| Photo check | List an Item / Edit listing | **Gemini only** (the model that can see images) | Your listing photos (public anyway) and title |
 | Wanted-post writer | Post what you need | Gemini, Groq as backup | The sentence you type |
 | Wanted matching | When a listing is published | Gemini, Groq as backup | The new listing's title, description, town, and open Wanted posts' text (no names) |
 | Listing safety review | Staff dashboard → Safety | Gemini, Groq as backup | Public listing text |

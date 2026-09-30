@@ -260,7 +260,7 @@ export default function ListingForm({ initial, listingId, onSubmit, submitLabel 
         <PriceSuggestion form={form} listingId={listingId} onUse={(price) => update('price_per_day', String(price))} />
 
         <Field label="Photos">
-          <ListingPhotos userId={user?.id} photos={form.image_urls} onChange={(urls) => update('image_urls', urls)} />
+          <ListingPhotos userId={user?.id} photos={form.image_urls} title={form.title} onChange={(urls) => update('image_urls', urls)} />
         </Field>
       </div>
 

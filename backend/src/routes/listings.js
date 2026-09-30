@@ -10,6 +10,7 @@ import { ownerTrust } from '../lib/trust.js';
 import { sortByTrending, trendingScores } from '../lib/trending.js';
 import { matchNewListing, searchAlternatives } from '../lib/wanted.js';
 import { transcribeAudio } from '../lib/voice.js';
+import { checkPhotos } from '../lib/photoCheck.js';
 import { MAX_AUDIO_BYTES } from '../lib/audio.js';
 
 // How long publishing waits for the Wanted-post matching (an AI call). On
@@ -321,6 +322,21 @@ router.post('/search-intent', searchRateLimiter, async (req, res) => {
   } catch (err) {
     console.error('[listings] search intent failed:', err.message);
     res.status(502).json({ error: 'Could not understand that search right now.' });
+  }
+});
+
+// POST /api/listings/photo-check - body: { image_urls, title }. "Check my
+// photos" on the listing form (lib/photoCheck.js) - advice only.
+router.post('/photo-check', requireAuth, draftRateLimiter, async (req, res) => {
+  const urls = Array.isArray(req.body?.image_urls) ? req.body.image_urls : [];
+  if (!urls.length) return res.status(400).json({ error: 'Add a photo first.' });
+  try {
+    const result = await checkPhotos(urls, req.body?.title);
+    if (!result) return res.status(502).json({ error: 'The photo check is busy right now - please try again in a minute.' });
+    res.json(result);
+  } catch (err) {
+    console.error('[listings] photo check failed:', err.message);
+    res.status(502).json({ error: 'The photo check is busy right now - please try again in a minute.' });
   }
 });
 

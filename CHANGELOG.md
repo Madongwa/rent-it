@@ -6,6 +6,9 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-09-30
 
+- **Check my photos** - on the listing form, the AI points out photos renters
+  won't like (blurry, dark, not the item, contact details, stock photos).
+  Advice only.
 - **Voice messages** - record a voice note in chat (up to 2 minutes); the other
   person gets the recording plus what was said, written out and translated
   into their language. **Voice search** on the Marketplace - speak instead of
