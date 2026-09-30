@@ -58,16 +58,6 @@ const MAP_LIMIT = 500;
 router.get('/', async (req, res) => {
   const { sort, distance, availability, limit, page } = req.query;
 
-  // Anonymous search log for owners' demand tips (lib/listingInsights.js):
-  // the words, category and town only - never who searched.
-  if ((req.query.q || req.query.near) && !req.query.ownerId && Math.max(Number(page) || 1, 1) === 1) {
-    const clip = (v, n) => (v ? String(v).trim().slice(0, n) || null : null);
-    const { error: logError } = await supabase
-      .from('search_log')
-      .insert({ q: clip(req.query.q, 200), category_slug: clip(req.query.category, 60), near: clip(req.query.near, 60) });
-    if (logError) console.error('[listings] search log failed:', logError.message);
-  }
-
   // "Verified owners" needs an inner join so the owner filter drops rows.
   const verifiedOnly = req.query.verified === 'true';
   let query = supabase
@@ -152,6 +142,20 @@ router.get('/', async (req, res) => {
         w === 'today' ? !bookedToday.has(l.id) : w === 'week' ? !bookedThisWeek.has(l.id) : true
       );
     });
+  }
+
+  // Anonymous search log for owners' demand tips (lib/listingInsights.js)
+  // and staff analytics: the words, category, town and how many listings
+  // it found - never who searched. First page only, so paging isn't counted.
+  if ((req.query.q || req.query.near) && !req.query.ownerId && pageNum === 1) {
+    const clip = (v, n) => (v ? String(v).trim().slice(0, n) || null : null);
+    const { error: logError } = await supabase.from('search_log').insert({
+      q: clip(req.query.q, 200),
+      category_slug: clip(req.query.category, 60),
+      near: clip(req.query.near, 60),
+      results: data.length,
+    });
+    if (logError) console.error('[listings] search log failed:', logError.message);
   }
 
   res.json({ data: data.map(publicOwner), page: pageNum, pageSize: limitNum, hasMore });

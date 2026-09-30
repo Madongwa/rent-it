@@ -6,6 +6,9 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-09-30
 
+- **Staff Insights** - a new Staff tab: chat → request → deal funnel, top
+  searches, and searches that found nothing (what people want but nobody
+  lists), over the last 30 days.
 - **Your earnings** on the Profile page for owners - earned so far, coming up,
   most-rented item, a month-by-month chart and a by-item list (agreed rent,
   deposits excluded).

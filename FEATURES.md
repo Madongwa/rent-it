@@ -437,6 +437,10 @@ Common rules for all of them:
   deciding (from records only - never the chat - and it never picks a side).
   Resolve by siding with the owner (completed) or renter (cancelled).
 - **Reviews** - moderation of flagged reviews (unflag or delete).
+- **Insights** - last 30 days: the chat → request → deal → completed funnel
+  (with conversion %), number of searches, the share that found nothing, open
+  Wanted posts, the **top searches**, and the **searches that found nothing** -
+  what people want that nobody lists yet. Counts only; the search log has no users.
 - **Seller verification** - approve / reject submitted documents. **✨ AI check**
   (optional, per application): the ID photos go to Groq's image model, which
   answers only "looks like a real ID?", "readable?", "name matches the
@@ -460,8 +464,9 @@ Common rules for all of them:
   lists; the Privacy Policy (`frontend/src/content/privacy.js`) says the same.
 - Chat translations are stored per reader language and deleted with the message.
 - **Search log**: first-page Marketplace searches with words or a town are
-  logged anonymously (words, category, town - no user, no location) for the
-  owners' demand tips, and deleted after 90 days.
+  logged anonymously (words, category, town, how many listings it found - no
+  user, no location) for the owners' demand tips and staff Insights, and
+  deleted after 90 days.
 - **Locations**: a renter's location is rounded to ~1 km in the browser, used
   only to work out distances and never stored. A listing's exact map pin is
   kept in `listing_locations` (backend-only, no public access) and shown to

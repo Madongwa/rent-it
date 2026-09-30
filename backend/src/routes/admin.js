@@ -8,6 +8,7 @@ import { dismissFlag, flaggedListings, pendingListings, reviewPending } from '..
 import { summarizeDispute } from '../lib/disputeSummary.js';
 import { compareConditionPhotos } from '../lib/conditionCompare.js';
 import { checkIdDocuments } from '../lib/idCheck.js';
+import { staffAnalytics } from '../lib/analytics.js';
 
 const router = Router();
 
@@ -28,6 +29,16 @@ router.get('/kyc-queue', async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
+});
+
+// GET /api/admin/analytics - Insights tab: searches (incl. ones that found
+// nothing), chat-to-deal funnel and open Wanted posts, last 30 days.
+router.get('/analytics', async (req, res) => {
+  try {
+    res.json(await staffAnalytics());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST /api/admin/kyc/:userId/ai-check - staff-triggered AI look at the

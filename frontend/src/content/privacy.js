@@ -31,7 +31,7 @@ export const PRIVACY_SECTIONS = [
           'Chat data: the messages you send and receive (including voice messages, their recordings and the text written out from them), and anything you send from the "+" menu - photos (including camera photos), documents (such as PDFs or Word files) and locations you choose to share (coordinates and any place name).',
           'Reviews, ratings, reports and flags you submit, and messages you send to our support assistant or to us.',
           'Searches you save to be alerted about, and Wanted posts you create.',
-          'Marketplace searches, recorded without any link to you (just the words, category and town searched) to show owners how much demand there is for their kind of item; deleted after 90 days.',
+          'Marketplace searches, recorded without any link to you (just the words, category and town searched, and how many listings were found) to show owners how much demand there is for their kind of item and to show our staff what people look for; deleted after 90 days.',
         ],
       },
       { heading: 'Data created when you use the Platform' },

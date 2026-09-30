@@ -1284,3 +1284,7 @@ create table if not exists public.season_hints (
 );
 
 alter table public.season_hints enable row level security;
+
+-- Staff analytics: how many listings each logged search found (0 = people
+-- want something nobody lists). Safe to re-run.
+alter table public.search_log add column if not exists results int;
