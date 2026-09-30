@@ -84,6 +84,7 @@ export const api = {
   counterOffer: (id, terms) =>
     request(`/rentals/${id}/offers`, { method: 'POST', body: JSON.stringify(terms) }),
   acceptOffer: (id) => request(`/rentals/${id}/accept`, { method: 'POST' }),
+  getEarnings: () => request('/rentals/earnings'),
   getAgreement: (id) => request(`/rentals/${id}/agreement`),
   comparePhotos: (id) => request(`/rentals/${id}/compare-photos`, { method: 'POST' }),
   adminComparePhotos: (id) => request(`/admin/rentals/${id}/compare-photos`, { method: 'POST' }),

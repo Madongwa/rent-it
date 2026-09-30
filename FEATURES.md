@@ -335,6 +335,16 @@ never go to an AI. **Print / Save as PDF** uses the browser's print dialog
 
 ---
 
+### Profile (`/profile`)
+Name and phone, plus **Your earnings** for anyone who has listed something:
+earned so far (agreed rentals that are completed or over), agreed & coming up,
+most-rented item, a **bar chart of agreed rent by month** (last 12 months, with
+hover values and a "See as a table" view), busiest month, and a by-item list.
+Amounts are agreed price per day × days, deposits excluded - Rent It never
+handles the money.
+
+---
+
 ## 8. Languages and translation
 
 - **Language button** (top right, a short label like "EN" / "हि"): English plus

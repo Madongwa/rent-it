@@ -9,6 +9,7 @@ import { effectiveDailyRate, rentalDays } from '../lib/rates.js';
 import { hasBlockedConflict } from '../lib/availability.js';
 import { buildAgreement } from '../lib/agreement.js';
 import { compareConditionPhotos } from '../lib/conditionCompare.js';
+import { ownerEarnings } from '../lib/earnings.js';
 import rateLimit from 'express-rate-limit';
 
 // Each comparison may be an AI call on several photos.
@@ -204,6 +205,16 @@ router.get('/mine', requireAuth, async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
+});
+
+// GET /api/rentals/earnings - the owner's earnings summary (lib/earnings.js):
+// agreed rent on their listings, by month and by item.
+router.get('/earnings', requireAuth, async (req, res) => {
+  try {
+    res.json(await ownerEarnings(req.user.id));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /api/rentals/incoming - rental requests on listings I own

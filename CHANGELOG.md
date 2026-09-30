@@ -6,6 +6,9 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-09-30
 
+- **Your earnings** on the Profile page for owners - earned so far, coming up,
+  most-rented item, a month-by-month chart and a by-item list (agreed rent,
+  deposits excluded).
 - **AI help for staff checking IDs** - an optional "AI check" on each seller
   application: real-looking ID, readable, name matches, document type. It
   never reads out ID numbers, stores nothing and staff still decide. Groq

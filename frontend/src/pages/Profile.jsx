@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
+import Earnings from '../components/Earnings';
 
 const inputClass =
   'w-full rounded-btn border border-night-border/20 bg-black/20 px-3 py-2 text-sm text-night-text placeholder:text-night-muted/60 focus:outline-none focus:ring-2 focus:ring-accent';
@@ -46,11 +47,11 @@ export default function Profile() {
 
   return (
     <DarkGradientBg className="min-h-[calc(100vh-4rem)]">
-    <div className="mx-auto max-w-lg px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <h1 className="text-heading-sm text-night-text">Your profile</h1>
       <p className="mt-1 text-body text-night-muted">Manage the details other users see when you list or rent equipment.</p>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-5 rounded-card border border-night-border/15 bg-night-card p-6">
+      <form onSubmit={handleSubmit} className="mt-8 max-w-lg space-y-5 rounded-card border border-night-border/15 bg-night-card p-6">
         <div>
           <label className="mb-1 block text-sm font-medium text-night-muted">Email</label>
           <input type="email" value={profile?.email || ''} disabled className={`${inputClass} text-night-muted`} />
@@ -84,6 +85,8 @@ export default function Profile() {
           {saving ? 'Saving…' : 'Save changes'}
         </button>
       </form>
+
+      <Earnings />
     </div>
     </DarkGradientBg>
   );
