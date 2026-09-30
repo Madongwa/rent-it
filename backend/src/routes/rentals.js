@@ -7,6 +7,7 @@ import { parseOfferTerms, describeTerms, formatInr, whoseTurn } from '../lib/off
 import { releaseListingIfIdle } from '../lib/listingStatus.js';
 import { effectiveDailyRate, rentalDays } from '../lib/rates.js';
 import { hasBlockedConflict } from '../lib/availability.js';
+import { buildAgreement } from '../lib/agreement.js';
 
 // A rental request carries the renter's own per-day price, and the two
 // sides bargain in the listing's chat thread: every offer/counter-offer is
@@ -401,6 +402,19 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
   });
 
   res.json(data);
+});
+
+// GET /api/rentals/:id/agreement - the rental agreement page's data, for
+// either of the two people, once the deal is agreed (lib/agreement.js).
+router.get('/:id/agreement', requireAuth, async (req, res) => {
+  try {
+    const result = await buildAgreement(req.params.id, req.user.id);
+    if (result.error) return res.status(result.status).json({ error: result.error });
+    res.json(result);
+  } catch (err) {
+    console.error('[rentals] agreement failed:', err.message);
+    res.status(500).json({ error: 'Could not load the agreement right now.' });
+  }
 });
 
 // PATCH /api/rentals/:id - owner declines or marks complete, or either side

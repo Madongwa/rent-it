@@ -139,6 +139,16 @@ function RentalPhotosPanel({ rental, onChange }) {
   );
 }
 
+// Once a deal is agreed, both people can open (and print) the agreement.
+function AgreementLink({ rental }) {
+  if (!['approved', 'completed', 'disputed'].includes(rental.status)) return null;
+  return (
+    <Link to={`/rentals/${rental.id}/agreement`} className="text-sm font-medium text-night-muted hover:text-night-text">
+      📄 Agreement
+    </Link>
+  );
+}
+
 export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const VALID_TABS = TABS.map((t) => t.key);
@@ -322,6 +332,7 @@ export default function Dashboard() {
                     </button>
                   )}
                   <ChatLink rental={r} />
+                  <AgreementLink rental={r} />
                   {['pending', 'approved'].includes(r.status) && (
                     <button onClick={() => respond(r.id, 'cancelled')} className="text-sm font-medium text-red-400 hover:text-red-300">
                       {r.status === 'pending' ? 'Withdraw' : 'Cancel'}
@@ -387,6 +398,7 @@ export default function Dashboard() {
                   ) : r.status === 'approved' ? (
                     <>
                       <ChatLink rental={r} />
+                      <AgreementLink rental={r} />
                       <button
                         onClick={() => respond(r.id, 'completed')}
                         className="rounded-btn bg-white px-3 py-1.5 text-sm font-medium text-black hover:opacity-90"
@@ -397,7 +409,10 @@ export default function Dashboard() {
                       <StatusBadge status={r.status} />
                     </>
                   ) : (
-                    <StatusBadge status={r.status} />
+                    <>
+                      <AgreementLink rental={r} />
+                      <StatusBadge status={r.status} />
+                    </>
                   )}
                   {PHOTOS_VISIBLE_STATUSES.includes(r.status) && (
                     <button

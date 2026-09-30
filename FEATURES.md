@@ -294,6 +294,17 @@ WhatsApp-style chat page at `/messages`, one thread per listing and renter.
 - **Saved searches** - searches saved with "Alert me" on the Marketplace; open
   or delete them.
 
+**📄 Rental agreement** (`/rentals/:id/agreement`) - on every agreed,
+completed or disputed rental, for both people: owner and renter names, item,
+town, dates and days, agreed price per day, total, deposit, cancellation
+policy, how many pickup/return photos were taken, and five plain terms (pay in
+person at pickup, check and photograph together, renter looks after it, deposit
+back less agreed damage, report problems on Rent It). Shown in **English plus
+each person's chosen language**, one under the other. Only the fixed wording is
+translated (through the site's translation cache) - names, prices and dates
+never go to an AI. **Print / Save as PDF** uses the browser's print dialog
+(navbar, footer and help bubble are hidden when printing).
+
 ---
 
 ## 8. Languages and translation
@@ -331,6 +342,7 @@ WhatsApp-style chat page at `/messages`, one thread per listing and renter.
 | Price suggestion / price check | Listing form, offer form | Gemini, Groq as backup | Item details and same-category listings (public) |
 | Plain-language search (incl. "near me", "within 5 km") | Marketplace | Gemini, Groq as backup | Your search sentence (never your location) |
 | "No results" suggestions | Marketplace | Gemini, Groq as backup | Your search words |
+| Rental agreement wording | Agreement page | Gemini, Groq as backup (cached once per language) | Only the fixed agreement wording - no names, prices or dates |
 | Wanted-post writer | Post what you need | Gemini, Groq as backup | The sentence you type |
 | Wanted matching | When a listing is published | Gemini, Groq as backup | The new listing's title, description, town, and open Wanted posts' text (no names) |
 | Listing safety review | Staff dashboard → Safety | Gemini, Groq as backup | Public listing text |

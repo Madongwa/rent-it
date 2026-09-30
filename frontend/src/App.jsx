@@ -31,6 +31,7 @@ const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const Wanted = lazy(() => import('./pages/Wanted'));
 const WantedNew = lazy(() => import('./pages/WantedNew'));
+const Agreement = lazy(() => import('./pages/Agreement'));
 
 export default function App() {
   // Nav is fixed/floating so it can sit transparently over Home's video
@@ -56,6 +57,14 @@ export default function App() {
           <Route path="/listing/:id" element={<ListingDetail />} />
           <Route path="/owner/:id" element={<OwnerStorefront />} />
           <Route path="/wanted" element={<Wanted />} />
+          <Route
+            path="/rentals/:id/agreement"
+            element={
+              <ProtectedRoute>
+                <Agreement />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/wanted/new"
             element={
@@ -144,7 +153,7 @@ export default function App() {
         </Suspense>
       </main>
       {!isChat && (
-        <footer className="border-t border-night-border/15 bg-night-bg py-6 text-center text-caption text-night-muted">
+        <footer className="print:hidden border-t border-night-border/15 bg-night-bg py-6 text-center text-caption text-night-muted">
           <p>© {new Date().getFullYear()} Rent It. Rent smarter, not harder.</p>
           <p className="mt-1 space-x-3">
             <Link to="/terms" className="hover:underline">

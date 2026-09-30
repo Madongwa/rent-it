@@ -202,7 +202,7 @@ export default function HelpChatbot() {
         aria-expanded={isOpen}
         whileHover={reduceMotion ? undefined : { scale: 1.08 }}
         transition={{ duration: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
-        className="fixed bottom-6 right-6 z-50 flex h-[60px] w-[60px] items-center justify-center rounded-full bg-accent text-white shadow-[0_8px_24px_rgba(46,125,50,0.35)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        className="fixed bottom-6 right-6 z-50 print:hidden flex h-[60px] w-[60px] items-center justify-center rounded-full bg-accent text-white shadow-[0_8px_24px_rgba(46,125,50,0.35)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
       >
         {!reduceMotion && showPulse && (
           <motion.span
@@ -227,7 +227,7 @@ export default function HelpChatbot() {
             animate="visible"
             exit="exit"
             style={{ transformOrigin: 'bottom right' }}
-            className="fixed bottom-24 right-6 z-50 flex h-[560px] w-[380px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-[20px] border border-night-border/15 bg-night-card shadow-[0_24px_60px_rgba(0,0,0,0.5)] max-sm:bottom-[80px] max-sm:right-4 max-sm:left-4 max-sm:h-[calc(100vh-100px)] max-sm:w-auto"
+            className="fixed bottom-24 right-6 z-50 print:hidden flex h-[560px] w-[380px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-[20px] border border-night-border/15 bg-night-card shadow-[0_24px_60px_rgba(0,0,0,0.5)] max-sm:bottom-[80px] max-sm:right-4 max-sm:left-4 max-sm:h-[calc(100vh-100px)] max-sm:w-auto"
           >
             {/* Header */}
             <div className="flex shrink-0 items-center justify-between border-b border-night-border/15 px-4 py-3">

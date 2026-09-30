@@ -6,6 +6,9 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-09-30
 
+- **Rental agreement** - every agreed rental gets a printable agreement (items,
+  dates, price, total, deposit, terms) in English and both people's languages,
+  from "📄 Agreement" on the Dashboard; "Print / Save as PDF" makes a PDF.
 - **Reminders** - "Pickup tomorrow" and "Return due tomorrow" notifications to
   both people on an agreed rental, and a "How was it?" review nudge to the
   renter the day after it ends (sent each morning, once each).

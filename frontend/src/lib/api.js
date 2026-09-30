@@ -77,6 +77,7 @@ export const api = {
   counterOffer: (id, terms) =>
     request(`/rentals/${id}/offers`, { method: 'POST', body: JSON.stringify(terms) }),
   acceptOffer: (id) => request(`/rentals/${id}/accept`, { method: 'POST' }),
+  getAgreement: (id) => request(`/rentals/${id}/agreement`),
 
   getMyProfile: () => request('/profiles/me'),
   getPublicProfile: (id) => request(`/profiles/${id}`),

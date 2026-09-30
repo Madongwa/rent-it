@@ -479,3 +479,9 @@ html.rh-anim.rh-go .rh-ctas .rh-btn-ghost{animation:rh-pillIn .70s var(--e-revea
   backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.09);
   border-radius:20px;padding:10px 8px 12px;flex-direction:column;
   box-shadow:0 24px 60px rgba(0,0,0,.55);transform-origin:top right;z-index:31}
+
+/* Printing (e.g. the rental agreement): no navbar, no space kept for it. */
+@media print{
+  .rh-nav{display:none !important}
+  .rh-nav-offset{padding-top:0 !important}
+}
