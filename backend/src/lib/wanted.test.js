@@ -148,8 +148,26 @@ describe('matchNewListing', () => {
 });
 
 describe('searchAlternatives', () => {
-  it('only suggests words that have listings', async () => {
-    const db = fakeDb({ counts: { auger: 2, 'earth auger': 0 } });
-    expect(await searchAlternatives('post hole digger', { db, models: fakeModels({ terms: ['auger', 'earth auger'] }) })).toEqual([{ term: 'auger', count: 2 }]);
+  // Answers in turn: first the suggested words, then the relevance check.
+  const replies = (...list) => {
+    let i = 0;
+    return [{ model: 'fake', client: { chat: { completions: { create: async () => ({ choices: [{ message: { content: JSON.stringify(list[i++]) } }] }) } } } }];
+  };
+  const titlesDb = (byTerm) => ({
+    from: () => {
+      let term;
+      const q = { select: () => q, eq: () => q, textSearch: (_c, t) => ((term = t), q), limit: async () => ({ data: (byTerm[term] || []).map((title) => ({ title })), error: null }) };
+      return q;
+    },
+  });
+
+  it('only suggests words that have listings the AI agrees could do the job', async () => {
+    const db = titlesDb({ lift: ['Patient Lift / Transfer Aid'], excavator: ['Mini Excavator'] });
+    const out = await searchAlternatives('crane for lifting', { db, models: replies({ terms: ['lift', 'excavator', 'hoist'] }, { keep: ['excavator', 'made up'] }) });
+    expect(out).toEqual([{ term: 'excavator', count: 1 }]);
+  });
+
+  it('suggests nothing when no word has listings', async () => {
+    expect(await searchAlternatives('crane', { db: titlesDb({}), models: replies({ terms: ['hoist'] }) })).toEqual([]);
   });
 });

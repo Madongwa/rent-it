@@ -88,7 +88,9 @@ Browse everything available to rent.
   search. The recording isn't stored.
 - **No results?** The AI suggests other search words that do have listings
   ("wedding speakers" → speakers, PA system), and offers to **post it as a
-  Wanted request**.
+  Wanted request**. A second quick AI check looks at the listings each word
+  finds and drops words that only share a name (a patient lift is no use to
+  someone who needs a crane).
 - **"📍 Near <town>"** filter (set by a sentence search), removable as a chip.
 - **Sort** - relevance, price low→high / high→low, rating, newest, **trending**
   (most requested and saved in the last 30 days - a request counts 3× a save),
@@ -391,7 +393,7 @@ handles the money.
 | Listing writer | List an Item | Gemini (sees the photos), Groq as backup | Your notes and up to 3 listing photos |
 | Price suggestion / price check | Listing form, offer form | Gemini, Groq as backup | Item details and same-category listings (public) |
 | Plain-language search (incl. "near me", "within 5 km") | Marketplace | Gemini, Groq as backup | Your search sentence (never your location) |
-| "No results" suggestions | Marketplace | Gemini, Groq as backup | Your search words |
+| "No results" suggestions | Marketplace | Gemini, Groq as backup | Your search words, then the titles of listings the suggested words find (to drop unrelated ones) |
 | Rental agreement wording | Agreement page | Gemini, Groq as backup (cached once per language) | Only the fixed agreement wording - no names, prices or dates |
 | Photo check | List an Item / Edit listing | **Gemini only** (the model that can see images) | Your listing photos (public anyway) and title |
 | Review summary | Listing page → Reviews | Gemini, Groq as backup | The listing's written reviews and ratings (no reviewer names) |

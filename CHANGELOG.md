@@ -6,6 +6,12 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-09-30
 
+- **Sharper "no results" suggestions** - words whose listings are a different
+  kind of thing (e.g. a patient lift for someone searching for a crane) are no
+  longer suggested.
+- **Help assistant accuracy** - it describes voice messages, voice search and
+  the earnings page exactly as they work, and no longer guesses at buttons or
+  pages it hasn't been told about.
 - **Home, How It Works and Help/FAQ brought up to date** - they now describe
   Nearby and the map, voice and plain-language search, Wanted posts, alerts,
   reminders, the written agreement, trust badges, voice messages and every AI
