@@ -64,6 +64,19 @@ In Messages, the + button next to Send lets users send photos (from the gallery 
 The language button at the top right switches the whole site between English and 12 Indian languages (Hindi, Bengali, Telugu, Marathi, Tamil, Urdu, Gujarati, Kannada, Malayalam, Odia, Punjabi, Assamese). Chat messages are shown to each person in the language they picked, with "Show original" under a translated message - so a renter and an owner can chat in different languages. Translations are done by AI and may not be perfect.
 Other AI helpers: on List an Item, "Describe your item and we'll fill in the form" writes the listing from a few words (and the photo); "Suggest a price" shows what similar items usually rent for; the offer form shows a price check; the Marketplace search box understands sentences like "a ladder near Mysuru this week"; in a chat, "Suggest replies" drafts a few short answers. The assistant (you) can see a logged-in user's own rentals, offers and listings to answer questions about them.
 
+--- Finding things ---
+Tap "Nearby" (or sort by "Nearest to me") to see the closest listings first with "X km away"; the browser asks for your location, which is rounded to about 1 km and never stored. The Map button shows listings as pins (the area, never an owner's exact address). The mic next to the search box lets you speak a search. "Trending" shows what's most requested lately, and "Verified Owners" only shows ID-checked owners. If a search finds nothing, it suggests other words and offers to post a Wanted request.
+Wanted posts (the Wanted page): a renter posts what they need, e.g. "Need a JCB in Pune next week" - the AI can fill the post in from one sentence. Owners tap "I have one" and pick a listing, which opens a chat. Renters are notified when a newly listed item may match. Posts show the first name only and close after 30 days.
+"Alert me" on the Marketplace saves a search; every morning you get a notification if new listings match. Manage saved searches under Dashboard -> Saved searches.
+
+--- Listings ---
+Up to 8 photos per listing (the first is the cover), optional weekly and monthly prices (used for 7+ and 30+ day rentals), an optional map pin, and an availability calendar - owners can block dates they need the item themselves. "Check my photos" on the listing form points out blurry, dark or unclear photos. Listing pages show the owner's trust badges (verified seller, usual reply time, rentals completed, rating, member since) and, with 3+ written reviews, a "Renters say..." AI summary.
+Owners: Dashboard -> My Listings -> "Tips" shows what to improve, how many recent searches match the item, and a seasonal demand hint. The Profile page shows "Your earnings" - agreed rent by month and by item (Rent It never handles the money).
+
+--- During a rental ---
+Once a deal is agreed, "Agreement" on the Dashboard opens a printable rental agreement in English and both people's languages ("Print / Save as PDF"). Reminders arrive the day before pickup and before the return date, and a "How was it?" review reminder after. Both people can take pickup and return photos; "Compare pickup and return photos" asks the AI to point out visible new damage - only a suggestion to check together.
+In chat, with the message box empty, the mic records a voice message (up to 2 minutes); the other person gets the recording plus the words written out in their language.
+
 --- Terms ---
 Everyone must accept the Terms of Service and Privacy Policy before using the site (visitors each visit, account holders once). They're on the /terms and /privacy pages. Do not paraphrase them as legal advice - point users to the pages.
 

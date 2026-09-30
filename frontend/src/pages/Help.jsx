@@ -48,6 +48,30 @@ const FAQ_ITEMS = [
     a: 'Yes — tap the + next to Send. You can send photos (or take one with your camera), documents such as a PDF rental agreement, and a location: either where you are right now, or any place you search for or pin on the map, like a pickup gate. Only the person you are chatting with (and Rent It staff, if there is a dispute) can open them. Never send OTPs, UPI PINs or an unmasked Aadhaar.',
   },
   {
+    q: 'How do I find equipment near me?',
+    a: 'Tap "Nearby" on the Marketplace (or pick "Nearest to me"). Your browser asks for your location once; listings then show how far away they are, closest first, and the Map button shows them on a map. Your location is rounded to about 1 km and never stored, and owners\' exact addresses are never shown - just the area.',
+  },
+  {
+    q: "What if I can't find what I need?",
+    a: 'Post a Wanted request - "Need a JCB in Pune next week" - from the Wanted page, or from the "Post it as a Wanted request" link when a search finds nothing. Owners who have one can reply with their listing, which opens a chat with you, and when someone lists a matching item you get a notification. You can also tap "Alert me" on any search to hear about new matches each morning.',
+  },
+  {
+    q: 'Can I chat in my own language, or send voice messages?',
+    a: 'Yes. Pick your language with the button at the top, and messages from the other person appear in it (with "Show original" underneath). With the message box empty, tap the mic to record a voice note - the other person gets the recording plus the words, written out in their language.',
+  },
+  {
+    q: 'Is there a written agreement for a rental?',
+    a: 'Yes. Once a deal is agreed, open "📄 Agreement" on your Dashboard. It lists the item, dates, agreed price, total, deposit and the plain rules you both agreed to, in English and both of your languages, and "Print / Save as PDF" gives you a copy.',
+  },
+  {
+    q: 'How do I know an owner can be trusted?',
+    a: 'Every owner passes an ID check before they can list. Listing pages show their trust badges - verified seller, how fast they usually reply, rentals completed, rating and how long they have been on Rent It - and real reviews from completed rentals. Still: meet in person, check the item, take photos, and never pay in advance.',
+  },
+  {
+    q: 'What does the AI do on Rent It?',
+    a: "It helps with typing and guesswork: translating the site and chats, understanding searches in your own words, writing a listing from a few words, suggesting prices and replies, checking photos, summarising reviews, and comparing pickup and return photos. It only ever suggests - people make every decision. Chats, voice notes, rental photos and ID photos only go to one AI provider (Groq), never to Google's free AI. The Privacy Policy lists exactly what goes where.",
+  },
+  {
     q: 'Can I message an owner before booking?',
     a: 'Yes — every listing has a "Message the owner" option, so you can ask about condition, pickup logistics, or anything else before you send a request.',
   },

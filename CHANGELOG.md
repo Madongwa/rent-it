@@ -6,6 +6,11 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-09-30
 
+- **Home, How It Works and Help/FAQ brought up to date** - they now describe
+  Nearby and the map, voice and plain-language search, Wanted posts, alerts,
+  reminders, the written agreement, trust badges, voice messages and every AI
+  helper (with what they do and don't see). The help assistant knows about all
+  of it too.
 - **Staff Insights** - a new Staff tab: chat → request → deal funnel, top
   searches, and searches that found nothing (what people want but nobody
   lists), over the last 30 days.

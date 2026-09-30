@@ -6,23 +6,23 @@ import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 const RENTER_STEPS = [
   {
     title: 'Search and compare',
-    body: "Filter by category, price, distance, and condition until you're looking at equipment that actually fits the job. Photos, condition notes, ratings, and rental history are right there on every listing.",
+    body: "Type, or say, what you need in your own language - or tap Nearby to see what's closest, on a list or a map. Filter by price, condition and more; every listing shows its photos, an availability calendar, reviews, and the owner's trust badges. Can't find it? Post a Wanted request and owners who have one will reply.",
   },
   {
     title: 'Name your price',
-    body: "Pick your dates and offer what you'd like to pay per day — the listed price, or your own. It goes straight to the owner's chat, no phone tag.",
+    body: "Pick your dates and offer what you'd like to pay per day — the listed price, or your own (longer rentals can use the owner's cheaper weekly or monthly rate). It goes straight to the owner's chat, no phone tag.",
   },
   {
     title: 'Agree on a deal',
-    body: 'The owner can accept, decline, or counter with a different price or dates, and so can you. As soon as one of you accepts, the rental is locked in at those terms.',
+    body: "The owner can accept, decline, or counter with a different price or dates, and so can you - by text or voice message, each read in your own language. As soon as one of you accepts, the rental is locked in, with a written agreement you can print or save as a PDF.",
   },
   {
     title: 'Pick up, check, and pay',
-    body: 'Meet the owner (or arrange delivery, where that option exists), confirm the condition together, and pay the owner directly — cash, UPI, whatever you agreed.',
+    body: "You'll get a reminder the day before. Meet the owner (or arrange delivery, where that option exists), take pickup photos together, and pay the owner directly — cash, UPI, whatever you agreed. Never in advance.",
   },
   {
     title: 'Return it and get your deposit back',
-    body: "Bring it back in the shape you got it in. Once the owner confirms everything checks out, they give back any deposit you paid.",
+    body: "Bring it back in the shape you got it in and take return photos - the AI can compare them with the pickup ones if you both want a second look. Once the owner confirms everything checks out, they give back any deposit you paid.",
   },
   {
     title: 'Leave a review',
@@ -33,11 +33,11 @@ const RENTER_STEPS = [
 const OWNER_STEPS = [
   {
     title: 'List your equipment',
-    body: 'Add photos, a description, and the details that matter — condition, power source, delivery options. Takes a few minutes.',
+    body: 'Describe it in a few words in any language and the AI fills in the form; add up to 8 photos (the AI can check them for you) and an optional map pin. Takes a few minutes.',
   },
   {
     title: 'Set your price and terms',
-    body: "You decide the daily rate, minimum rental period, deposit, and cancellation policy. It's your equipment, your terms.",
+    body: "You decide the daily rate (with an AI price suggestion if you want one), weekly and monthly rates, deposit, and cancellation policy - and block dates when you need it yourself. It's your equipment, your terms.",
   },
   {
     title: 'Review offers',
@@ -53,7 +53,7 @@ const OWNER_STEPS = [
   },
   {
     title: 'Build your reputation',
-    body: 'Every completed rental adds to your rating and rental history — making your listings more trusted, and more likely to get booked.',
+    body: "Every completed rental adds to your rating and trust badges. Your Dashboard's Tips show what to improve and when demand usually rises; your Profile shows what you've earned.",
   },
 ];
 
@@ -79,10 +79,36 @@ const TRUST_FEATURES = [
     body: "Every past rental on a listing is right there to see — how often it's used and how it's gone for other renters.",
   },
   {
+    icon: '✅',
+    title: 'Verified owners, visible',
+    body: 'Owners pass an ID check before listing, and their listings show trust badges - verified, how fast they reply, rentals completed, rating.',
+  },
+  {
+    icon: '📄',
+    title: 'A written agreement',
+    body: 'Every agreed rental gets a printable agreement in both of your languages - item, dates, price, deposit and the plain rules you both agreed to.',
+  },
+  {
+    icon: '🛡️',
+    title: 'Scam warnings',
+    body: 'Chats warn you about advance-payment, OTP or UPI requests, and staff review suspicious listings before they cause trouble.',
+  },
+  {
     icon: '📋',
     title: 'Terms up front',
     body: 'Price, minimum rental period, delivery options, and cancellation policy are all on the listing before you ever send a request.',
   },
+];
+
+const HELPERS = [
+  { icon: '🗣️', title: 'Your language, by text or voice', body: 'The whole site in English and 12 Indian languages. Chat messages and voice notes reach the other person in their language.' },
+  { icon: '🔎', title: 'Search the way you talk', body: '"Koi ladder hai Mysuru me?" - type or say it, and the search understands. Nothing found? It suggests what else to try.' },
+  { icon: '✍️', title: 'Listings that write themselves', body: 'A few words become a full listing; a price suggestion shows what similar items rent for; a photo check flags blurry or dark photos.' },
+  { icon: '💬', title: 'Quick replies', body: 'Suggested replies in chat, a price check on every offer, and a help assistant that knows your own rentals.' },
+  { icon: '📍', title: 'Near you, on a map', body: 'See the closest items first and how far away they are - your location is rounded and never stored.' },
+  { icon: '🙋', title: 'Wanted posts', body: "Post what you need; when an owner lists something that fits, you're told - and owners can reply with their listing." },
+  { icon: '🔔', title: 'Alerts and reminders', body: 'Save a search to hear about new matches each morning, and get pickup, return and review reminders.' },
+  { icon: '📷', title: 'Photo comparison', body: 'At return, the AI can compare pickup and return photos and point out anything that looks new - a second look, not a verdict.' },
 ];
 
 function StepList({ steps }) {
@@ -202,8 +228,29 @@ export default function HowItWorks() {
               </p>
             </Reveal>
 
-            <StaggerGroup className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-5" stagger={0.08}>
+            <StaggerGroup className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4" stagger={0.08}>
               {TRUST_FEATURES.map((f) => (
+                <IconRevealItem key={f.title} icon={f.icon} className="space-y-2">
+                  <h3 className="font-semibold text-night-text">{f.title}</h3>
+                  <p className="text-caption text-night-muted">{f.body}</p>
+                </IconRevealItem>
+              ))}
+            </StaggerGroup>
+          </div>
+        </section>
+
+        {/* Built-in helpers */}
+        <section className="border-t border-night-border/15 px-4 py-20 sm:px-6">
+          <div className="mx-auto max-w-6xl">
+            <Reveal className="max-w-2xl">
+              <h2 className="text-3xl font-extrabold tracking-tight text-night-text sm:text-4xl">Built-in helpers</h2>
+              <p className="mt-3 text-body text-night-muted">
+                Free AI helpers that save typing and guesswork. They only ever suggest - you decide - and private things like
+                chats, voice notes and ID photos never go to Google's free AI.
+              </p>
+            </Reveal>
+            <StaggerGroup className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4" stagger={0.06}>
+              {HELPERS.map((f) => (
                 <IconRevealItem key={f.title} icon={f.icon} className="space-y-2">
                   <h3 className="font-semibold text-night-text">{f.title}</h3>
                   <p className="text-caption text-night-muted">{f.body}</p>

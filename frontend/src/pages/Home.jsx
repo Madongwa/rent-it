@@ -45,6 +45,15 @@ const COST_POINTS = [
   },
 ];
 
+// What's built in to make renting from a stranger easy - a short version
+// of How It Works' "Built-in helpers".
+const BUILT_IN = [
+  { icon: '🗣️', title: 'In your language', text: 'The site, chats and even voice notes in English or 12 Indian languages.' },
+  { icon: '📍', title: 'Near you', text: "See what's closest, on a list or a map - search by typing or speaking." },
+  { icon: '🤝', title: 'Bargain, then agree in writing', text: 'Offer your price in chat; every deal gets a printable two-language agreement.' },
+  { icon: '✅', title: 'Verified owners', text: 'ID-checked owners with trust badges, real reviews, and scam warnings in chat.' },
+];
+
 function CtaBar({ text, cta, to }) {
   return (
     <div className="border-y border-night-border/15 bg-night-elevated">
@@ -144,6 +153,27 @@ export default function Home() {
         </div>
       </section>
       <CtaBar text="Turn your idle equipment into income." cta="List your equipment" to="/list-item" />
+
+      {/* SECTION 4b - What's built in */}
+      <section className="px-4 py-24 sm:px-6">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="max-w-2xl text-4xl font-extrabold leading-[0.95] tracking-tight text-night-text sm:text-5xl">
+            Built for renting from a stranger.
+          </h2>
+          <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {BUILT_IN.map((item) => (
+              <div key={item.title} className="rounded-lg border border-night-border/15 bg-night-card p-6">
+                <p className="text-2xl" aria-hidden="true">{item.icon}</p>
+                <h3 className="mt-3 text-lg font-semibold text-night-text">{item.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-night-muted">{item.text}</p>
+              </div>
+            ))}
+          </div>
+          <Link to="/how-it-works" className="mt-8 inline-block text-sm font-medium text-night-text underline-offset-4 hover:underline">
+            See everything that's built in →
+          </Link>
+        </div>
+      </section>
 
       {/* SECTION 5 - The Shift */}
       <section className="flex min-h-[60vh] flex-col items-center justify-center px-4 py-24 text-center sm:px-6">

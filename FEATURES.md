@@ -38,7 +38,9 @@ change - see [Keeping this file up to date](#keeping-this-file-up-to-date) and
 Animated hero ("Rent the right tool, right when you need it") and a category
 showcase for the six categories: **Farming Tools, Construction Tools,
 Household & DIY, Events, Moving, Medical**. The "idle equipment" section
-describes the problem in plain words (no unsourced statistics).
+describes the problem in plain words (no unsourced statistics), and a **"Built
+for renting from a stranger"** section (your language, near you, bargain then
+agree in writing, verified owners) links to How It Works.
 
 ### Marketplace
 Browse everything available to rent.
@@ -146,10 +148,18 @@ show a small **Verified seller** mark. Only a yes/no "verified" is ever
 public, never a seller's actual verification status.
 
 ### How It Works / Why It Matters
-Step-by-step guides for renters and owners, and why renting beats buying.
+Step-by-step guides for renters and owners (including voice/typed search,
+Nearby, Wanted posts, the written agreement, reminders and photo comparison),
+the trust system (8 cards incl. verified owners, the written agreement and
+scam warnings), a **Built-in helpers** section describing each free AI helper
+(and that chats, voice notes and ID photos never go to Google's free AI), and
+why renting beats buying.
 
 ### Help / FAQ and the help assistant
-FAQ page plus a chat bubble with an **AI help assistant**. It:
+FAQ page (17 questions, including finding things near you, Wanted posts and
+alerts, chatting in your language and voice messages, the written agreement,
+how to tell an owner can be trusted, and what the AI does and doesn't see)
+plus a chat bubble with an **AI help assistant**. It:
 - answers questions about renting, listing, deposits, cancellations, fees,
   accounts and every feature on this page;
 - replies **in the language you picked** with the language button;
