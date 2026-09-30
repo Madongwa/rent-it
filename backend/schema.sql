@@ -1243,3 +1243,16 @@ create table if not exists public.rental_condition_checks (
 );
 
 alter table public.rental_condition_checks enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- AI review summaries ("Renters say...") on listing pages, kept per listing
+-- and redone only when its reviews change (input_hash). Backend-only.
+-- ---------------------------------------------------------------------------
+create table if not exists public.review_summaries (
+  listing_id uuid primary key references public.listings (id) on delete cascade,
+  input_hash text not null,
+  data jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.review_summaries enable row level security;

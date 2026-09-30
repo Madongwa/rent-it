@@ -10,6 +10,7 @@ import OfferForm from '../components/OfferForm';
 import ListingGallery from '../components/ListingGallery';
 import AvailabilityCalendar from '../components/AvailabilityCalendar';
 import TrustBadges from '../components/TrustBadges';
+import ReviewSummary from '../components/ReviewSummary';
 import { formatInr } from '../lib/offers';
 import { formatKm, savedLocation } from '../lib/myLocation';
 import {
@@ -225,6 +226,8 @@ function ReviewsSection({ reviews, avgRating, reviewCount, canReview, listingId,
           · {reviewCount} review{reviewCount === 1 ? '' : 's'}
         </span>
       </div>
+
+      <ReviewSummary listingId={listingId} reviewCount={reviewCount} />
 
       {canReview && (
         <div id="write-review" className="mt-6 scroll-mt-24">

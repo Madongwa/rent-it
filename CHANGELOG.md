@@ -6,6 +6,8 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-09-30
 
+- **"Renters say…" review summaries** - listings with 3+ written reviews show
+  a one-line AI summary with what renters liked and didn't.
 - **Compare pickup and return photos** - the AI points out visible new damage
   (or says it sees none, or can't tell) for the renter, owner and staff. A
   suggestion only; private photos go to Groq only. Privacy Policy updated.

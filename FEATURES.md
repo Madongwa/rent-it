@@ -100,7 +100,9 @@ Browse everything available to rent.
 deposit, minimum rental period and supported durations, description, specs
 (power source, delivery, cancellation policy, owner type, accessories),
 an **availability calendar** (upcoming dates that are booked or that the owner
-blocked, plus a list), past rental history, reviews, how far away it is (if
+blocked, plus a list), past rental history, reviews (with an AI **"Renters
+say…"** summary and liked/disliked chips once there are 3+ written reviews,
+labelled as AI and redone only when reviews change), how far away it is (if
 you've shared your location on the Marketplace), and:
 
 - **Request to rent** - pick dates and your own price per day (starts at the
@@ -367,6 +369,7 @@ never go to an AI. **Print / Save as PDF** uses the browser's print dialog
 | "No results" suggestions | Marketplace | Gemini, Groq as backup | Your search words |
 | Rental agreement wording | Agreement page | Gemini, Groq as backup (cached once per language) | Only the fixed agreement wording - no names, prices or dates |
 | Photo check | List an Item / Edit listing | **Gemini only** (the model that can see images) | Your listing photos (public anyway) and title |
+| Review summary | Listing page → Reviews | Gemini, Groq as backup | The listing's written reviews and ratings (no reviewer names) |
 | Wanted-post writer | Post what you need | Gemini, Groq as backup | The sentence you type |
 | Wanted matching | When a listing is published | Gemini, Groq as backup | The new listing's title, description, town, and open Wanted posts' text (no names) |
 | Listing safety review | Staff dashboard → Safety | Gemini, Groq as backup | Public listing text |

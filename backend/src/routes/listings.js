@@ -11,6 +11,7 @@ import { sortByTrending, trendingScores } from '../lib/trending.js';
 import { matchNewListing, searchAlternatives } from '../lib/wanted.js';
 import { transcribeAudio } from '../lib/voice.js';
 import { checkPhotos } from '../lib/photoCheck.js';
+import { reviewSummary } from '../lib/reviewSummary.js';
 import { MAX_AUDIO_BYTES } from '../lib/audio.js';
 
 // How long publishing waits for the Wanted-post matching (an AI call). On
@@ -196,6 +197,27 @@ router.get('/:id', attachUserIfPresent, async (req, res) => {
   // rounded to ~1 km, plus their distance when they shared a location.
   const shown = req.user?.id === data.owner_id ? withExactPin(data) : withDistance(data, validLatLng(req.query.lat, req.query.lng));
   res.json(publicOwner(shown));
+});
+
+// Mostly served from the saved summary; an AI call only when reviews change.
+const summaryRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests - please wait a moment.' },
+});
+
+// GET /api/listings/:id/review-summary - "Renters say..." (lib/reviewSummary.js).
+// { summary: null } when there aren't enough written reviews (or the AI is
+// busy) - the page just doesn't show it.
+router.get('/:id/review-summary', summaryRateLimiter, async (req, res) => {
+  try {
+    res.json({ summary: await reviewSummary(req.params.id) });
+  } catch (err) {
+    console.error('[listings] review summary failed:', err.message);
+    res.json({ summary: null });
+  }
 });
 
 async function assertOwner(listingId, userId) {
