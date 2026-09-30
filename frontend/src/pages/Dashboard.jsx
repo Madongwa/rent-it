@@ -5,6 +5,7 @@ import RentalPhotoSection from '../components/RentalPhotos';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 import SavedSearches from '../components/SavedSearches';
 import ConditionCompare from '../components/ConditionCompare';
+import ListingInsights from '../components/ListingInsights';
 import { findOpenOffer, formatInr, rentalDays, whoseTurn } from '../lib/offers';
 
 // Condition photos are only meaningful once a handoff has actually
@@ -176,6 +177,7 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
   const [expandedId, setExpandedId] = useState(null);
+  const [tipsId, setTipsId] = useState(null);
 
   function loadAll() {
     setLoading(true);
@@ -285,7 +287,8 @@ export default function Dashboard() {
         <div className="mt-6 space-y-3">
           {listings.length === 0 && <p className="text-night-muted">You haven't listed anything yet.</p>}
           {listings.map((l) => (
-            <div key={l.id} className="flex flex-col gap-3 rounded-card border border-night-border/15 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div key={l.id} className="rounded-card border border-night-border/15 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <Link to={`/listing/${l.id}`} className="font-semibold text-night-text hover:underline">
                   {l.title}
@@ -296,6 +299,14 @@ export default function Dashboard() {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTipsId(tipsId === l.id ? null : l.id)}
+                  aria-expanded={tipsId === l.id}
+                  className="text-sm font-medium text-amber-300 hover:text-amber-200"
+                >
+                  💡 Tips
+                </button>
                 <Link to={`/listing/${l.id}/edit`} className="text-sm font-medium text-night-muted hover:text-night-text">
                   Edit
                 </Link>
@@ -308,6 +319,12 @@ export default function Dashboard() {
                   Delete
                 </button>
               </div>
+            </div>
+            {tipsId === l.id && (
+              <div className="mt-3 border-t border-night-border/15 pt-3">
+                <ListingInsights listingId={l.id} />
+              </div>
+            )}
             </div>
           ))}
         </div>

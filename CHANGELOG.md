@@ -6,6 +6,10 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-09-30
 
+- **💡 Tips for owners** - Dashboard → My Listings → Tips: what to improve on
+  each listing, how many recent searches match it, and an AI seasonal hint
+  (e.g. "tractor demand in Punjab rises before rabi sowing"). Searches are now
+  logged anonymously for this (kept 90 days). Privacy Policy updated.
 - **"Renters say…" review summaries** - listings with 3+ written reviews show
   a one-line AI summary with what renters liked and didn't.
 - **Compare pickup and return photos** - the AI points out visible new damage

@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { cleanFilters, cleanUrlQuery, runSavedSearchAlerts } from './savedSearches.js';
 import { authorized } from '../routes/cron.js';
 
+vi.mock('./groq.js', () => ({ groq: null }));
+vi.mock('./gemini.js', () => ({ gemini: null }));
 vi.mock('./supabaseClient.js', () => ({ supabase: null }));
 vi.mock('./notify.js', () => ({ notify: vi.fn() }));
 

@@ -12,6 +12,7 @@ import { matchNewListing, searchAlternatives } from '../lib/wanted.js';
 import { transcribeAudio } from '../lib/voice.js';
 import { checkPhotos } from '../lib/photoCheck.js';
 import { reviewSummary } from '../lib/reviewSummary.js';
+import { listingInsights } from '../lib/listingInsights.js';
 import { MAX_AUDIO_BYTES } from '../lib/audio.js';
 
 // How long publishing waits for the Wanted-post matching (an AI call). On
@@ -56,6 +57,16 @@ const MAP_LIMIT = 500;
 //   &availability=today,week&ownerId=<uuid>&limit=60&page=1
 router.get('/', async (req, res) => {
   const { sort, distance, availability, limit, page } = req.query;
+
+  // Anonymous search log for owners' demand tips (lib/listingInsights.js):
+  // the words, category and town only - never who searched.
+  if ((req.query.q || req.query.near) && !req.query.ownerId && Math.max(Number(page) || 1, 1) === 1) {
+    const clip = (v, n) => (v ? String(v).trim().slice(0, n) || null : null);
+    const { error: logError } = await supabase
+      .from('search_log')
+      .insert({ q: clip(req.query.q, 200), category_slug: clip(req.query.category, 60), near: clip(req.query.near, 60) });
+    if (logError) console.error('[listings] search log failed:', logError.message);
+  }
 
   // "Verified owners" needs an inner join so the owner filter drops rows.
   const verifiedOnly = req.query.verified === 'true';
@@ -217,6 +228,19 @@ router.get('/:id/review-summary', summaryRateLimiter, async (req, res) => {
   } catch (err) {
     console.error('[listings] review summary failed:', err.message);
     res.json({ summary: null });
+  }
+});
+
+// GET /api/listings/:id/insights - the owner's Tips panel: listing checks,
+// recent search demand and a seasonal hint (lib/listingInsights.js).
+router.get('/:id/insights', requireAuth, summaryRateLimiter, async (req, res) => {
+  try {
+    const out = await listingInsights(req.params.id, req.user.id);
+    if (out.error) return res.status(out.status).json({ error: out.error });
+    res.json(out);
+  } catch (err) {
+    console.error('[listings] insights failed:', err.message);
+    res.status(500).json({ error: 'Could not load tips right now.' });
   }
 });
 

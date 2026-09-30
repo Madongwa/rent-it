@@ -37,6 +37,7 @@ export const api = {
     return request(`/listings${qs ? `?${qs}` : ''}`);
   },
   // near: the renter's rounded location, for "X km away" (optional).
+  getListingInsights: (id) => request(`/listings/${id}/insights`),
   getReviewSummary: (id) => request(`/listings/${id}/review-summary`),
   getListing: (id, near) =>
     request(`/listings/${id}${near ? `?lat=${near.lat}&lng=${near.lng}` : ''}`),

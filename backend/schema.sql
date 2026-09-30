@@ -1256,3 +1256,31 @@ create table if not exists public.review_summaries (
 );
 
 alter table public.review_summaries enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Owner insights (lib/listingInsights.js). search_log: anonymous record of
+-- Marketplace searches (words, category, town - never who searched), used
+-- for "N searches for this kind of item in the last 2 weeks". Kept 90 days.
+-- season_hints: the AI's seasonal-demand line, cached per category + state
+-- + month. Both backend-only.
+-- ---------------------------------------------------------------------------
+create table if not exists public.search_log (
+  id bigserial primary key,
+  q text check (q is null or char_length(q) <= 200),
+  category_slug text,
+  near text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists search_log_created_idx on public.search_log (created_at desc);
+create index if not exists search_log_category_idx on public.search_log (category_slug, created_at desc);
+
+alter table public.search_log enable row level security;
+
+create table if not exists public.season_hints (
+  key text primary key,
+  hint text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.season_hints enable row level security;

@@ -304,7 +304,12 @@ WhatsApp-style chat page at `/messages`, one thread per listing and renter.
 ## 7. Your dashboard
 
 `/dashboard` with four tabs:
-- **My Listings** - your items, status, edit/delete.
+- **My Listings** - your items, status, edit/delete, and **💡 Tips** per listing:
+  what to improve (paused, fewer than 3 photos, no weekly price, no map pin,
+  short description, no town), how many Marketplace searches matched this
+  kind of item in the last 14 days vs the 14 before, and an **AI seasonal
+  hint** for the owner's state and month (e.g. rabi sowing, wedding season) -
+  cached per category + state + month.
 - **My Rental Requests** - what you've asked to rent, with offered/agreed price.
 - **Requests on My Items** - incoming requests, with pickup/return photos and
   "report a problem".
@@ -370,6 +375,7 @@ never go to an AI. **Print / Save as PDF** uses the browser's print dialog
 | Rental agreement wording | Agreement page | Gemini, Groq as backup (cached once per language) | Only the fixed agreement wording - no names, prices or dates |
 | Photo check | List an Item / Edit listing | **Gemini only** (the model that can see images) | Your listing photos (public anyway) and title |
 | Review summary | Listing page → Reviews | Gemini, Groq as backup | The listing's written reviews and ratings (no reviewer names) |
+| Seasonal demand hint | Dashboard → My Listings → Tips | Gemini, Groq as backup (cached per category/state/month) | Item title, category, state and month only |
 | Wanted-post writer | Post what you need | Gemini, Groq as backup | The sentence you type |
 | Wanted matching | When a listing is published | Gemini, Groq as backup | The new listing's title, description, town, and open Wanted posts' text (no names) |
 | Listing safety review | Staff dashboard → Safety | Gemini, Groq as backup | Public listing text |
@@ -436,6 +442,9 @@ Common rules for all of them:
 - AI providers receive only what the table in [§9](#9-ai-features-at-a-glance)
   lists; the Privacy Policy (`frontend/src/content/privacy.js`) says the same.
 - Chat translations are stored per reader language and deleted with the message.
+- **Search log**: first-page Marketplace searches with words or a town are
+  logged anonymously (words, category, town - no user, no location) for the
+  owners' demand tips, and deleted after 90 days.
 - **Locations**: a renter's location is rounded to ~1 km in the browser, used
   only to work out distances and never stored. A listing's exact map pin is
   kept in `listing_locations` (backend-only, no public access) and shown to
@@ -464,7 +473,8 @@ Common rules for all of them:
   (frontend: renthere.in, backend: rent-it-api.vercel.app).
 - **Daily job**: Vercel Cron calls `GET /api/cron/daily` at 03:30 UTC (9:00 IST)
   - `backend/vercel.json`. It runs saved-search alerts and rental reminders
-  (`rental_reminders` makes each reminder send once, even if the job reruns). Protected by
+  (`rental_reminders` makes each reminder send once, even if the job reruns),
+  and deletes search-log entries older than 90 days. Protected by
   `CRON_SECRET` (set it in the backend's Vercel environment variables; without
   it the endpoint refuses every call and nothing runs).
 - **Env vars**: see `backend/.env.example` and `frontend/.env.example`.
