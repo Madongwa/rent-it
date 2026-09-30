@@ -74,6 +74,9 @@ Browse everything available to rent.
   distance (within 2 / 5 / 10 / 25 km - from you when you've shared your
   location, otherwise the owner-entered distance), rental duration (hourly / daily /
   weekly / monthly), rating (3★ / 4★ and up), minimum rental period.
+- **No results?** The AI suggests other search words that do have listings
+  ("wedding speakers" → speakers, PA system), and offers to **post it as a
+  Wanted request**.
 - **"📍 Near <town>"** filter (set by a sentence search), removable as a chip.
 - **Sort** - relevance, price low→high / high→low, rating, newest, **trending**
   (most requested and saved in the last 30 days - a request counts 3× a save),
@@ -94,6 +97,29 @@ you've shared your location on the Marketplace), and:
   listed price - the cheaper weekly rate for 7+ days, monthly for 30+). The form shows the total, the deposit, and an **AI price
   check** (see [§3](#3-renting-something)).
 - **Message the owner** - opens a chat about this item.
+
+### Wanted (`/wanted`)
+Requests from renters for things they can't find ("Need a JCB in Pune next
+week"). Linked in the navbar.
+
+- **Browse** open requests (newest first), by category or search. Each shows
+  what's needed, details, town, dates, budget, the poster's **first name only**
+  and when it was posted.
+- **"I have one"** (owners, needs login) - pick one of your available listings;
+  a chat opens with the renter about that listing, with a short hello from you,
+  and they get a notification. Once per listing per request.
+- **Post what you need** (`/wanted/new`, needs login) - what, details,
+  category, town, from/until dates, budget per day. An **AI writer** at the top
+  fills the form from one sentence in any language ("JCB chahiye Pune me next
+  week, budget 4000" → title, town, next Monday-Sunday, ₹4,000/day). After
+  posting you see listings that may already match.
+- **Rules**: up to 5 open requests each; each closes after 30 days (reopen for
+  another 30); no phone numbers, UPI IDs or advance-payment talk (refused - replies
+  happen in chat).
+- **Your posts** at the top of the page - Close / Reopen / Delete.
+- **AI matching** - when an owner publishes a new listing, the AI checks it
+  against open requests and notifies the renters it could suit (once per
+  listing). Publishing waits at most 8 seconds for this.
 
 ### Owner storefront
 `/owner/:id` - an owner's public page with their listings and trust badges.
@@ -241,7 +267,8 @@ WhatsApp-style chat page at `/messages`, one thread per listing and renter.
 
 - **Bell** in the navbar with unread count: new rental request, counter-offer,
   deal agreed, declined / completed / cancelled, a problem reported, new
-  message (shown in your language).
+  message (shown in your language), an owner replied to your Wanted post, a new
+  listing may match your Wanted post.
 - **Email** copies of every notification via Resend (when `RESEND_API_KEY` is set).
 
 ---
@@ -290,6 +317,9 @@ WhatsApp-style chat page at `/messages`, one thread per listing and renter.
 | Listing writer | List an Item | Gemini (sees the photos), Groq as backup | Your notes and up to 3 listing photos |
 | Price suggestion / price check | Listing form, offer form | Gemini, Groq as backup | Item details and same-category listings (public) |
 | Plain-language search (incl. "near me", "within 5 km") | Marketplace | Gemini, Groq as backup | Your search sentence (never your location) |
+| "No results" suggestions | Marketplace | Gemini, Groq as backup | Your search words |
+| Wanted-post writer | Post what you need | Gemini, Groq as backup | The sentence you type |
+| Wanted matching | When a listing is published | Gemini, Groq as backup | The new listing's title, description, town, and open Wanted posts' text (no names) |
 | Listing safety review | Staff dashboard → Safety | Gemini, Groq as backup | Public listing text |
 | Dispute summary | Staff dashboard → Disputes | Gemini, Groq as backup | Rental records and the problem report, **no names, no chat** |
 

@@ -8,6 +8,12 @@ import { normalizePhotos } from '../lib/listingPhotos.js';
 import { BOOKED_STATUSES, unavailableRanges, unavailableSoon } from '../lib/availability.js';
 import { ownerTrust } from '../lib/trust.js';
 import { sortByTrending, trendingScores } from '../lib/trending.js';
+import { matchNewListing, searchAlternatives } from '../lib/wanted.js';
+
+// How long publishing waits for the Wanted-post matching (an AI call). On
+// Vercel nothing can run after the response, so it's done before, but
+// capped - a slow AI just means no match alerts this time.
+const MATCH_WAIT_MS = 8000;
 import { PIN_SELECT, pinChange, savePin, validLatLng, withDistance, withExactPin } from '../lib/geo.js';
 
 const router = Router();
@@ -370,6 +376,19 @@ router.post('/search-intent', searchRateLimiter, async (req, res) => {
   }
 });
 
+// POST /api/listings/alternatives - body: { text }. When a search found
+// nothing: other search words that do have listings (lib/wanted.js).
+router.post('/alternatives', searchRateLimiter, async (req, res) => {
+  const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
+  if (!text) return res.status(400).json({ error: 'text is required' });
+  try {
+    res.json({ alternatives: await searchAlternatives(text) });
+  } catch (err) {
+    console.error('[listings] alternatives failed:', err.message);
+    res.json({ alternatives: [] });
+  }
+});
+
 // POST /api/listings/draft - body: { notes, image_url? }. The AI listing
 // writer on the List an Item form: returns suggested field values (never
 // saves anything). See lib/listingDraft.js.
@@ -436,6 +455,8 @@ router.post('/', requireAuth, async (req, res) => {
     return res.status(201).json({ ...withExactPin(data), pin_error: 'The listing was saved, but its map pin was not - please set it again.' });
   }
   if (pin?.point) data.pin = { latitude: pin.point.lat, longitude: pin.point.lng };
+  // Tell renters whose Wanted posts this could satisfy.
+  await Promise.race([matchNewListing(data), new Promise((r) => setTimeout(r, MATCH_WAIT_MS))]);
   res.status(201).json(withExactPin(data));
 });
 

@@ -1126,3 +1126,41 @@ create table if not exists public.listing_locations (
 );
 
 alter table public.listing_locations enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Wanted posts: a renter asks for something ("Need a JCB in Pune next week")
+-- and owners reply with one of their listings, which opens a chat. Closes
+-- itself after 30 days. wanted_matches records each listing already linked
+-- to a post (an owner's reply, or an AI match alert) so nobody is told
+-- twice. Both backend-only: RLS on, no policies. Safe to re-run.
+-- ---------------------------------------------------------------------------
+create table if not exists public.wanted_posts (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  title text not null check (char_length(title) between 3 and 120),
+  details text check (details is null or char_length(details) <= 1000),
+  category_id int references public.categories (id) on delete set null,
+  location text check (location is null or char_length(location) <= 120),
+  max_price_per_day int check (max_price_per_day is null or max_price_per_day > 0),
+  needed_from date,
+  needed_until date,
+  status text not null default 'open' check (status in ('open', 'closed')),
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null default now() + interval '30 days',
+  check (needed_until is null or needed_from is null or needed_until >= needed_from)
+);
+
+create index if not exists wanted_posts_open_idx on public.wanted_posts (status, expires_at desc);
+create index if not exists wanted_posts_user_idx on public.wanted_posts (user_id, created_at desc);
+
+alter table public.wanted_posts enable row level security;
+
+create table if not exists public.wanted_matches (
+  wanted_id uuid not null references public.wanted_posts (id) on delete cascade,
+  listing_id uuid not null references public.listings (id) on delete cascade,
+  source text not null check (source in ('owner', 'ai')),
+  created_at timestamptz not null default now(),
+  primary key (wanted_id, listing_id)
+);
+
+alter table public.wanted_matches enable row level security;

@@ -50,6 +50,20 @@ export const api = {
   removeBlockedDates: (id, blockId) => request(`/listings/${id}/blocked-dates/${blockId}`, { method: 'DELETE' }),
   draftListing: (payload) => request('/listings/draft', { method: 'POST', body: JSON.stringify(payload) }),
   interpretSearch: (text) => request('/listings/search-intent', { method: 'POST', body: JSON.stringify({ text }) }),
+  searchAlternatives: (text) => request('/listings/alternatives', { method: 'POST', body: JSON.stringify({ text }) }),
+
+  // Wanted posts
+  getWanted: (params = {}) => {
+    const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
+    return request(`/wanted${qs ? `?${qs}` : ''}`);
+  },
+  getMyWanted: () => request('/wanted/mine'),
+  draftWanted: (text) => request('/wanted/draft', { method: 'POST', body: JSON.stringify({ text }) }),
+  createWanted: (payload) => request('/wanted', { method: 'POST', body: JSON.stringify(payload) }),
+  setWantedStatus: (id, status) => request(`/wanted/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  deleteWanted: (id) => request(`/wanted/${id}`, { method: 'DELETE' }),
+  respondToWanted: (id, listingId) =>
+    request(`/wanted/${id}/respond`, { method: 'POST', body: JSON.stringify({ listing_id: listingId }) }),
 
   createRental: (payload) => request('/rentals', { method: 'POST', body: JSON.stringify(payload) }),
   getMyRentals: () => request('/rentals/mine'),

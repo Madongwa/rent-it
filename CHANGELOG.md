@@ -6,6 +6,14 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-09-30
 
+- **Wanted posts** - renters post what they need ("Need a JCB in Pune next
+  week") at /wanted; owners tap "I have one", pick a listing, and a chat opens.
+  An **AI writer** fills the post from one sentence in any language, and **AI
+  matching** tells renters when a newly published listing could suit their
+  request. Posts show the first name only and close after 30 days.
+- **"No results" helper** - when a Marketplace search finds nothing, the AI
+  suggests other words that do have listings, and offers to post a Wanted
+  request. Privacy Policy updated.
 - **Marketplace clean-up** - "Trending" works (most requested and saved in the
   last 30 days); the greyed-out "Same-Day Pickup", "Instant book" and
   "Subcategory" placeholders are gone; phones get a Sort menu next to Filters.

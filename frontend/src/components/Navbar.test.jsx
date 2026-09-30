@@ -29,7 +29,7 @@ function renderNavbar() {
 }
 
 const primaryLinks = () => within(screen.getByRole('navigation', { name: 'Primary' })).getAllByRole('link').map((a) => a.textContent);
-const PUBLIC = ['Home', 'Marketplace', 'How It Works', 'Why It Matters', 'Help / FAQ'];
+const PUBLIC = ['Home', 'Marketplace', 'Wanted', 'How It Works', 'Why It Matters', 'Help / FAQ'];
 
 beforeEach(() => {
   auth.user = null;

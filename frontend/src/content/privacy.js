@@ -110,6 +110,13 @@ export const PRIVACY_SECTIONS = [
     ],
   },
   {
+    id: 'wanted',
+    title: 'Wanted posts',
+    body: [
+      'A Wanted post is public: anyone can see what you asked for, the details, town, dates and budget you gave, and your first name - never your full name or contact details. It closes after 30 days or when you close it, and you can delete it at any time. When an Owner replies, a Chat opens between you like any other.',
+    ],
+  },
+  {
     id: 'sharing',
     title: 'Whom we share data with',
     body: [
@@ -117,7 +124,7 @@ export const PRIVACY_SECTIONS = [
       {
         list: [
           'With other Users, as described in "What other Users can see".',
-          'With service providers who process data on our behalf to run the Platform: database, authentication and file storage; website and server hosting; email delivery; identity verification; error monitoring; and the AI providers behind our support assistant, automatic translation (including chat translation), search, listing writer, price suggestions and safety checks (which receive the messages you type to the assistant and, when you are logged in, a summary of your own rentals, offers and listings so it can answer questions about them; the text of pages you view in a language other than English; searches you describe in your own words on the Marketplace; listing details and photos, to help write listings, suggest prices and check listings for scams; and, when our staff review a reported problem, the rental records and your report, without names; and chat messages, so the person you are chatting with can read them in the language they chose, and so you can get suggested replies - chat messages are sent only to Groq, not to our other AI providers). They may use the data only to provide their service to us.',
+          'With service providers who process data on our behalf to run the Platform: database, authentication and file storage; website and server hosting; email delivery; identity verification; error monitoring; and the AI providers behind our support assistant, automatic translation (including chat translation), search, listing writer, price suggestions and safety checks (which receive the messages you type to the assistant and, when you are logged in, a summary of your own rentals, offers and listings so it can answer questions about them; the text of pages you view in a language other than English; searches you describe in your own words on the Marketplace, and the words of a search that found nothing (to suggest others); what you write in a Wanted post, and the text of open Wanted posts together with a newly published listing (to tell renters it may suit them); listing details and photos, to help write listings, suggest prices and check listings for scams; and, when our staff review a reported problem, the rental records and your report, without names; and chat messages, so the person you are chatting with can read them in the language they chose, and so you can get suggested replies - chat messages are sent only to Groq, not to our other AI providers). They may use the data only to provide their service to us.',
           'With law enforcement, courts, regulators or government agencies, where required by law or a valid order, or where needed to prevent or investigate fraud, crime or harm to any person.',
           'With a buyer or successor if our business is merged, acquired or sold, subject to this Policy.',
         ],

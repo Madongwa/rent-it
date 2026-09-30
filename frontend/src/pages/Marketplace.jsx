@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import ListingCard from '../components/ListingCard';
 import FilterSidebar, { PRICE_BUCKETS, SORT_OPTIONS, countActiveFilters } from '../components/FilterSidebar';
@@ -138,6 +138,9 @@ export default function Marketplace() {
   const [interpreting, setInterpreting] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  // When a search finds nothing: other words to try (AI, only ones that
+  // have listings) - see backend lib/wanted.js searchAlternatives.
+  const [alternatives, setAlternatives] = useState([]);
   const page = Math.max(Number(searchParams.get('page')) || 1, 1);
   const mapView = searchParams.get('view') === 'map';
   // "Near me": the renter's location, rounded to ~1 km (lib/myLocation.js).
@@ -367,6 +370,21 @@ export default function Marketplace() {
     setSearchInput(text);
     setSearchParams(new URLSearchParams({ q: text }));
   }
+
+  // What the person searched for, in their own words.
+  const searchText = aiReading?.text || q;
+  useEffect(() => {
+    setAlternatives([]);
+    if (loading || error || listings.length || !searchText) return undefined;
+    let cancelled = false;
+    api
+      .searchAlternatives(searchText)
+      .then((r) => !cancelled && setAlternatives(r.alternatives || []))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, error, listings.length, searchText]);
 
   const activeCategory = categories.find((c) => c.slug === filters.category);
   const activeCount = countActiveFilters(filters);
@@ -641,11 +659,40 @@ export default function Marketplace() {
 
             {!loading && !error && listings.length === 0 && (
               <div className="py-16 text-center text-night-muted">
-                No listings found. Try a different search or{' '}
-                <a href="/list-item" className="font-medium text-accent">
-                  be the first to list an item
-                </a>
-                .
+                <p>No listings found.</p>
+                {alternatives.length > 0 && (
+                  <div className="mt-4 flex flex-wrap items-center justify-center gap-2" role="status">
+                    <span className="inline-flex items-center gap-1 text-sm">
+                      <Sparkles className="h-4 w-4 text-emerald-400" aria-hidden="true" /> Try:
+                    </span>
+                    {alternatives.map((a) => (
+                      <button
+                        key={a.term}
+                        type="button"
+                        onClick={() => {
+                          setAiReading(null);
+                          setSearchInput(a.term);
+                          setSearchParams(new URLSearchParams({ q: a.term }));
+                        }}
+                        className="rounded-full border border-night-border/20 px-3 py-1 text-sm text-night-text hover:border-night-border/40"
+                      >
+                        {a.term} <span className="text-night-muted">({a.count})</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <p className="mt-4">
+                  {searchText ? (
+                    <Link to={`/wanted/new?text=${encodeURIComponent(searchText)}`} className="font-medium text-accent hover:underline">
+                      Post it as a Wanted request
+                    </Link>
+                  ) : (
+                    <Link to="/wanted/new" className="font-medium text-accent hover:underline">
+                      Post what you need
+                    </Link>
+                  )}{' '}
+                  - owners who have one will reply.
+                </p>
               </div>
             )}
 

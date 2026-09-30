@@ -35,6 +35,7 @@ export function navLinks(user, isAdmin, unreadChats) {
   const links = [
     { to: '/', label: 'Home', end: true },
     { to: '/marketplace', label: 'Marketplace' },
+    { to: '/wanted', label: 'Wanted' },
     { to: '/how-it-works', label: 'How It Works' },
     { to: '/why-it-matters', label: 'Why It Matters' },
     { to: '/help', label: 'Help / FAQ' },

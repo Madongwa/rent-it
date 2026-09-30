@@ -29,6 +29,8 @@ const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
+const Wanted = lazy(() => import('./pages/Wanted'));
+const WantedNew = lazy(() => import('./pages/WantedNew'));
 
 export default function App() {
   // Nav is fixed/floating so it can sit transparently over Home's video
@@ -53,6 +55,15 @@ export default function App() {
           <Route path="/marketplace" element={<Marketplace />} />
           <Route path="/listing/:id" element={<ListingDetail />} />
           <Route path="/owner/:id" element={<OwnerStorefront />} />
+          <Route path="/wanted" element={<Wanted />} />
+          <Route
+            path="/wanted/new"
+            element={
+              <ProtectedRoute>
+                <WantedNew />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/list-item"
             element={
