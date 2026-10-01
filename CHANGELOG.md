@@ -6,6 +6,9 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-10-01
 
+- **New logo** - the Rent It logo (purple ring with a tool) is now the browser-tab
+  icon (there wasn't one before) and replaces the 🛠️ emoji next to "Rent It"
+  in the navbar.
 - **Continue with Google** - log in or sign up with a Google account (instant,
   with your Google name and photo). The button appears as soon as Google is
   switched on in the Supabase dashboard. Privacy Policy updated.

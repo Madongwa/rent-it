@@ -514,6 +514,9 @@ Common rules for all of them:
 
 ## 13. Under the hood
 
+- **Logo / tab icon**: `frontend/public/favicon-32.png` (32×32, transparent) is the
+  navbar logo and the browser-tab icon; `favicon.ico` is the same image for
+  browsers and search engines that ask for that file.
 - **Frontend**: React + Vite + Tailwind, React Router. Metal-ring navbar
   pills (metal-fx), dark theme, SEO tags + sitemap. Every page except Home is
   its own download (loaded when first opened), and Supabase / React / motion

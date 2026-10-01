@@ -203,6 +203,9 @@
   height:calc(30*var(--rh-u));width:calc(30*var(--rh-u));border-radius:999px;
   background:var(--rh-ink);color:#000;font-size:calc(15*var(--rh-u));flex:0 0 auto;
 }
+/* The logo image is its own glowing ring on a transparent background, so it
+   sits straight on the bar - no white disc behind it. */
+.rh-logo-img{background:none;object-fit:contain;}
 
 .rh-nav-links{
   /* A real flex child (flex:1, centered within its own share of the row)

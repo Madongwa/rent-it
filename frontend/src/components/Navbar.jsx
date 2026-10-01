@@ -174,7 +174,7 @@ export default function Navbar() {
   return (
     <header ref={headerRef} className={`rh-nav${compact ? ' rh-nav--compact' : ''}`}>
       <Link to="/" className="rh-logo" translate="no">
-        <span className="rh-logo-mark" aria-hidden="true">🛠️</span>
+        <img className="rh-logo-mark rh-logo-img" src="/favicon-32.png" alt="" aria-hidden="true" width="32" height="32" />
         Rent It
       </Link>
 
