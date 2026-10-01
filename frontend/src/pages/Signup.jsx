@@ -9,7 +9,7 @@ const MIN_PASSWORD_LENGTH = 6;
 
 export default function Signup() {
   useSeo({ title: 'Sign Up', description: 'Create a Rent It account to start renting or listing equipment.', path: '/signup' });
-  const { signUp, resendConfirmation } = useAuth();
+  const { signUp } = useAuth();
   const navigate = useNavigate();
 
   const [fullName, setFullName] = useState('');
@@ -19,8 +19,6 @@ export default function Signup() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [needsConfirmation, setNeedsConfirmation] = useState(false);
-  const [resendState, setResendState] = useState('idle'); // idle | sending | sent | error
 
   function validate() {
     const errors = {};
@@ -49,67 +47,13 @@ export default function Signup() {
 
     if (error) {
       setFormError(error.message);
-    } else if (data.session) {
+    } else if (data?.session) {
+      // Logged in straight away - no confirmation email to wait for.
       navigate('/dashboard', { replace: true });
     } else {
-      // Email confirmation is enabled on the Supabase project
-      setNeedsConfirmation(true);
+      // The account exists but logging in didn't work this time.
+      navigate('/login', { replace: true });
     }
-  }
-
-  async function handleResend() {
-    setResendState('sending');
-    const { error } = await resendConfirmation(email.trim());
-    setResendState(error ? 'error' : 'sent');
-  }
-
-  if (needsConfirmation) {
-    return (
-      <DarkGradientBg className="min-h-[calc(100vh-4rem)]">
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-16 sm:px-6">
-        <div className="w-full max-w-md rounded-2xl border border-night-border/15 bg-night-card p-8 text-center sm:p-10">
-          <h1 className="text-3xl font-extrabold tracking-tight text-night-text">Check your email</h1>
-          <p className="mt-3 text-sm leading-relaxed text-night-muted">
-            We sent a confirmation link to <strong className="text-night-text">{email}</strong>. Confirm
-            your address, then log in.
-          </p>
-
-          {/* Email delivery isn't instant and can occasionally fail or land
-              in spam - this is the way out of that dead end, instead of a
-              silent "just wait and hope" screen. */}
-          <div className="mt-6 border-t border-night-border/15 pt-5">
-            {resendState === 'sent' ? (
-              <p className="text-sm text-emerald-400">Sent again — check your inbox (and spam folder).</p>
-            ) : (
-              <>
-                <p className="text-xs text-night-muted">Didn't get it?</p>
-                <button
-                  type="button"
-                  onClick={handleResend}
-                  disabled={resendState === 'sending'}
-                  className="mt-1.5 text-sm font-medium text-homeAccent hover:underline disabled:opacity-60"
-                >
-                  {resendState === 'sending' ? 'Sending…' : 'Resend confirmation email'}
-                </button>
-                {resendState === 'error' && (
-                  <p className="mt-2 text-sm text-red-400">
-                    Couldn't resend that — please try again in a moment.
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-
-          <Link
-            to="/login"
-            className="mt-6 inline-block font-medium text-homeAccent hover:underline"
-          >
-            Go to log in
-          </Link>
-        </div>
-      </div>
-      </DarkGradientBg>
-    );
   }
 
   return (
@@ -219,11 +163,6 @@ export default function Signup() {
               {formError}
             </p>
           )}
-
-          <p className="text-xs leading-relaxed text-night-muted">
-            After you sign up, we'll email you a confirmation link — you'll need to confirm your
-            address before you can log in.
-          </p>
 
           <p className="text-xs leading-relaxed text-night-muted">
             By signing up, you agree to our{' '}

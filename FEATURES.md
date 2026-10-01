@@ -184,8 +184,10 @@ recorded as evidence in `terms_acceptances`).
 
 ## 2. Accounts
 
-- **Sign up** with email and password; a confirmation email must be clicked
-  before first login (can be re-sent).
+- **Sign up** with name, email and password - **instant**: the server creates
+  the account already confirmed (`POST /api/auth/signup`) and you're logged in
+  straight away, no confirmation email to wait for. Limited to 5 sign-ups an
+  hour per network. Listing still needs seller verification.
 - **Log in / log out**, **forgot password** (emailed reset link) and **reset
   password**.
 - **Profile** - name, phone, avatar.

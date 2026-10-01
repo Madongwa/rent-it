@@ -6,6 +6,9 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-10-01
 
+- **Instant sign-up** - new accounts work straight away: you're logged in as
+  soon as you sign up, with no confirmation email to wait for (those emails
+  often didn't arrive). One account stuck waiting since 17 September was let in.
 - **Even listing cards** - every card in a Marketplace row (and on Favorites and
   owner pages) is now the same height, with titles, towns and prices lined up,
   whether or not a listing has "Verified seller", a rating or a town. Long

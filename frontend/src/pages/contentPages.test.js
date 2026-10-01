@@ -9,5 +9,6 @@ describe('content pages', () => {
       const mod = await load();
       expect(typeof mod.default).toBe('function');
     }
-  });
+    // Importing Home pulls in the animation libraries - slow on a cold run.
+  }, 60000);
 });

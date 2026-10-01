@@ -89,6 +89,7 @@ export const api = {
   comparePhotos: (id) => request(`/rentals/${id}/compare-photos`, { method: 'POST' }),
   adminComparePhotos: (id) => request(`/admin/rentals/${id}/compare-photos`, { method: 'POST' }),
 
+  signUp: (payload) => request('/auth/signup', { method: 'POST', body: JSON.stringify(payload) }),
   getMyProfile: () => request('/profiles/me'),
   getPublicProfile: (id) => request(`/profiles/${id}`),
   acceptTerms: (version) =>

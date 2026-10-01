@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { api } from '../lib/api';
 
 const AuthContext = createContext(undefined);
 
@@ -24,12 +25,17 @@ export function AuthProvider({ children }) {
     session,
     user: session?.user ?? null,
     loading,
-    signUp: (email, password, fullName) =>
-      supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: fullName } },
-      }),
+    // Instant accounts: the server creates the account already confirmed
+    // (backend routes/auth.js - no confirmation email to wait for), then
+    // this logs straight in. Same { data, error } shape as Supabase's calls.
+    signUp: async (email, password, fullName) => {
+      try {
+        await api.signUp({ email, password, full_name: fullName });
+      } catch (error) {
+        return { data: null, error };
+      }
+      return supabase.auth.signInWithPassword({ email, password });
+    },
     signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
     signOut: () => supabase.auth.signOut(),
     // Re-sends the signup confirmation email - used on both the "check your
