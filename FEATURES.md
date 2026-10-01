@@ -133,6 +133,9 @@ week"). Linked in the navbar.
   another 30); no phone numbers, UPI IDs or advance-payment talk (refused - replies
   happen in chat).
 - **Your posts** at the top of the page - Close / Reopen / Delete.
+- **Sample posts**: six example requests from sample renter accounts
+  (`@rentit.test`), added by `backend/scripts/seed-wanted-posts.js` (safe to
+  re-run; dates are always upcoming; real users' posts are never touched).
 - **AI matching** - when an owner publishes a new listing, the AI checks it
   against open requests and notifies the renters it could suit (once per
   listing). Publishing waits at most 8 seconds for this.

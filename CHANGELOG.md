@@ -4,6 +4,13 @@ What changed on Rent It, newest first. Every change to a feature gets an
 entry here (and [FEATURES.md](FEATURES.md) is updated to match) in the same
 commit. Dates are when the change was pushed to `main`, which deploys it.
 
+## 2026-10-01
+
+- **Sample Wanted posts** - six example requests (one per category, from
+  three sample renter accounts) so the Wanted page isn't empty; most have a
+  matching sample listing nearby. Re-runnable with
+  `node backend/scripts/seed-wanted-posts.js`.
+
 ## 2026-09-30
 
 - **Sharper "no results" suggestions** - words whose listings are a different
