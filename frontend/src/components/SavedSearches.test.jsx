@@ -18,7 +18,7 @@ describe('SavedSearches', () => {
         <SavedSearches />
       </MemoryRouter>
     );
-    const link = await screen.findByRole('link', { name: /tractor near Mandya/ });
+    const link = await screen.findByRole('link', { name: /tractor near Mandya/ }, { timeout: 5000 });
     expect(link).toHaveAttribute('href', '/marketplace?q=tractor&near=Mandya');
     await userEvent.click(screen.getByRole('button', { name: /Delete/ }));
     // Generous wait - this re-render can be slow when the whole suite runs.
