@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import useSeo from '../hooks/useSeo';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -62,6 +63,8 @@ export default function Signup() {
       <div className="w-full max-w-md rounded-2xl border border-night-border/15 bg-night-card p-8 sm:p-10">
         <h1 className="text-3xl font-extrabold tracking-tight text-night-text">Create your account</h1>
         <p className="mt-2 text-sm text-night-muted">Start listing or renting equipment in minutes.</p>
+
+        <GoogleSignInButton label="Sign up with Google" />
 
         <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-5">
           <div>

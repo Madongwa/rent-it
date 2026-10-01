@@ -6,6 +6,9 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-10-01
 
+- **Continue with Google** - log in or sign up with a Google account (instant,
+  with your Google name and photo). The button appears as soon as Google is
+  switched on in the Supabase dashboard. Privacy Policy updated.
 - **Renter ID verification** - renters verify one government ID (masked
   Aadhaar, driving licence, voter ID, PAN or passport) when a deal is agreed,
   or before requesting items whose owner ticked "Only ID-verified renters".

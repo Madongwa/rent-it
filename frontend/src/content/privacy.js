@@ -24,7 +24,7 @@ export const PRIVACY_SECTIONS = [
       { heading: 'Data you give us' },
       {
         list: [
-          'Account data: your name, email address, password (stored only in hashed form by our authentication provider), and optionally your phone number and profile photo.',
+          'Account data: your name, email address, password (stored only in hashed form by our authentication provider), and optionally your phone number and profile photo. If you sign in with Google, Google shares your name, email address and Google profile photo with us, and you have no Rent It password.',
           'Listing data: photos, descriptions, condition, price, deposit, location or area, and other details of Items you list.',
           'Seller verification (KYC) data: a photo of the front and back of the identity document you choose to submit, an optional proof of address, the name, phone number and address you enter, and the verification result. We do not store your identity-document number as separate text.',
           'Renter ID verification data, if you choose to verify: the type of government ID and one photo of it, and the result of the check.',

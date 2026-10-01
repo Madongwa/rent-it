@@ -188,6 +188,12 @@ recorded as evidence in `terms_acceptances`).
   the account already confirmed (`POST /api/auth/signup`) and you're logged in
   straight away, no confirmation email to wait for. Limited to 5 sign-ups an
   hour per network. Listing still needs seller verification.
+- **Continue with Google** on Log in and Sign up (Supabase OAuth) - instant as
+  well, since Google has already verified the email; the account's name and
+  Google profile photo fill in the profile. Google returns to `/auth/callback`,
+  which sends you on to where you were going. The button only appears once
+  Google is switched on in the Supabase dashboard (read from the project's
+  public auth settings), so the site never shows a button that can't work.
 - **Log in / log out**, **forgot password** (emailed reset link) and **reset
   password**.
 - **Profile** - name, phone, avatar.

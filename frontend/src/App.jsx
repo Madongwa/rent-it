@@ -33,6 +33,7 @@ const Wanted = lazy(() => import('./pages/Wanted'));
 const WantedNew = lazy(() => import('./pages/WantedNew'));
 const Agreement = lazy(() => import('./pages/Agreement'));
 const VerifyId = lazy(() => import('./pages/VerifyId'));
+const AuthCallback = lazy(() => import('./pages/AuthCallback'));
 
 export default function App() {
   // Nav is fixed/floating so it can sit transparently over Home's video
@@ -147,6 +148,7 @@ export default function App() {
             }
           />
           <Route path="/login" element={<Login />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />

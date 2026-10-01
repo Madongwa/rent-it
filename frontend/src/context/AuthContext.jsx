@@ -37,6 +37,13 @@ export function AuthProvider({ children }) {
       return supabase.auth.signInWithPassword({ email, password });
     },
     signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
+    // Google: off to Google, then back to /auth/callback (AuthCallback.jsx).
+    // Google accounts are already email-verified, so they're instant too.
+    signInWithGoogle: () =>
+      supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+      }),
     signOut: () => supabase.auth.signOut(),
     // Re-sends the signup confirmation email - used on both the "check your
     // email" screen (in case the first one never arrived) and on Login when

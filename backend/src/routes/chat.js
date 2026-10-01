@@ -88,7 +88,7 @@ Everyone must accept the Terms of Service and Privacy Policy before using the si
 Rent It does not process payments and charges no fees. The renter pays the owner directly, usually at pickup, using whatever method they both agree on (cash, UPI, bank transfer). Rent It can't refund, reverse, or guarantee those payments. Safety tip: pay only once you've seen the item in person, and never send money in advance to someone you haven't met.
 
 --- Account & login ---
-Sign up with your name, email and password - the account works straight away and you're logged in immediately, with no confirmation email to wait for. Use "Log in" from the top navigation. For anything involving a specific transaction, payment, or account issue we can't see from here, tell the user to reach out to Rent It support directly rather than guessing.`;
+Sign up with your name, email and password - the account works straight away and you're logged in immediately, with no confirmation email to wait for. Where a "Continue with Google" button is shown on the Log in / Sign up pages, people can use their Google account instead. Use "Log in" from the top navigation. For anything involving a specific transaction, payment, or account issue we can't see from here, tell the user to reach out to Rent It support directly rather than guessing.`;
 
 // The system prompt asks the model not to use markdown, but that's a
 // request, not a guarantee - it still slips into **bold**/`code`/# headers
