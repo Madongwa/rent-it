@@ -70,23 +70,36 @@ export default function ListingCard({ listing, isFavorited, onToggleFavorite }) 
                 FilterSidebar.jsx) - only rendered if a listing ever carries one. */}
             {listing.subcategory && <span className="listing-card-tag">{listing.subcategory}</span>}
             {listing.condition && <span className="listing-card-tag listing-card-tag--condition">{listing.condition}</span>}
+            {/* Paused/rented (Favorites, storefronts) sits with the tags, so it
+                never adds a line under the price. */}
+            {listing.status && listing.status !== 'available' && (
+              <span className="listing-card-tag capitalize">{listing.status}</span>
+            )}
           </div>
 
           <h3 className="listing-card-title">{listing.title}</h3>
 
-          {listing.owner?.verified && (
-            <p className="mt-0.5 flex items-center gap-1 text-xs text-emerald-400" title="The owner passed seller verification">
-              <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" /> Verified seller
-            </p>
-          )}
+          {/* Always there, empty when the owner isn't verified, so every
+              card's lines stay at the same height. */}
+          <p className="listing-card-slot text-emerald-400" title={listing.owner?.verified ? 'The owner passed seller verification' : undefined}>
+            {listing.owner?.verified && (
+              <>
+                <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" /> Verified seller
+              </>
+            )}
+          </p>
 
-          {listing.location && (
-            <p className="listing-card-location">
-              <PinIcon className="h-3.5 w-3.5 shrink-0" />
-              {listing.location}
-              {listing.distance_from_you_km != null && <span className="ml-1 text-emerald-400">· {formatKm(listing.distance_from_you_km)}</span>}
-            </p>
-          )}
+          <p className="listing-card-location">
+            {listing.location && (
+              <>
+                <PinIcon className="h-3.5 w-3.5 shrink-0" />
+                <span className="min-w-0 truncate">
+                  {listing.location}
+                  {listing.distance_from_you_km != null && <span className="ml-1 text-emerald-400">· {formatKm(listing.distance_from_you_km)}</span>}
+                </span>
+              </>
+            )}
+          </p>
 
           <div className="listing-card-price-row">
             <div className="listing-card-price">
@@ -99,12 +112,6 @@ export default function ListingCard({ listing, isFavorited, onToggleFavorite }) 
               </div>
             )}
           </div>
-
-          {listing.status !== 'available' && (
-            <span className="listing-card-tag capitalize" style={{ alignSelf: 'flex-start' }}>
-              {listing.status}
-            </span>
-          )}
         </div>
       </div>
     </Link>

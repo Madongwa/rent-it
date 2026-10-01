@@ -10,9 +10,16 @@
  * which wraps the grid in bg-night-bg for this reason).
  */
 
+/* Every card in a grid row is the same height: the grid stretches this
+   outer box to the row (CSS grid's default align-items: stretch), and the
+   inner box below fills it, so the price row (margin-top: auto) lines up
+   across the row. The glow layer is positioned against this outer box, so
+   it traces the same edges as the visible card. */
 .listing-card {
   position: relative;
-  display: block;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   color: #fff;
   /* A couple of px of breathing room + a slightly larger outer radius than
      .listing-card-inner's, so the GlowingEffect ring (which traces THIS
@@ -43,7 +50,7 @@
   position: relative;
   z-index: 1;
   width: 100%;
-  height: auto;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -113,10 +120,33 @@
   padding: 1.1rem;
 }
 
+/* One line, always - a long category name is cut short rather than
+   wrapping and pushing everything below it down. */
 .listing-card-tags {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.4rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.listing-card-tags .listing-card-tag {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Fixed-height slots for optional lines (e.g. "Verified seller"), so the
+   title, location and price sit at the same height on every card. */
+.listing-card-slot {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 1rem;
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1rem;
 }
 
 .listing-card-tag {
@@ -150,6 +180,7 @@
   display: flex;
   align-items: center;
   gap: 0.3rem;
+  min-height: 1.2rem;
   margin: 0;
   font-size: 0.8rem;
   font-weight: 300;
@@ -159,9 +190,12 @@
   white-space: nowrap;
 }
 
+/* min-height = the price's own line, so the row is the same height with or
+   without a rating beside it. */
 .listing-card-price-row {
   margin-top: auto;
   padding-top: 0.4rem;
+  min-height: calc(1.4rem * 1.5 + 0.4rem);
   display: flex;
   align-items: flex-end;
   justify-content: space-between;

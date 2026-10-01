@@ -28,5 +28,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',
     globals: true,
+    // jsdom set-up can be slow on this machine (the project lives in a synced
+    // OneDrive folder); the 5 s default failed correct tests on slow runs.
+    testTimeout: 15000,
   },
 });

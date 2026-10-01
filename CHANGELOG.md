@@ -6,6 +6,11 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-10-01
 
+- **Even listing cards** - every card in a Marketplace row (and on Favorites and
+  owner pages) is now the same height, with titles, towns and prices lined up,
+  whether or not a listing has "Verified seller", a rating or a town. Long
+  category names and towns are cut short with "…" instead of wrapping, and
+  "Rented"/"Paused" now sits with the tags instead of under the price.
 - **Sample Wanted posts** - six example requests (one per category, from
   three sample renter accounts) so the Wanted page isn't empty; most have a
   matching sample listing nearby. Re-runnable with
