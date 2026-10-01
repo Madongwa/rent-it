@@ -86,3 +86,18 @@ describe('OfferForm', () => {
     expect(price).toHaveValue(700); // their own price stays
   });
 });
+
+describe('OfferForm - ID-verified renters only', () => {
+  it('offers a "Verify your ID" link when the owner requires it', async () => {
+    const { MemoryRouter } = await import('react-router-dom');
+    const err = Object.assign(new Error('The owner only rents this to ID-verified renters.'), { code: 'renter_id_required' });
+    const { container } = render(
+      <MemoryRouter>
+        <OfferForm listedPrice={600} onSubmit={vi.fn(async () => { throw err; })} />
+      </MemoryRouter>
+    );
+    setDates(container, '2099-01-05', '2099-01-06');
+    await userEvent.click(screen.getByRole('button', { name: /send|request/i }));
+    expect(await screen.findByRole('link', { name: 'Verify your ID' })).toHaveAttribute('href', '/verify-id');
+  });
+});

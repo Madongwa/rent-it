@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { TERMS_VERSION } from '../lib/terms.js';
 import { isSupportedLanguage } from '../lib/languages.js';
 import { ownerTrust } from '../lib/trust.js';
+import { isIdVerified } from '../lib/renterId.js';
 
 const router = Router();
 
@@ -11,12 +12,12 @@ const router = Router();
 router.get('/me', requireAuth, async (req, res) => {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, phone, avatar_url, created_at, role, seller_status, terms_accepted_at, terms_version, preferred_language')
+    .select('id, full_name, phone, avatar_url, created_at, role, seller_status, renter_id_status, terms_accepted_at, terms_version, preferred_language')
     .eq('id', req.user.id)
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json({ ...data, email: req.user.email, current_terms_version: TERMS_VERSION });
+  res.json({ ...data, id_verified: isIdVerified(data), email: req.user.email, current_terms_version: TERMS_VERSION });
 });
 
 // POST /api/profiles/me/accept-terms - body: { version }. Records that this

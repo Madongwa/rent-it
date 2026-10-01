@@ -30,6 +30,7 @@ function toFormInitial(listing) {
     accessories_included: listing.accessories_included,
     accessories_note: listing.accessories_note || '',
     min_rental_period: listing.min_rental_period,
+    require_renter_id: !!listing.require_renter_id,
     supported_durations: listing.supported_durations?.length ? listing.supported_durations : ['daily'],
     // The owner gets their exact pin back from the API (lib/geo.js).
     latitude: listing.latitude ?? null,

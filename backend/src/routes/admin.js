@@ -9,6 +9,7 @@ import { summarizeDispute } from '../lib/disputeSummary.js';
 import { compareConditionPhotos } from '../lib/conditionCompare.js';
 import { checkIdDocuments } from '../lib/idCheck.js';
 import { staffAnalytics } from '../lib/analytics.js';
+import { reviewRenterId } from '../lib/renterId.js';
 
 const router = Router();
 
@@ -29,6 +30,30 @@ router.get('/kyc-queue', async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
+});
+
+// GET /api/admin/renter-ids - renter ID checks: waiting for staff first,
+// then the latest decided ones (AI or staff), so staff can revoke a mistake.
+router.get('/renter-ids', async (req, res) => {
+  const { data, error } = await supabase
+    .from('renter_verifications')
+    .select('user_id, id_type, document_path, status, method, ai_result, rejection_reason, submitted_at, reviewed_at, person:profiles!renter_verifications_user_id_fkey(full_name)')
+    .order('submitted_at', { ascending: false })
+    .limit(100);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data.sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1)));
+});
+
+// POST /api/admin/renter-ids/:userId/review - body: { action: 'verify' | 'reject', reason }
+router.post('/renter-ids/:userId/review', async (req, res) => {
+  try {
+    const out = await reviewRenterId(req.params.userId, req.body?.action, req.user.id, req.body?.reason);
+    if (out.error) return res.status(out.code).json({ error: out.error });
+    await logAdminAction(req.user.id, `renter_id.${req.body.action}`, 'user', req.params.userId, req.body?.reason || null);
+    res.json(out);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /api/admin/analytics - Insights tab: searches (incl. ones that found

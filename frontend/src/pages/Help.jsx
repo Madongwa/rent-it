@@ -64,6 +64,10 @@ const FAQ_ITEMS = [
     a: 'Yes. Once a deal is agreed, open "📄 Agreement" on your Dashboard. It lists the item, dates, agreed price, total, deposit and the plain rules you both agreed to, in English and both of your languages, and "Print / Save as PDF" gives you a copy.',
   },
   {
+    q: 'Do I need to show an ID to rent?',
+    a: 'Only when it matters: once a deal is agreed we ask you to verify an ID before pickup, and some owners of expensive equipment only accept ID-verified renters. It takes a minute on the Verify your ID page - use any of Aadhaar (masked only), driving licence, voter ID, PAN or passport. Owners just see an "ID verified" badge, never your document.',
+  },
+  {
     q: 'How do I know an owner can be trusted?',
     a: 'Every owner passes an ID check before they can list. Listing pages show their trust badges - verified seller, how fast they usually reply, rentals completed, rating and how long they have been on Rent It - and real reviews from completed rentals. Still: meet in person, check the item, take photos, and never pay in advance.',
   },

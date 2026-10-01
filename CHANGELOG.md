@@ -6,6 +6,12 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-10-01
 
+- **Renter ID verification** - renters verify one government ID (masked
+  Aadhaar, driving licence, voter ID, PAN or passport) when a deal is agreed,
+  or before requesting items whose owner ticked "Only ID-verified renters".
+  Clear IDs are verified within a minute by an AI check; unclear ones go to
+  staff; full Aadhaar numbers are refused and the photo deleted. Owners see an
+  "ID verified" badge, never the document. Privacy Policy updated.
 - **Instant sign-up** - new accounts work straight away: you're logged in as
   soon as you sign up, with no confirmation email to wait for (those emails
   often didn't arrive). One account stuck waiting since 17 September was let in.

@@ -9,6 +9,7 @@ import DisputeSummary from '../components/admin/DisputeSummary';
 import ConditionCompare from '../components/ConditionCompare';
 import IdAiCheck from '../components/admin/IdAiCheck';
 import StaffInsights from '../components/admin/StaffInsights';
+import RenterIdsTab from '../components/admin/RenterIdsTab';
 
 // The agreed (or, while pending, latest offered) price next to the listed
 // one - no money moves through the app, so this is staff's record of the
@@ -27,6 +28,7 @@ const TABS = [
   { key: 'disputes', label: 'Disputes' },
   { key: 'reviews', label: 'Reviews' },
   { key: 'kyc', label: 'Seller verification' },
+  { key: 'renterIds', label: 'Renter IDs' },
   { key: 'users', label: 'Users' },
   { key: 'listings', label: 'Listings' },
   { key: 'safety', label: 'Safety' },
@@ -409,6 +411,7 @@ export default function AdminDashboard() {
       )}
 
       {tab === 'insights' && <StaffInsights />}
+      {tab === 'renterIds' && <RenterIdsTab DocLink={DocLink} />}
 
       {!loading && tab === 'kyc' && (
         <div className="mt-6 space-y-4">

@@ -6,6 +6,7 @@ import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 import SavedSearches from '../components/SavedSearches';
 import ConditionCompare from '../components/ConditionCompare';
 import ListingInsights from '../components/ListingInsights';
+import IdVerifiedBadge from '../components/IdVerifiedBadge';
 import { findOpenOffer, formatInr, rentalDays, whoseTurn } from '../lib/offers';
 
 // Condition photos are only meaningful once a handoff has actually
@@ -178,6 +179,14 @@ export default function Dashboard() {
   const [actionError, setActionError] = useState('');
   const [expandedId, setExpandedId] = useState(null);
   const [tipsId, setTipsId] = useState(null);
+  // Whether I (as a renter) have verified my ID - agreed deals nudge me if not.
+  const [idVerified, setIdVerified] = useState(true);
+  useEffect(() => {
+    api
+      .getMyProfile()
+      .then((p) => setIdVerified(!!p.id_verified))
+      .catch(() => {});
+  }, []);
 
   function loadAll() {
     setLoading(true);
@@ -332,6 +341,12 @@ export default function Dashboard() {
 
       {!loading && !error && tab === 'mine' && (
         <div className="mt-6 space-y-3">
+          {!idVerified && myRentals.some((r) => r.status === 'approved') && (
+            <div className="rounded-card border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-200" role="status">
+              You have an agreed rental - <Link to="/verify-id" className="font-semibold underline">verify your ID</Link> before pickup
+              so the owner sees you're an ID-verified renter. It takes a minute.
+            </div>
+          )}
           {myRentals.length === 0 && <p className="text-night-muted">You haven't requested any rentals yet.</p>}
           {myRentals.map((r) => (
             <div key={r.id} className="rounded-card border border-night-border/15 p-4">
@@ -394,7 +409,8 @@ export default function Dashboard() {
                     {r.listing?.title}
                   </Link>
                   <p className="text-sm text-night-muted">
-                    Requested by {r.renter?.full_name || 'a user'} · {r.start_date} → {r.end_date}
+                    Requested by <span translate="no">{r.renter?.full_name || 'a user'}</span>{' '}
+                    <IdVerifiedBadge verified={r.renter?.id_verified} /> · {r.start_date} → {r.end_date}
                   </p>
                   <PriceLine rental={r} />
                 </div>

@@ -32,6 +32,7 @@ const Privacy = lazy(() => import('./pages/Privacy'));
 const Wanted = lazy(() => import('./pages/Wanted'));
 const WantedNew = lazy(() => import('./pages/WantedNew'));
 const Agreement = lazy(() => import('./pages/Agreement'));
+const VerifyId = lazy(() => import('./pages/VerifyId'));
 
 export default function App() {
   // Nav is fixed/floating so it can sit transparently over Home's video
@@ -57,6 +58,14 @@ export default function App() {
           <Route path="/listing/:id" element={<ListingDetail />} />
           <Route path="/owner/:id" element={<OwnerStorefront />} />
           <Route path="/wanted" element={<Wanted />} />
+          <Route
+            path="/verify-id"
+            element={
+              <ProtectedRoute>
+                <VerifyId />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/rentals/:id/agreement"
             element={

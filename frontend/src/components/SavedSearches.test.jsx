@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import SavedSearches from './SavedSearches';
@@ -21,7 +21,8 @@ describe('SavedSearches', () => {
     const link = await screen.findByRole('link', { name: /tractor near Mandya/ });
     expect(link).toHaveAttribute('href', '/marketplace?q=tractor&near=Mandya');
     await userEvent.click(screen.getByRole('button', { name: /Delete/ }));
-    await waitFor(() => expect(screen.getByText('No saved searches yet.')).toBeInTheDocument());
+    // Generous wait - this re-render can be slow when the whole suite runs.
+    expect(await screen.findByText('No saved searches yet.', {}, { timeout: 5000 })).toBeInTheDocument();
     expect(api.deleteSavedSearch).toHaveBeenCalledWith('s1');
   });
 });

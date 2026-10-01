@@ -869,7 +869,9 @@ alter table public.messages
 alter table public.messages drop constraint if exists messages_kind_check;
 alter table public.messages
   add constraint messages_kind_check
-    check (kind in ('text', 'offer', 'system', 'image', 'file', 'location'));
+    -- voice added later in this file; listed here too so a re-run never
+    -- rejects existing voice messages before that block is reached.
+    check (kind in ('text', 'offer', 'system', 'image', 'file', 'location', 'voice'));
 
 -- Private, like rental-photos: chat files can include ID proof, addresses or
 -- signed agreements. 20 MB cap and an allow-list of image/document types,
@@ -1288,3 +1290,36 @@ alter table public.season_hints enable row level security;
 -- Staff analytics: how many listings each logged search found (0 = people
 -- want something nobody lists). Safe to re-run.
 alter table public.search_log add column if not exists results int;
+
+-- ---------------------------------------------------------------------------
+-- Renter ID verification (lib/renterId.js). Renters add one government ID
+-- (Aadhaar only in its masked form) - asked for once a deal is agreed, or
+-- before requesting a listing whose owner chose "Only ID-verified renters".
+-- The photo goes in the private kyc-documents bucket (<user id>/...); owners
+-- only ever see a yes/no "ID verified" badge. A clear AI check verifies at
+-- once; anything unclear waits for staff. Approved sellers count as verified.
+-- Backend-only table. Safe to re-run.
+-- ---------------------------------------------------------------------------
+alter table public.profiles
+  add column if not exists renter_id_status text not null default 'none'
+    check (renter_id_status in ('none', 'pending', 'verified', 'rejected'));
+
+create table if not exists public.renter_verifications (
+  user_id uuid primary key references public.profiles (id) on delete cascade,
+  id_type text not null check (id_type in ('aadhaar', 'driving_licence', 'voter_id', 'pan', 'passport')),
+  document_path text,
+  status text not null default 'pending' check (status in ('pending', 'verified', 'rejected')),
+  method text check (method in ('ai', 'staff')),
+  ai_result jsonb,
+  rejection_reason text,
+  reviewed_by uuid references public.profiles (id) on delete set null,
+  reviewed_at timestamptz,
+  submitted_at timestamptz not null default now()
+);
+
+create index if not exists renter_verifications_status_idx on public.renter_verifications (status, submitted_at desc);
+
+alter table public.renter_verifications enable row level security;
+
+alter table public.listings
+  add column if not exists require_renter_id boolean not null default false;

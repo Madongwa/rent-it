@@ -21,8 +21,11 @@ describe('validateIdCheck', () => {
       readable: 'yes',
       name_match: 'match',
       document_type: 'aadhaar',
+      aadhaar_number_visible: false,
       issues: ['Number [number removed] visible', 'Slight glare'],
     });
+    expect(validateIdCheck({ looks_like_id: 'yes', aadhaar_number_visible: true }).aadhaar_number_visible).toBe(true);
+    expect(validateIdCheck({ looks_like_id: 'yes', aadhaar_number_visible: 'yes' }).aadhaar_number_visible).toBe(false);
     expect(validateIdCheck({ looks_like_id: 'maybe' })).toBeNull();
   });
 });

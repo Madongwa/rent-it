@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { effectiveDailyRate, formatInr, priceDifference, rentalDays, todayStr } from '../lib/offers';
 import PriceCheck from './PriceCheck';
 
@@ -36,6 +37,7 @@ export default function OfferForm({
   const [priceTouched, setPriceTouched] = useState(initial.price_per_day != null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [needsId, setNeedsId] = useState(false);
 
   const days = startDate && endDate && endDate >= startDate ? rentalDays(startDate, endDate) : 0;
   const rate = rates && days ? effectiveDailyRate(rates, days) : null;
@@ -63,6 +65,7 @@ export default function OfferForm({
       await onSubmit({ start_date: startDate, end_date: endDate, price_per_day: priceNum });
     } catch (err) {
       setError(err.message);
+      setNeedsId(err.code === 'renter_id_required');
     } finally {
       setSubmitting(false);
     }
@@ -154,7 +157,19 @@ export default function OfferForm({
         </div>
       )}
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && (
+        <p className="text-sm text-red-400">
+          {error}
+          {needsId && (
+            <>
+              {' '}
+              <Link to="/verify-id" className="font-medium text-night-text underline">
+                Verify your ID
+              </Link>
+            </>
+          )}
+        </p>
+      )}
 
       <div className="flex gap-2">
         <button

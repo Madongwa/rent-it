@@ -10,6 +10,7 @@ const { api } = vi.hoisted(() => ({
     getIncomingRentals: vi.fn(),
     acceptOffer: vi.fn(),
     updateRentalStatus: vi.fn(),
+    getMyProfile: vi.fn(async () => ({ id_verified: true })),
   },
 }));
 

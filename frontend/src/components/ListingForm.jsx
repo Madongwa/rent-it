@@ -37,6 +37,7 @@ const FIELD_DEFAULTS = {
   deposit_required: false,
   deposit_amount: '',
   cancellation_policy: 'flexible',
+  require_renter_id: false,
   owner_type: 'individual',
   accessories_included: false,
   accessories_note: '',
@@ -331,6 +332,22 @@ export default function ListingForm({ initial, listingId, onSubmit, submitLabel 
             ))}
           </div>
         </Field>
+
+        <div>
+          <label className="flex items-center gap-2 text-sm font-medium text-night-muted">
+            <input
+              type="checkbox"
+              checked={!!form.require_renter_id}
+              onChange={(e) => update('require_renter_id', e.target.checked)}
+              className={checkboxClass}
+            />
+            Only ID-verified renters can request this
+          </label>
+          <p className="mt-1 pl-6 text-xs text-night-muted">
+            Worth it for expensive equipment. Renters verify a government ID once (it takes a minute); you see an "ID verified"
+            badge, never the document.
+          </p>
+        </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">

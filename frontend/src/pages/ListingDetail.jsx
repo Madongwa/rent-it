@@ -272,6 +272,7 @@ export default function ListingDetail() {
   const navigate = useNavigate();
 
   const [listing, setListing] = useState(null);
+  const [myIdVerified, setMyIdVerified] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -306,6 +307,15 @@ export default function ListingDetail() {
     if (!listing || window.location.hash !== '#write-review') return;
     document.getElementById('write-review')?.scrollIntoView({ behavior: 'smooth' });
   }, [listing]);
+
+  // Only needed for "ID-verified renters only" listings.
+  useEffect(() => {
+    if (!user || !listing?.require_renter_id) return;
+    api
+      .getMyProfile()
+      .then((p) => setMyIdVerified(!!p.id_verified))
+      .catch(() => {});
+  }, [user, listing?.require_renter_id]);
 
   function handleToggleFavorite() {
     if (!isLoggedIn) {
@@ -506,6 +516,19 @@ export default function ListingDetail() {
             ) : (
               <>
                 <h2 className="font-semibold text-night-text">Request to rent</h2>
+                {listing.require_renter_id && myIdVerified !== true && (
+                  <p className="mt-2 rounded-btn border border-amber-400/30 bg-amber-500/10 p-2.5 text-xs text-amber-200">
+                    🪪 The owner only rents this to ID-verified renters.{' '}
+                    {user ? (
+                      <Link to="/verify-id" className="font-semibold underline">
+                        Verify your ID
+                      </Link>
+                    ) : (
+                      'Log in and verify your ID'
+                    )}{' '}
+                    first - it takes a minute.
+                  </p>
+                )}
                 <p className="mb-4 mt-1 text-sm text-night-muted">
                   Offer the listed price or your own. The owner can accept, decline, or counter in chat.
                 </p>

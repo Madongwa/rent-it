@@ -403,6 +403,7 @@ handles the money.
 | Photo check | List an Item / Edit listing | **Gemini only** (the model that can see images) | Your listing photos (public anyway) and title |
 | Review summary | Listing page → Reviews | Gemini, Groq as backup | The listing's written reviews and ratings (no reviewer names) |
 | Seasonal demand hint | Dashboard → My Listings → Tips | Gemini, Groq as backup (cached per category/state/month) | Item title, category, state and month only |
+| Renter ID check | Verify your ID | **Groq only** (Qwen) - never Gemini | One ID photo and the account name; a clear result verifies at once, unclear goes to staff |
 | Staff ID check | Staff → Seller verification | **Groq only** (Qwen) - never Gemini | The applicant's ID photos and the name they gave (answer holds checks only, not the ID's details) |
 | Wanted-post writer | Post what you need | Gemini, Groq as backup | The sentence you type |
 | Wanted matching | When a listing is published | Gemini, Groq as backup | The new listing's title, description, town, and open Wanted posts' text (no names) |
@@ -428,6 +429,17 @@ Common rules for all of them:
 ## 10. Trust and safety
 
 - **Seller verification** before anyone can list.
+- **Renter ID verification** (`/verify-id`) - renters verify one government ID
+  (Aadhaar - masked only -, driving licence, voter ID, PAN or passport; never
+  Aadhaar-only). Asked for when a deal is agreed (notification + a Dashboard
+  banner), or up front for listings whose owner ticked **"Only ID-verified
+  renters can request this"** (requests are refused until verified). The photo
+  goes to the private kyc-documents bucket; an AI check (Groq only) verifies a
+  clear, name-matching ID at once, **refuses a photo showing the full Aadhaar
+  number and deletes it immediately**, refuses non-IDs, and sends anything
+  unclear to staff (Staff → Renter IDs: verify / reject / revoke). Approved
+  sellers count as ID-verified. Owners only see an **"ID verified"** badge (on
+  requests and in chat), never the document.
 - **Listing safety review** - fixed rules (phone numbers, UPI IDs,
   advance-payment asks, OTP mentions, links) plus AI (impossible prices,
   courier-deposit tricks, prohibited items like weapons or medicines, fake or

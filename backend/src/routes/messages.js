@@ -8,12 +8,20 @@ import { translateForReader } from '../lib/translate.js';
 import { suggestReplies } from '../lib/replySuggestions.js';
 import rateLimit from 'express-rate-limit';
 import { transcribeAudio } from '../lib/voice.js';
+import { isIdVerified } from '../lib/renterId.js';
 import { isSupportedLanguage } from '../lib/languages.js';
 
 const router = Router();
 
 const CONVERSATION_SELECT =
-  '*, listing:listings(id, title, image_url, status, price_per_day, price_per_week, price_per_month, deposit_required, deposit_amount), owner:profiles!conversations_owner_id_fkey(id, full_name, avatar_url), renter:profiles!conversations_renter_id_fkey(id, full_name, avatar_url)';
+  '*, listing:listings(id, title, image_url, status, price_per_day, price_per_week, price_per_month, deposit_required, deposit_amount), owner:profiles!conversations_owner_id_fkey(id, full_name, avatar_url), renter:profiles!conversations_renter_id_fkey(id, full_name, avatar_url, renter_id_status, seller_status)';
+
+// The renter's ID status as a plain yes/no badge (owners see it in chat).
+const withRenterBadge = (c) => {
+  if (!c?.renter) return c;
+  const { renter_id_status, seller_status, ...renter } = c.renter;
+  return { ...c, renter: { ...renter, id_verified: isIdVerified({ renter_id_status, seller_status }) } };
+};
 
 // Offer cards (kind 'offer') carry their offer, plus the rental's current
 // status and the price the listing had when the request was made, so the
@@ -76,7 +84,7 @@ router.get('/conversations', requireAuth, async (req, res) => {
 
   const withPreview = data
     .map((c) => ({
-      ...c,
+      ...withRenterBadge(c),
       last_message: lastByConversation[c.id] || null,
       unread_count: unreadByConversation[c.id] || 0,
       other_last_read_at: c[readColumns(c, req.user.id).theirs],
@@ -173,7 +181,7 @@ router.post('/conversations', requireAuth, async (req, res) => {
   });
 
   if (error) return res.status(500).json({ error: error.message });
-  res.status(created ? 201 : 200).json(data);
+  res.status(created ? 201 : 200).json(withRenterBadge(data));
 });
 
 // GET /api/messages/conversations/:id/messages

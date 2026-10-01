@@ -27,6 +27,7 @@ export const PRIVACY_SECTIONS = [
           'Account data: your name, email address, password (stored only in hashed form by our authentication provider), and optionally your phone number and profile photo.',
           'Listing data: photos, descriptions, condition, price, deposit, location or area, and other details of Items you list.',
           'Seller verification (KYC) data: a photo of the front and back of the identity document you choose to submit, an optional proof of address, the name, phone number and address you enter, and the verification result. We do not store your identity-document number as separate text.',
+          'Renter ID verification data, if you choose to verify: the type of government ID and one photo of it, and the result of the check.',
           'Rental data: your Requests, every Offer and counter-offer (dates and prices), accepted Deals, cancellations, disputes and their resolution, and pickup/return condition photos.',
           'Chat data: the messages you send and receive (including voice messages, their recordings and the text written out from them), and anything you send from the "+" menu - photos (including camera photos), documents (such as PDFs or Word files) and locations you choose to share (coordinates and any place name).',
           'Reviews, ratings, reports and flags you submit, and messages you send to our support assistant or to us.',
@@ -92,6 +93,7 @@ export const PRIVACY_SECTIONS = [
     body: [
       'Identity and address-proof documents are stored in a private, access-restricted storage area - separate from public listing photos - and are never shown to other Users. They can be viewed only by you, by Staff reviewing your verification or a dispute, and, where automated verification is used, by our identity-verification provider for that check. Staff may also ask an AI provider (Groq, never our other AI providers) to look at the ID photos to help them check it: it is asked only whether the document looks genuine and readable and whether the name matches, not to read out your ID number or other details, and its answer is not stored.',
       'Aadhaar is optional. If you use it, we recommend a masked Aadhaar showing only the last four digits. We do not perform Aadhaar authentication.',
+      'Renter ID verification is optional, except for Listings whose Owner only accepts ID-verified renters, and you may use any of five government IDs. Aadhaar is accepted only in its masked form: a photo showing the full Aadhaar number is refused and deleted immediately. To give you an answer in minutes rather than days, the photo is first checked by an AI provider (Groq, never our other AI providers), which is asked only whether it looks like a genuine, readable ID and whether the name matches your account - not to read out your ID number or other details. A clear result verifies you at once; anything unclear is looked at by Staff. Owners only ever see a yes/no "ID verified" badge, never the document or which ID you used.',
     ],
   },
   {

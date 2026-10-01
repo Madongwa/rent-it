@@ -23,7 +23,12 @@ async function request(path, options = {}) {
   // the rate-limit notice), so this surfaces that instead of a generic
   // "Request failed (429)" for that one endpoint - harmless no-op for
   // every other endpoint's error bodies, which never set `reply`.
-  if (!res.ok) throw new Error(body.error || body.reply || `Request failed (${res.status})`);
+  if (!res.ok) {
+    const err = new Error(body.error || body.reply || `Request failed (${res.status})`);
+    // e.g. 'renter_id_required' - lets a form offer the right next step.
+    if (body.code) err.code = body.code;
+    throw err;
+  }
   return body;
 }
 
@@ -91,6 +96,11 @@ export const api = {
 
   signUp: (payload) => request('/auth/signup', { method: 'POST', body: JSON.stringify(payload) }),
   getMyProfile: () => request('/profiles/me'),
+  getMyRenterId: () => request('/renter-id/me'),
+  submitRenterId: (payload) => request('/renter-id', { method: 'POST', body: JSON.stringify(payload) }),
+  adminRenterIds: () => request('/admin/renter-ids'),
+  adminReviewRenterId: (userId, action, reason) =>
+    request(`/admin/renter-ids/${userId}/review`, { method: 'POST', body: JSON.stringify({ action, reason }) }),
   getPublicProfile: (id) => request(`/profiles/${id}`),
   acceptTerms: (version) =>
     request('/profiles/me/accept-terms', { method: 'POST', body: JSON.stringify({ version }) }),

@@ -10,6 +10,15 @@ import { hasBlockedConflict } from '../lib/availability.js';
 import { buildAgreement } from '../lib/agreement.js';
 import { compareConditionPhotos } from '../lib/conditionCompare.js';
 import { ownerEarnings } from '../lib/earnings.js';
+import { isIdVerified } from '../lib/renterId.js';
+
+// Owners see only whether a renter's ID is verified - never the status
+// details or the document.
+const withIdBadge = (person) => {
+  if (!person) return person;
+  const { renter_id_status, seller_status, ...rest } = person;
+  return { ...rest, id_verified: isIdVerified({ renter_id_status, seller_status }) };
+};
 import rateLimit from 'express-rate-limit';
 
 // Each comparison may be an AI call on several photos.
@@ -31,7 +40,7 @@ const router = Router();
 const OFFERS_SELECT = 'offers:rental_offers(id, proposed_by, price_per_day, start_date, end_date, status, created_at)';
 const LISTING_FIELDS = 'id, title, image_url, price_per_day, deposit_required, deposit_amount, owner_id';
 const RENTAL_SELECT = `*, listing:listings(${LISTING_FIELDS}, owner:profiles(id, full_name)), ${OFFERS_SELECT}`;
-const INCOMING_SELECT = `*, listing:listings(${LISTING_FIELDS}), renter:profiles!rentals_renter_id_fkey(id, full_name), ${OFFERS_SELECT}`;
+const INCOMING_SELECT = `*, listing:listings(${LISTING_FIELDS}), renter:profiles!rentals_renter_id_fkey(id, full_name, renter_id_status, seller_status), ${OFFERS_SELECT}`;
 
 function loadRental(id) {
   return supabase
@@ -104,11 +113,18 @@ router.post('/', requireAuth, async (req, res) => {
 
   const { data: listing, error: listingError } = await supabase
     .from('listings')
-    .select('id, owner_id, status, title, price_per_day, price_per_week, price_per_month')
+    .select('id, owner_id, status, title, price_per_day, price_per_week, price_per_month, require_renter_id')
     .eq('id', listing_id)
     .single();
 
   if (listingError || !listing) return res.status(404).json({ error: 'Listing not found' });
+  // The owner chose "Only ID-verified renters" for this item.
+  if (listing.require_renter_id) {
+    const { data: me } = await supabase.from('profiles').select('renter_id_status, seller_status').eq('id', req.user.id).single();
+    if (!isIdVerified(me)) {
+      return res.status(403).json({ error: 'The owner only rents this to ID-verified renters - add your ID first (it takes a minute).', code: 'renter_id_required' });
+    }
+  }
   if (listing.owner_id === req.user.id) {
     return res.status(400).json({ error: 'You cannot rent your own listing' });
   }
@@ -235,7 +251,7 @@ router.get('/incoming', requireAuth, async (req, res) => {
     .order('created_at', { ascending: false });
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  res.json(data.map((r) => ({ ...r, renter: withIdBadge(r.renter) })));
 });
 
 // POST /api/rentals/:id/offers - counter-offer (price and/or dates) on a
@@ -401,6 +417,18 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
   // Cancelled in the instant after it was approved - don't leave the
   // listing marked rented for a booking that no longer exists.
   if (data.status !== 'approved') await releaseListingIfIdle(rental.listing_id);
+
+  // Deal agreed: if the renter hasn't verified their ID yet, now's the time.
+  const { data: renterProfile } = await supabase.from('profiles').select('renter_id_status, seller_status').eq('id', rental.renter_id).single();
+  if (!isIdVerified(renterProfile)) {
+    await notify({
+      userId: rental.renter_id,
+      type: 'renter_id',
+      title: 'Add your ID before pickup',
+      body: 'Your deal is agreed. Verify your ID (it takes a minute) so the owner can see you are an ID-verified renter.',
+      link: '/verify-id',
+    });
+  }
 
   const summary = describeTerms(terms, rental.listed_price_per_day ?? rental.listing.price_per_day);
   const deposit = rental.listing.deposit_required

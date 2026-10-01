@@ -338,6 +338,7 @@ const WRITABLE_FIELDS = [
   'min_rental_period',
   'supported_durations',
   'distance_km',
+  'require_renter_id',
 ];
 
 // Each draft is an AI call - kept well below the free-tier limits.

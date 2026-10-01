@@ -12,6 +12,7 @@ import SuggestReplies from '../components/chat/SuggestReplies';
 import { checkAttachment, shrinkImage, uploadAttachment } from '../lib/chatAttachments';
 import { recordingSupported } from '../lib/voiceRecorder';
 import VoiceRecorderBar from '../components/chat/VoiceRecorderBar';
+import IdVerifiedBadge from '../components/IdVerifiedBadge';
 import { MESSAGES_READ_EVENT } from '../hooks/useUnreadMessages';
 import { formatDay, formatInr, priceDifference, rentalDays } from '../lib/offers';
 import { chatWarnings } from '../lib/chatSafety';
@@ -705,8 +706,12 @@ export default function Messages() {
                     </button>
                     <Avatar name={otherName} imageUrl={other?.avatar_url} size="h-10 w-10" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-night-text" translate={other?.full_name ? 'no' : undefined}>
-                        {otherName}
+                      <p className="flex min-w-0 items-center gap-2 text-sm font-semibold text-night-text">
+                        <span className="truncate" translate={other?.full_name ? 'no' : undefined}>
+                          {otherName}
+                        </span>
+                        {/* Owners see whether the renter verified their ID. */}
+                        {active.owner_id === user?.id && <IdVerifiedBadge verified={active.renter?.id_verified} className="shrink-0" />}
                       </p>
                       <p className="truncate text-xs text-night-muted">
                         <Link to={`/listing/${active.listing?.id}`} className="hover:underline">
