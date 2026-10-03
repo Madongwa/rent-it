@@ -419,6 +419,18 @@ alter table public.profiles
   add column if not exists seller_status text not null default 'not_submitted'
     check (seller_status in ('not_submitted', 'pending', 'approved', 'rejected'));
 
+-- Is the signed-in user staff? Used by the RLS policies below. security
+-- definer, so it can read profiles.role even though clients can't (the
+-- column grants at the end of this file).
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (select 1 from public.profiles where id = auth.uid() and role = 'admin');
+$$;
+
 -- kyc_submissions: one row per user - resubmitting overwrites the previous
 -- attempt rather than piling up rows, since only the latest submission is
 -- ever actionable. Deliberately stores document *files* (in a private
@@ -478,7 +490,7 @@ drop policy if exists "Users and admins can view a KYC submission" on public.kyc
 create policy "Users and admins can view a KYC submission" on public.kyc_submissions
   for select using (
     auth.uid() = user_id
-    or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+    or public.is_admin()
   );
 
 drop policy if exists "Users can submit their own KYC" on public.kyc_submissions;
@@ -489,7 +501,7 @@ drop policy if exists "Users can resubmit or admins can review KYC" on public.ky
 create policy "Users can resubmit or admins can review KYC" on public.kyc_submissions
   for update using (
     auth.uid() = user_id
-    or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+    or public.is_admin()
   );
 
 -- Private bucket for KYC documents - unlike listing-images, these are
@@ -510,7 +522,7 @@ create policy "Users and admins can view KYC documents" on storage.objects
     bucket_id = 'kyc-documents'
     and (
       (storage.foldername(name))[1] = auth.uid()::text
-      or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+      or public.is_admin()
     )
   );
 
@@ -559,7 +571,7 @@ create policy "Participants and admins can view disputes" on public.rental_dispu
       where r.id = rental_disputes.rental_id
         and (auth.uid() = r.renter_id or auth.uid() = l.owner_id)
     )
-    or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+    or public.is_admin()
   );
 
 drop policy if exists "Participants can raise a dispute" on public.rental_disputes;
@@ -576,7 +588,7 @@ create policy "Participants can raise a dispute" on public.rental_disputes
 
 drop policy if exists "Admins can resolve disputes" on public.rental_disputes;
 create policy "Admins can resolve disputes" on public.rental_disputes
-  for update using (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin'));
+  for update using (public.is_admin());
 
 -- Rental condition photos (pickup/return) - required so a dispute has
 -- evidence to point to. Own private bucket, not the public listing-images
@@ -608,7 +620,7 @@ create policy "Rental participants and admins can view condition photos" on stor
         where r.id::text = (storage.foldername(name))[1]
           and (auth.uid() = r.renter_id or auth.uid() = l.owner_id)
       )
-      or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+      or public.is_admin()
     )
   );
 
@@ -708,7 +720,7 @@ alter table public.admin_actions_log enable row level security;
 -- directly.
 drop policy if exists "Admins can view the activity log" on public.admin_actions_log;
 create policy "Admins can view the activity log" on public.admin_actions_log
-  for select using (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin'));
+  for select using (public.is_admin());
 
 alter table public.reviews
   add column if not exists flagged boolean not null default false,
@@ -744,7 +756,7 @@ alter table public.platform_settings enable row level security;
 -- never by a client directly.
 drop policy if exists "Admins can view platform settings" on public.platform_settings;
 create policy "Admins can view platform settings" on public.platform_settings
-  for select using (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin'));
+  for select using (public.is_admin());
 
 -- ---------------------------------------------------------------------------
 -- Price offers: a rental request carries the renter's own per-day price
@@ -802,7 +814,7 @@ create policy "Rental participants and admins can view offers" on public.rental_
       where r.id = rental_offers.rental_id
         and (auth.uid() = r.renter_id or auth.uid() = l.owner_id)
     )
-    or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+    or public.is_admin()
   );
 
 -- kind: 'text' (typed by a person), 'offer' (an offer card, offer_id set),
@@ -929,7 +941,7 @@ create policy "Chat participants and admins can view attachments" on storage.obj
         where c.id::text = (storage.foldername(name))[1]
           and (auth.uid() = c.owner_id or auth.uid() = c.renter_id)
       )
-      or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+      or public.is_admin()
     )
   );
 
@@ -961,7 +973,7 @@ drop policy if exists "Users and admins can view terms acceptances" on public.te
 create policy "Users and admins can view terms acceptances" on public.terms_acceptances
   for select using (
     auth.uid() = user_id
-    or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+    or public.is_admin()
   );
 
 -- ---------------------------------------------------------------------------
@@ -1340,3 +1352,13 @@ alter table public.listings
 alter table public.listings
   add column if not exists removed_by_staff text
     check (removed_by_staff is null or removed_by_staff in ('policy', 'ban'));
+
+-- ---------------------------------------------------------------------------
+-- Profiles: clients (the public anon key, or a signed-in browser) can read
+-- only the public card - name, photo, join date. role, seller and renter
+-- verification status, phone, language and terms details go through the
+-- backend only (it uses the service_role key). RLS policies that need the
+-- role use public.is_admin() instead. Safe to re-run.
+-- ---------------------------------------------------------------------------
+revoke select on public.profiles from anon, authenticated;
+grant select (id, full_name, avatar_url, created_at) on public.profiles to anon, authenticated;

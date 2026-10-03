@@ -6,6 +6,11 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-10-03
 
+- **Private profile details locked down** - the site's public database key could
+  read every account's role (who the staff are), seller and ID verification
+  status, and phone number. Now it can only read name, photo and join date;
+  everything else goes through the server, which already showed only what
+  each page needs.
 - **Listings with a booking or a reported problem can't be deleted** - deleting
   a listing also deletes its rentals and chats, so an owner could have wiped a
   dispute. Now delete is refused while a booking is agreed or once a problem

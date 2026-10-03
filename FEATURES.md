@@ -523,6 +523,10 @@ Common rules for all of them:
   kept in `listing_locations` (backend-only, no public access) and shown to
   anyone but its owner rounded to ~1 km. Map tiles and place search come from
   OpenStreetMap.
+- **Profiles**: the only profile fields the browser's Supabase key can read are
+  name, photo and join date. Role, seller/renter verification status, phone,
+  language and terms details are read through the backend only (database
+  column grants; staff checks in RLS use `public.is_admin()`).
 - KYC documents are in a private storage bucket, visible only to staff.
 - Errors are reported to Sentry (when `SENTRY_DSN` is set).
 
