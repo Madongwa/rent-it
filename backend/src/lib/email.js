@@ -33,17 +33,31 @@ export async function sendEmail({ to, subject, html }) {
   }
 }
 
+// Titles and bodies carry things people typed (chat messages, names,
+// listing titles), so they're always escaped - otherwise a chat message
+// could put its own links or markup into an email sent from our domain.
+export function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // One plain, brand-light template for every notification email - a
 // heading, a body line, and an optional button back into the app. Not
 // trying to be fancy; deliverability and "does the link work" matter far
-// more than styling for a transactional email like this.
+// more than styling for a transactional email like this. Links are always
+// a path on our own site.
 export function renderNotificationEmail({ title, body, link }) {
-  const url = link ? `${SITE_URL}${link}` : SITE_URL;
+  const path = typeof link === 'string' && link.startsWith('/') && !link.startsWith('//') ? link : '';
+  const url = escapeHtml(`${SITE_URL}${path}`);
   return `
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#18181b">
       <p style="font-size:13px;font-weight:700;letter-spacing:-0.01em;color:#09090b;margin:0 0 24px">Rent It</p>
-      <h1 style="font-size:20px;font-weight:600;margin:0 0 12px;color:#09090b">${title}</h1>
-      ${body ? `<p style="font-size:15px;line-height:1.5;color:#52525b;margin:0 0 24px">${body}</p>` : ''}
+      <h1 style="font-size:20px;font-weight:600;margin:0 0 12px;color:#09090b">${escapeHtml(title)}</h1>
+      ${body ? `<p style="font-size:15px;line-height:1.5;color:#52525b;margin:0 0 24px">${escapeHtml(body)}</p>` : ''}
       <a href="${url}" style="display:inline-block;background:#09090b;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:10px">Open Rent It</a>
       <p style="font-size:12px;color:#a1a1aa;margin:32px 0 0">You're receiving this because you have an account on Rent It.</p>
     </div>

@@ -6,6 +6,9 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-10-03
 
+- **Safer notification emails** - anything people type (chat messages, names,
+  listing titles) now shows up in emails as plain text. Before, a chat message
+  could slip its own links or formatting into an email sent from Rent It.
 - **Staff takedowns now stick** - when staff remove a listing, the owner can no
   longer just switch it back on from their Dashboard (it shows "Removed by Rent
   It staff"), it can't be booked, and its page stops opening for anyone but the
