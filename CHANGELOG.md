@@ -6,6 +6,10 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-10-03
 
+- **Only real renters can review** - a listing can now be reviewed only by
+  someone who rented it (a completed rental, or an agreed one that has ended),
+  so owners can't pad their ratings with new accounts. Existing reviews stay.
+  Reviews are capped at 2,000 characters.
 - **Safer notification emails** - anything people type (chat messages, names,
   listing titles) now shows up in emails as plain text. Before, a chat message
   could slip its own links or formatting into an email sent from Rent It.

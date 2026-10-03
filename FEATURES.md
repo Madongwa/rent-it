@@ -225,7 +225,9 @@ recorded as evidence in `terms_acceptances`).
    dispute. The rental freezes (no status changes) for **15 days** while staff
    review it.
 8. **Review** - rate the listing 1-5 with a comment (one review per listing;
-   not your own). Anyone can flag a review for staff.
+   not your own). Only renters who actually rented it can review: a completed
+   rental, or an agreed one whose last day has passed. The review form only
+   shows for them. Anyone can flag a review for staff.
 
 Deposits and cancellation policies are set by each owner and shown on the
 listing.

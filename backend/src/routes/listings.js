@@ -15,6 +15,7 @@ import { reviewSummary } from '../lib/reviewSummary.js';
 import { listingInsights } from '../lib/listingInsights.js';
 import { MAX_AUDIO_BYTES } from '../lib/audio.js';
 import { ownerStatusDenied } from '../lib/listingStatus.js';
+import { canReviewListing } from './reviews.js';
 
 // How long publishing waits for the Wanted-post matching (an AI call). On
 // Vercel nothing can run after the response, so it's done before, but
@@ -209,6 +210,16 @@ router.get('/:id', attachUserIfPresent, async (req, res) => {
   } catch (err) {
     console.error('[listings] trust badges failed:', err.message);
     data.owner_trust = null;
+  }
+
+  // Whether the logged-in viewer may write a review (they rented it).
+  data.viewer_can_review = false;
+  if (req.user && req.user.id !== data.owner_id) {
+    try {
+      data.viewer_can_review = await canReviewListing(req.user.id, data.id);
+    } catch (err) {
+      console.error('[listings] review eligibility failed:', err.message);
+    }
   }
 
   // The exact pin is only for the owner (editing it); everyone else gets it

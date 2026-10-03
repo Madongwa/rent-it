@@ -198,6 +198,7 @@ function WriteReviewForm({ listingId, onSubmitted }) {
         value={comment}
         onChange={(e) => setComment(e.target.value)}
         rows={3}
+        maxLength={2000}
         placeholder="How did it go? (optional)"
         className="w-full rounded-btn border border-night-border/20 bg-black/20 px-3 py-2 text-sm text-night-text placeholder:text-night-muted/60 focus:outline-none focus:ring-2 focus:ring-accent"
       />
@@ -637,7 +638,7 @@ export default function ListingDetail() {
         avgRating={listing.avg_rating}
         reviewCount={listing.review_count}
         listingId={id}
-        canReview={!!user && !isOwner && !reviews.some((r) => r.reviewer_id === user.id)}
+        canReview={!!user && !isOwner && !!listing.viewer_can_review && !reviews.some((r) => r.reviewer_id === user.id)}
         onReviewSubmitted={reload}
       />
     </div>

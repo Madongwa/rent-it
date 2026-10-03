@@ -1,8 +1,23 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth } from '../middleware/auth.js';
+import { indiaToday } from '../lib/dates.js';
 
 const router = Router();
+
+// Only someone who actually rented the item can review it: a completed
+// rental, or an agreed one whose last day has passed (the owner may not
+// have marked it complete yet). Stops fake reviews from fresh accounts.
+export async function canReviewListing(userId, listingId, { db = supabase, today = indiaToday() } = {}) {
+  const { data, error } = await db
+    .from('rentals')
+    .select('id, status, end_date')
+    .eq('listing_id', listingId)
+    .eq('renter_id', userId)
+    .in('status', ['completed', 'approved']);
+  if (error) throw new Error(error.message);
+  return (data || []).some((r) => r.status === 'completed' || r.end_date < today);
+}
 
 // Recomputes and stores avg_rating/review_count on the listing itself -
 // mirrors exactly what seed-marketplace-buildout.js does for seed data, so
@@ -46,6 +61,19 @@ router.post('/', requireAuth, async (req, res) => {
   if (listingError || !listing) return res.status(404).json({ error: 'Listing not found' });
   if (listing.owner_id === req.user.id) {
     return res.status(400).json({ error: 'You cannot review your own listing' });
+  }
+  try {
+    if (!(await canReviewListing(req.user.id, listing_id))) {
+      return res.status(403).json({ error: 'You can review this item once you have rented it.' });
+    }
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+  if (comment !== undefined && comment !== null && typeof comment !== 'string') {
+    return res.status(400).json({ error: 'comment must be text' });
+  }
+  if (typeof comment === 'string' && comment.length > 2000) {
+    return res.status(400).json({ error: 'Please keep your review under 2,000 characters.' });
   }
 
   const { data: existing } = await supabase
