@@ -6,6 +6,10 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-10-03
 
+- **Listings with a booking or a reported problem can't be deleted** - deleting
+  a listing also deletes its rentals and chats, so an owner could have wiped a
+  dispute. Now delete is refused while a booking is agreed or once a problem
+  was reported on it; pausing hides it instead.
 - **Rental photos can't be tampered with** - pickup and return photos can now
   only be added, never removed or swapped, and only while the rental is agreed.
   Once a problem is reported (or the rental is completed or cancelled) they're

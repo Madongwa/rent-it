@@ -273,7 +273,9 @@ listing.
   undoes it. Blocked dates can't be requested or accepted, and the
   "available today / this week" filters skip them. You can't block dates a
   renter already has an agreed booking for.
-- **Edit / pause / delete** your listings from the Dashboard. A listing Rent It
+- **Edit / pause / delete** your listings from the Dashboard. A listing can't be
+  deleted while it has an agreed booking, or once a problem was reported on a
+  rental of it (staff need that record) - pause it instead. A listing Rent It
   staff removed shows "Removed by Rent It staff": you can still edit or delete
   it, but only staff can put it back on the Marketplace, and its page no
   longer opens for anyone else.

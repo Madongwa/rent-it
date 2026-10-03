@@ -561,6 +561,28 @@ router.delete('/:id', requireAuth, async (req, res) => {
   if (findError || !existing) return res.status(404).json({ error: 'Listing not found' });
   if (existing.owner_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
 
+  // Deleting a listing deletes its rentals, offers, disputes and chats with
+  // it, so it's refused while a booking is live or if a problem was ever
+  // reported on it - staff need that record. Pausing hides it instead.
+  const [{ count: live, error: liveError }, { count: disputes, error: disputeError }] = await Promise.all([
+    supabase
+      .from('rentals')
+      .select('id', { count: 'exact', head: true })
+      .eq('listing_id', req.params.id)
+      .in('status', BOOKED_STATUSES),
+    supabase
+      .from('rental_disputes')
+      .select('id, rental:rentals!inner(listing_id)', { count: 'exact', head: true })
+      .eq('rental.listing_id', req.params.id),
+  ]);
+  if (liveError || disputeError) return res.status(500).json({ error: (liveError || disputeError).message });
+  if (live > 0) {
+    return res.status(409).json({ error: 'This item has an agreed booking. Finish or cancel it first - or pause the listing to hide it.' });
+  }
+  if (disputes > 0) {
+    return res.status(409).json({ error: "A problem was reported on a rental of this item, so it can't be deleted. Pause it to hide it instead." });
+  }
+
   const { error } = await supabase.from('listings').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.status(204).send();
