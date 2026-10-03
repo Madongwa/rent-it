@@ -46,7 +46,7 @@ function loadRental(id) {
   return supabase
     .from('rentals')
     .select(
-      'id, listing_id, renter_id, status, start_date, end_date, price_per_day, listed_price_per_day, conversation_id, listing:listings(id, title, owner_id, price_per_day, deposit_required, deposit_amount)'
+      'id, listing_id, renter_id, status, start_date, end_date, price_per_day, listed_price_per_day, conversation_id, listing:listings(id, title, owner_id, price_per_day, deposit_required, deposit_amount, removed_by_staff)'
     )
     .eq('id', id)
     .single();
@@ -81,6 +81,7 @@ const BOOKED_STATUSES = ['approved', 'disputed'];
 const BOOKED_ERROR = 'This item is already booked for part of those dates';
 
 const BLOCKED_ERROR = 'The owner has marked some of those dates as unavailable';
+const REMOVED_ERROR = 'Rent It staff removed this listing, so it can no longer be booked.';
 
 // { conflict, message } - booked by an agreed rental, or blocked by the
 // owner (lib/availability.js).
@@ -270,6 +271,7 @@ router.post('/:id/offers', requireAuth, async (req, res) => {
   if (rental.status !== 'pending') {
     return res.status(400).json({ error: `This request is already ${rental.status}` });
   }
+  if (rental.listing?.removed_by_staff) return res.status(400).json({ error: REMOVED_ERROR });
 
   const { data: openOffer, error: offerFindError } = await loadOpenOffer(rental.id);
   if (offerFindError) return res.status(500).json({ error: offerFindError.message });
@@ -349,6 +351,7 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
   if (rental.status !== 'pending') {
     return res.status(400).json({ error: `This request is already ${rental.status}` });
   }
+  if (rental.listing?.removed_by_staff) return res.status(400).json({ error: REMOVED_ERROR });
 
   const { data: openOffer, error: offerFindError } = await loadOpenOffer(rental.id);
   if (offerFindError) return res.status(500).json({ error: offerFindError.message });
@@ -410,7 +413,8 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
     }
   }
 
-  await supabase.from('listings').update({ status: 'rented' }).eq('id', rental.listing_id);
+  // Only from 'available' - a listing its owner paused stays paused.
+  await supabase.from('listings').update({ status: 'rented' }).eq('id', rental.listing_id).eq('status', 'available');
 
   const { data, error } = await supabase.from('rentals').select(RENTAL_SELECT).eq('id', rental.id).single();
   if (error) return res.status(500).json({ error: error.message });

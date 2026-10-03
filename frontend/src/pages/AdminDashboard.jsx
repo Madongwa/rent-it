@@ -592,19 +592,27 @@ export default function AdminDashboard() {
                 <p className="font-semibold text-night-text">{l.title}</p>
                 <p className="text-sm text-night-muted">
                   {l.owner?.full_name || 'Unknown owner'} · ₹{Number(l.price_per_day).toLocaleString('en-IN')}/day ·{' '}
-                  <span className="capitalize">{l.status}</span>
+                  {l.removed_by_staff === 'ban' ? (
+                    <span>Removed (owner banned)</span>
+                  ) : l.removed_by_staff ? (
+                    <span>Removed by staff</span>
+                  ) : (
+                    <span className="capitalize">{l.status === 'inactive' ? 'Paused by owner' : l.status}</span>
+                  )}
                 </p>
               </div>
-              <button
-                onClick={() => toggleListingStatus(l.id, l.status === 'inactive' ? 'available' : 'inactive')}
-                className={
-                  l.status === 'inactive'
-                    ? 'rounded-btn bg-white px-3 py-1.5 text-sm font-medium text-black hover:opacity-90'
-                    : 'rounded-btn border border-red-500/40 px-3 py-1.5 text-sm font-medium text-red-400 hover:bg-red-500/10'
-                }
-              >
-                {l.status === 'inactive' ? 'Restore' : 'Remove listing'}
-              </button>
+              {l.removed_by_staff !== 'ban' && (
+                <button
+                  onClick={() => toggleListingStatus(l.id, l.removed_by_staff ? 'available' : 'inactive')}
+                  className={
+                    l.removed_by_staff
+                      ? 'rounded-btn bg-white px-3 py-1.5 text-sm font-medium text-black hover:opacity-90'
+                      : 'rounded-btn border border-red-500/40 px-3 py-1.5 text-sm font-medium text-red-400 hover:bg-red-500/10'
+                  }
+                >
+                  {l.removed_by_staff ? 'Restore' : 'Remove listing'}
+                </button>
+              )}
             </div>
           ))}
         </div>

@@ -4,6 +4,15 @@ What changed on Rent It, newest first. Every change to a feature gets an
 entry here (and [FEATURES.md](FEATURES.md) is updated to match) in the same
 commit. Dates are when the change was pushed to `main`, which deploys it.
 
+## 2026-10-03
+
+- **Staff takedowns now stick** - when staff remove a listing, the owner can no
+  longer just switch it back on from their Dashboard (it shows "Removed by Rent
+  It staff"), it can't be booked, and its page stops opening for anyone but the
+  owner. Banning someone takes their listings down too (unbanning lifts that,
+  leaving them paused), and rejecting a seller's verification pauses their
+  listings until they're verified again.
+
 ## 2026-10-01
 
 - **New logo** - the Rent It logo (purple ring with a tool) is now the browser-tab

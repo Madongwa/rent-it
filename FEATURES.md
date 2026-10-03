@@ -237,7 +237,9 @@ listing.
 - **Seller verification first** - owners submit ID documents once (uploaded to
   a private bucket; Rent It stores the files, not parsed Aadhaar/PAN numbers).
   Staff approve or reject them; automated checking via Digio can be switched
-  on with API keys. Listing is blocked until approved.
+  on with API keys. Listing is blocked until approved. If verification is
+  rejected, the seller's listings are paused (bookings already agreed still go
+  ahead) and can only be reactivated once they are verified again.
 - **List an Item** form - title, description, category, condition, price per
   day, optional **price per week** (used for 7+ day rentals) and **per month**
   (30+ days), location, **up to 8 photos** (first is the cover; "Make cover", remove), power source, delivery option, deposit (and amount),
@@ -266,7 +268,10 @@ listing.
   undoes it. Blocked dates can't be requested or accepted, and the
   "available today / this week" filters skip them. You can't block dates a
   renter already has an agreed booking for.
-- **Edit / pause / delete** your listings from the Dashboard.
+- **Edit / pause / delete** your listings from the Dashboard. A listing Rent It
+  staff removed shows "Removed by Rent It staff": you can still edit or delete
+  it, but only staff can put it back on the Marketplace, and its page no
+  longer opens for anyone else.
 
 ---
 
@@ -483,8 +488,12 @@ Common rules for all of them:
   date of birth or address (and long digit runs are scrubbed from its answer).
   Nothing is stored; each use is in the staff activity log. ID photos are
   resized in the browser when uploaded.
-- **Users** - roles (user / admin), ban / unban.
-- **Listings** - remove or restore any listing.
+- **Users** - roles (user / admin), ban / unban. Banning someone also takes
+  their listings down; unbanning lifts that, leaving the listings paused for
+  the owner to reactivate.
+- **Listings** - remove or restore any listing. A removed listing stays down -
+  the owner can't reactivate it - until staff restore it; the tab shows
+  whether a listing was removed by staff, by a ban, or paused by its owner.
 - **Safety** - listings flagged by the safety review, most serious first, with
   "Remove listing" / "Looks fine". Opening the tab reviews new or edited listings.
 - **Activity log** - every staff action.

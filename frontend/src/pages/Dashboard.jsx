@@ -304,7 +304,11 @@ export default function Dashboard() {
                 </Link>
                 <p className="text-sm text-night-muted">
                   {l.category?.icon} {l.category?.name} · ₹{Number(l.price_per_day).toLocaleString('en-IN')}/day ·{' '}
-                  <span className="capitalize">{l.status}</span>
+                  {l.removed_by_staff ? (
+                    <span className="text-red-400">Removed by Rent It staff</span>
+                  ) : (
+                    <span className="capitalize">{l.status}</span>
+                  )}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -319,7 +323,7 @@ export default function Dashboard() {
                 <Link to={`/listing/${l.id}/edit`} className="text-sm font-medium text-night-muted hover:text-night-text">
                   Edit
                 </Link>
-                {l.status !== 'rented' && (
+                {l.status !== 'rented' && !l.removed_by_staff && (
                   <button onClick={() => togglePause(l)} className="text-sm font-medium text-night-muted hover:text-night-text">
                     {l.status === 'inactive' ? 'Reactivate' : 'Pause'}
                   </button>

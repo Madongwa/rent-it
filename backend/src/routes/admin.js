@@ -127,6 +127,14 @@ router.post('/kyc/:userId/reject', async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
 
   await supabase.from('profiles').update({ seller_status: 'rejected' }).eq('id', userId);
+  // An unverified seller's listings come off the Marketplace (bookings
+  // already agreed still go ahead); they can reactivate them once verified.
+  const { error: pauseError } = await supabase
+    .from('listings')
+    .update({ status: 'inactive' })
+    .eq('owner_id', userId)
+    .in('status', ['available', 'rented']);
+  if (pauseError) console.error('[admin] could not pause listings:', pauseError.message);
   await logAdminAction(req.user.id, 'kyc.reject', 'user', userId, reason);
 
   res.json(data);
@@ -196,14 +204,30 @@ router.post('/users/:id/ban', async (req, res) => {
 
   const { data, error } = await supabase.auth.admin.updateUserById(req.params.id, { ban_duration: '876000h' });
   if (error) return res.status(500).json({ error: error.message });
+  // A banned person's listings come down with them (lib/listingStatus.js
+  // keeps them down until staff unban). Ones staff already removed keep
+  // that reason.
+  const { error: removeError } = await supabase
+    .from('listings')
+    .update({ status: 'inactive', removed_by_staff: 'ban' })
+    .eq('owner_id', req.params.id)
+    .is('removed_by_staff', null);
+  if (removeError) console.error('[admin] could not remove listings:', removeError.message);
   await logAdminAction(req.user.id, 'user.ban', 'user', req.params.id);
   res.json({ id: data.user.id, banned: true });
 });
 
-// POST /api/admin/users/:id/unban
+// POST /api/admin/users/:id/unban - their listings stay paused, for the
+// owner to reactivate.
 router.post('/users/:id/unban', async (req, res) => {
   const { data, error } = await supabase.auth.admin.updateUserById(req.params.id, { ban_duration: 'none' });
   if (error) return res.status(500).json({ error: error.message });
+  const { error: liftError } = await supabase
+    .from('listings')
+    .update({ removed_by_staff: null })
+    .eq('owner_id', req.params.id)
+    .eq('removed_by_staff', 'ban');
+  if (liftError) console.error('[admin] could not lift listing removals:', liftError.message);
   await logAdminAction(req.user.id, 'user.unban', 'user', req.params.id);
   res.json({ id: data.user.id, banned: false });
 });
@@ -214,7 +238,7 @@ router.post('/users/:id/unban', async (req, res) => {
 router.get('/listings', async (req, res) => {
   const { data, error } = await supabase
     .from('listings')
-    .select('id, title, status, price_per_day, created_at, owner:profiles(id, full_name)')
+    .select('id, title, status, removed_by_staff, price_per_day, created_at, owner:profiles(id, full_name)')
     .order('created_at', { ascending: false })
     .limit(200);
 
@@ -222,10 +246,10 @@ router.get('/listings', async (req, res) => {
   res.json(data);
 });
 
-// PATCH /api/admin/listings/:id/status - body: { status }. Same
-// 'available'/'rented'/'inactive' enum as the owner-facing PATCH
-// /api/listings/:id, but bypasses the ownership check - this is the
-// takedown/restore action for a listing that violates policy.
+// PATCH /api/admin/listings/:id/status - body: { status }. The takedown
+// ('inactive') / restore ('available') action for a listing that violates
+// policy. A takedown is marked removed_by_staff, so the owner can't simply
+// reactivate it (lib/listingStatus.js); restoring clears that.
 router.patch('/listings/:id/status', async (req, res) => {
   const { status } = req.body;
   if (!['available', 'inactive'].includes(status)) {
@@ -234,9 +258,9 @@ router.patch('/listings/:id/status', async (req, res) => {
 
   const { data, error } = await supabase
     .from('listings')
-    .update({ status })
+    .update({ status, removed_by_staff: status === 'inactive' ? 'policy' : null })
     .eq('id', req.params.id)
-    .select('id, title, status')
+    .select('id, title, status, removed_by_staff')
     .single();
 
   if (error) return res.status(500).json({ error: error.message });

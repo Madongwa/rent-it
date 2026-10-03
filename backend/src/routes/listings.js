@@ -14,6 +14,7 @@ import { checkPhotos } from '../lib/photoCheck.js';
 import { reviewSummary } from '../lib/reviewSummary.js';
 import { listingInsights } from '../lib/listingInsights.js';
 import { MAX_AUDIO_BYTES } from '../lib/audio.js';
+import { ownerStatusDenied } from '../lib/listingStatus.js';
 
 // How long publishing waits for the Wanted-post matching (an AI call). On
 // Vercel nothing can run after the response, so it's done before, but
@@ -183,6 +184,8 @@ router.get('/:id', attachUserIfPresent, async (req, res) => {
     .single();
 
   if (error) return res.status(404).json({ error: 'Listing not found' });
+  // Taken down by staff: only its owner can still open it.
+  if (data.removed_by_staff && req.user?.id !== data.owner_id) return res.status(404).json({ error: 'Listing not found' });
 
   // Supabase's embedded-resource select doesn't take its own .order() here
   // (that applies to the top-level query), so sort these two in JS instead:
@@ -495,12 +498,20 @@ router.post('/', requireAuth, async (req, res) => {
 router.patch('/:id', requireAuth, async (req, res) => {
   const { data: existing, error: findError } = await supabase
     .from('listings')
-    .select('owner_id')
+    .select('owner_id, status, removed_by_staff')
     .eq('id', req.params.id)
     .single();
 
   if (findError || !existing) return res.status(404).json({ error: 'Listing not found' });
   if (existing.owner_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+
+  // Owners pause and reactivate; 'rented' is set by bookings only. A
+  // listing staff removed stays down until staff restore it, and only a
+  // verified seller can put a listing back on the Marketplace.
+  if ('status' in req.body) {
+    const denied = await ownerStatusDenied(req.user.id, existing, req.body.status);
+    if (denied) return res.status(denied.code).json({ error: denied.error });
+  }
 
   const allowedFields = [...WRITABLE_FIELDS, 'status'];
   const updates = {};

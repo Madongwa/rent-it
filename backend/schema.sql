@@ -1329,3 +1329,14 @@ alter table public.renter_verifications enable row level security;
 
 alter table public.listings
   add column if not exists require_renter_id boolean not null default false;
+
+-- ---------------------------------------------------------------------------
+-- Staff takedowns. removed_by_staff is set when staff remove a listing
+-- ('policy') or ban its owner ('ban'); the owner can still edit it but can't
+-- make it available again - only staff can (Restore, or Unban for 'ban').
+-- Owner pauses are just status = 'inactive' with this left null. Safe to
+-- re-run.
+-- ---------------------------------------------------------------------------
+alter table public.listings
+  add column if not exists removed_by_staff text
+    check (removed_by_staff is null or removed_by_staff in ('policy', 'ban'));
