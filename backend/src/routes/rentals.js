@@ -11,6 +11,7 @@ import { buildAgreement } from '../lib/agreement.js';
 import { compareConditionPhotos } from '../lib/conditionCompare.js';
 import { ownerEarnings } from '../lib/earnings.js';
 import { isIdVerified } from '../lib/renterId.js';
+import { checkPhotoUpdate } from '../lib/rentalPhotos.js';
 
 // Owners see only whether a renter's ID is verified - never the status
 // details or the document.
@@ -579,17 +580,14 @@ router.patch('/:id', requireAuth, async (req, res) => {
 // POST /api/rentals/:id/photos - record pickup or return condition photos.
 // Files are uploaded straight from the browser to the private
 // rental-photos bucket first (same pattern as listing images/KYC docs) -
-// this just records the resulting URLs. Replaces the stage's whole list
-// rather than appending, so re-submitting corrects a mistake cleanly.
+// this records the resulting paths: the stage's full list, which must keep
+// every photo already there (lib/rentalPhotos.js - they're the evidence).
 router.post('/:id/photos', requireAuth, async (req, res) => {
   const { stage, photo_urls } = req.body;
-  if (!['pickup', 'return'].includes(stage) || !Array.isArray(photo_urls)) {
-    return res.status(400).json({ error: 'stage ("pickup"|"return") and photo_urls (array) are required' });
-  }
 
   const { data: rental, error: findError } = await supabase
     .from('rentals')
-    .select('id, renter_id, listing:listings(owner_id)')
+    .select('id, renter_id, status, pickup_photo_urls, return_photo_urls, listing:listings(owner_id)')
     .eq('id', req.params.id)
     .single();
 
@@ -597,15 +595,22 @@ router.post('/:id/photos', requireAuth, async (req, res) => {
   const isParticipant = rental.renter_id === req.user.id || rental.listing?.owner_id === req.user.id;
   if (!isParticipant) return res.status(403).json({ error: 'Forbidden' });
 
+  const { paths, error: invalid } = checkPhotoUpdate(rental, stage, photo_urls);
+  if (invalid) return res.status(400).json({ error: invalid });
+
+  // Compare-and-set on status, so photos can't land after a dispute or
+  // completion that raced this request.
   const column = stage === 'pickup' ? 'pickup_photo_urls' : 'return_photo_urls';
   const { data, error } = await supabase
     .from('rentals')
-    .update({ [column]: photo_urls })
+    .update({ [column]: paths })
     .eq('id', req.params.id)
+    .eq('status', 'approved')
     .select(RENTAL_SELECT)
-    .single();
+    .maybeSingle();
 
   if (error) return res.status(500).json({ error: error.message });
+  if (!data) return res.status(409).json({ error: 'This rental just changed - refresh to see the latest.' });
   res.json(data);
 });
 

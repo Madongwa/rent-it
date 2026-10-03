@@ -121,21 +121,25 @@ function ChatLink({ rental }) {
   );
 }
 
+// Photos are evidence: they can only be added (never removed) while the
+// rental is agreed, and pickup photos lock once return photos exist - the
+// backend enforces the same (lib/rentalPhotos.js).
 function RentalPhotosPanel({ rental, onChange }) {
+  const open = rental.status === 'approved';
   return (
     <div className="mt-3 grid grid-cols-1 gap-4 border-t border-night-border/15 pt-3 sm:grid-cols-2">
       <RentalPhotoSection
         rentalId={rental.id}
         stage="pickup"
         photoPaths={rental.pickup_photo_urls}
-        editable
+        editable={open && !rental.return_photo_urls?.length}
         onChange={onChange}
       />
       <RentalPhotoSection
         rentalId={rental.id}
         stage="return"
         photoPaths={rental.return_photo_urls}
-        editable
+        editable={open}
         onChange={onChange}
       />
       {rental.pickup_photo_urls?.length > 0 && rental.return_photo_urls?.length > 0 && (

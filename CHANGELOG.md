@@ -6,6 +6,11 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-10-03
 
+- **Rental photos can't be tampered with** - pickup and return photos can now
+  only be added, never removed or swapped, and only while the rental is agreed.
+  Once a problem is reported (or the rental is completed or cancelled) they're
+  locked, and pickup photos lock once return photos exist - so the evidence
+  staff look at in a dispute is what was actually taken at the time.
 - **Only real renters can review** - a listing can now be reviewed only by
   someone who rented it (a completed rental, or an agreed one that has ended),
   so owners can't pad their ratings with new accounts. Existing reviews stay.

@@ -220,7 +220,10 @@ recorded as evidence in `terms_acceptances`).
    offered), check the item, and pay the owner directly. Rent It never takes
    payments and never asks for money in chat.
 6. **Pickup and return photos** - either side can record the item's condition
-   at pickup and at return.
+   at pickup and at return (up to 12 each). They're evidence, so photos can
+   only be added, never removed, and only while the rental is agreed - once
+   it's completed, cancelled or a problem is reported they're locked. Pickup
+   photos also lock once return photos are added.
 7. **Report a problem** - on an agreed rental, either side can raise a
    dispute. The rental freezes (no status changes) for **15 days** while staff
    review it.
