@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { shrinkImage } from '../lib/chatAttachments';
 import { api } from '../lib/api';
 
 export const MAX_PHOTOS = 8;
@@ -35,8 +36,11 @@ export default function ListingPhotos({ userId, photos, onChange, title }) {
     const added = [];
     for (const file of files) {
       try {
-        const path = `${userId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-        const { error: uploadError } = await supabase.storage.from('listing-images').upload(path, file);
+        // Resized in the browser first (the bucket takes up to 10 MB) - also
+        // makes listing pages quicker to load on mobile data.
+        const small = await shrinkImage(file, 2400);
+        const path = `${userId}/${Date.now()}-${small.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const { error: uploadError } = await supabase.storage.from('listing-images').upload(path, small);
         if (uploadError) throw uploadError;
         added.push(supabase.storage.from('listing-images').getPublicUrl(path).data.publicUrl);
       } catch (err) {

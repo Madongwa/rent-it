@@ -392,7 +392,10 @@ create policy "Anyone can view listing images" on storage.objects
 
 drop policy if exists "Authenticated users can upload listing images" on storage.objects;
 create policy "Authenticated users can upload listing images" on storage.objects
-  for insert with check (bucket_id = 'listing-images' and auth.role() = 'authenticated');
+  for insert with check (
+    bucket_id = 'listing-images' and auth.role() = 'authenticated'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
 
 drop policy if exists "Users can delete their own listing images" on storage.objects;
 create policy "Users can delete their own listing images" on storage.objects
@@ -1362,3 +1365,19 @@ alter table public.listings
 -- ---------------------------------------------------------------------------
 revoke select on public.profiles from anon, authenticated;
 grant select (id, full_name, avatar_url, created_at) on public.profiles to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Upload limits for the browser-upload buckets (chat-attachments has its own
+-- above). listing-images is public, so it takes images only - otherwise it
+-- could host any file on our domain. Listing photo uploads must also go in
+-- the uploader's own folder (policy above). Safe to re-run.
+-- ---------------------------------------------------------------------------
+update storage.buckets
+set file_size_limit = 10485760,
+    allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif']
+where id in ('listing-images', 'rental-photos');
+
+update storage.buckets
+set file_size_limit = 10485760,
+    allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/pdf']
+where id = 'kyc-documents';

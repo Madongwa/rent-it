@@ -6,6 +6,12 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-10-03
 
+- **Listing photos must be your own uploads** - new listing photos have to be
+  uploaded from your device (resized in the browser so they load faster); links
+  to images elsewhere on the web are no longer accepted, since they could track
+  who views a listing. Photos already on listings are kept. Photo and ID
+  uploads are now limited to 10 MB and image files (PDF too for ID documents),
+  and nobody can upload into another person's photo folder.
 - **Private profile details locked down** - the site's public database key could
   read every account's role (who the staff are), seller and ID verification
   status, and phone number. Now it can only read name, photo and join date;

@@ -481,7 +481,7 @@ router.post('/', requireAuth, async (req, res) => {
   for (const field of WRITABLE_FIELDS) {
     if (field in req.body) fields[field] = req.body[field];
   }
-  Object.assign(fields, normalizePhotos(req.body));
+  Object.assign(fields, normalizePhotos(req.body, { ownerId: req.user.id }));
   // The map pin is stored separately (backend-only table, lib/geo.js).
   const pin = pinChange(req.body);
   if (pin?.error) return res.status(400).json({ error: pin.error });
@@ -509,7 +509,7 @@ router.post('/', requireAuth, async (req, res) => {
 router.patch('/:id', requireAuth, async (req, res) => {
   const { data: existing, error: findError } = await supabase
     .from('listings')
-    .select('owner_id, status, removed_by_staff')
+    .select('owner_id, status, removed_by_staff, image_url, image_urls')
     .eq('id', req.params.id)
     .single();
 
@@ -529,7 +529,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
   for (const field of allowedFields) {
     if (field in req.body) updates[field] = req.body[field];
   }
-  Object.assign(updates, normalizePhotos(req.body));
+  Object.assign(updates, normalizePhotos(req.body, { ownerId: req.user.id, existing: [existing.image_url, ...(existing.image_urls || [])] }));
   const pin = pinChange(req.body);
   if (pin?.error) return res.status(400).json({ error: pin.error });
 

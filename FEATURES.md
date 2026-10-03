@@ -247,7 +247,7 @@ listing.
   ahead) and can only be reactivated once they are verified again.
 - **List an Item** form - title, description, category, condition, price per
   day, optional **price per week** (used for 7+ day rentals) and **per month**
-  (30+ days), location, **up to 8 photos** (first is the cover; "Make cover", remove), power source, delivery option, deposit (and amount),
+  (30+ days), location, **up to 8 photos** (first is the cover; "Make cover", remove; uploaded from your device and resized in the browser - links to photos elsewhere on the web aren't accepted), power source, delivery option, deposit (and amount),
   cancellation policy, owner type, accessories (and what's included),
   minimum rental period, supported durations.
 - **AI listing writer** - at the top of the form: *"Describe your item and
@@ -528,6 +528,9 @@ Common rules for all of them:
   language and terms details are read through the backend only (database
   column grants; staff checks in RLS use `public.is_admin()`).
 - KYC documents are in a private storage bucket, visible only to staff.
+- **Uploads**: listing photos, rental photos and ID documents are limited to 10 MB
+  and to image types (plus PDF for ID documents); listing photos can only be
+  uploaded into your own folder.
 - Errors are reported to Sentry (when `SENTRY_DSN` is set).
 
 ---
