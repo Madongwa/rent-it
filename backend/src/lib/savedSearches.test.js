@@ -31,6 +31,7 @@ function fakeDb({ searches, listings }) {
         select: () => q,
         eq: (c, v) => (calls.push(['eq', c, v]), q),
         neq: (c, v) => (calls.push(['neq', c, v]), q),
+        in: (c, v) => (calls.push(['in', c, v]), q),
         gt: (c, v) => (calls.push(['gt', c, v]), q),
         textSearch: (c, v) => (calls.push(['text', v]), q),
         ilike: () => q,

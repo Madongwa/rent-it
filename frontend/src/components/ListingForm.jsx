@@ -149,6 +149,7 @@ export default function ListingForm({ initial, listingId, onSubmit, submitLabel 
             type="text"
             value={form.title}
             onChange={(e) => update('title', e.target.value)}
+            maxLength={120}
             placeholder="e.g. Cordless Drill (18V, with case)"
             className={inputClass}
             required
@@ -159,6 +160,7 @@ export default function ListingForm({ initial, listingId, onSubmit, submitLabel 
           <textarea
             value={form.description}
             onChange={(e) => update('description', e.target.value)}
+            maxLength={5000}
             rows={4}
             placeholder="Describe the item, pickup instructions, etc."
             className={inputClass}
@@ -204,6 +206,7 @@ export default function ListingForm({ initial, listingId, onSubmit, submitLabel 
               type="text"
               value={form.location || ''}
               onChange={(e) => update('location', e.target.value)}
+              maxLength={120}
               placeholder="e.g. Noida, Uttar Pradesh"
               className={inputClass}
             />
@@ -386,6 +389,7 @@ export default function ListingForm({ initial, listingId, onSubmit, submitLabel 
                 type="text"
                 value={form.accessories_note}
                 onChange={(e) => update('accessories_note', e.target.value)}
+                maxLength={500}
                 placeholder="e.g. Includes case and two batteries"
                 className={inputClass}
               />

@@ -2,7 +2,11 @@ import { Router } from 'express';
 import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { logAdminAction } from '../lib/adminLog.js';
-import { releaseListingIfIdle } from '../lib/listingStatus.js';
+import { notify } from '../lib/notify.js';
+import { addDays, indiaHour, indiaMidnight, indiaToday, indiaWeekday } from '../lib/dates.js';
+import { postMessage } from '../lib/conversations.js';
+import { setMaintenanceCache } from '../lib/maintenance.js';
+import { syncListingStatus } from '../lib/listingStatus.js';
 import { recomputeListingRating } from './reviews.js';
 import { dismissFlag, flaggedListings, pendingListings, reviewPending } from '../lib/safety.js';
 import { summarizeDispute } from '../lib/disputeSummary.js';
@@ -101,6 +105,13 @@ router.post('/kyc/:userId/approve', async (req, res) => {
 
   await supabase.from('profiles').update({ seller_status: 'approved' }).eq('id', userId);
   await logAdminAction(req.user.id, 'kyc.approve', 'user', userId);
+  await notify({
+    userId,
+    type: 'seller_verification',
+    title: "You're a verified seller",
+    body: 'Your seller verification was approved - you can list items now.',
+    link: '/list-item',
+  });
 
   res.json(data);
 });
@@ -136,6 +147,13 @@ router.post('/kyc/:userId/reject', async (req, res) => {
     .in('status', ['available', 'rented']);
   if (pauseError) console.error('[admin] could not pause listings:', pauseError.message);
   await logAdminAction(req.user.id, 'kyc.reject', 'user', userId, reason);
+  await notify({
+    userId,
+    type: 'seller_verification',
+    title: 'Your seller verification needs another look',
+    body: String(reason).slice(0, 200),
+    link: '/become-seller',
+  });
 
   res.json(data);
 });
@@ -144,20 +162,33 @@ router.post('/kyc/:userId/reject', async (req, res) => {
 // Email/ban status live on Supabase's own auth.users, not our `profiles`
 // table, so this merges the Admin API's user list with our profile rows
 // instead of a single query - there's no public.* view joining the two.
-// listUsers() paginates at up to 1000/page; fine for now, would need real
-// pagination past that.
+// listUsers() returns at most 1000 per page, so every page is fetched.
+const USERS_PER_PAGE = 1000;
 router.get('/users', async (req, res) => {
-  const { data: authData, error: authError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-  if (authError) return res.status(500).json({ error: authError.message });
+  const authUsers = [];
+  for (let page = 1; ; page += 1) {
+    const { data: authPage, error: authError } = await supabase.auth.admin.listUsers({ page, perPage: USERS_PER_PAGE });
+    if (authError) return res.status(500).json({ error: authError.message });
+    authUsers.push(...authPage.users);
+    if (authPage.users.length < USERS_PER_PAGE) break;
+  }
 
-  const { data: profiles, error: profileError } = await supabase
-    .from('profiles')
-    .select('id, full_name, role, seller_status, created_at');
-  if (profileError) return res.status(500).json({ error: profileError.message });
+  // Supabase returns at most 1000 rows per query, so profiles are paged too.
+  const profiles = [];
+  for (let from = 0; ; from += USERS_PER_PAGE) {
+    const { data: batch, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, full_name, role, seller_status, created_at')
+      .order('id')
+      .range(from, from + USERS_PER_PAGE - 1);
+    if (profileError) return res.status(500).json({ error: profileError.message });
+    profiles.push(...batch);
+    if (batch.length < USERS_PER_PAGE) break;
+  }
 
   const profileById = Object.fromEntries(profiles.map((p) => [p.id, p]));
 
-  const users = authData.users
+  const users = authUsers
     .map((u) => ({
       id: u.id,
       email: u.email,
@@ -368,6 +399,8 @@ router.post('/disputes/:id/resolve', async (req, res) => {
   if (findError || !dispute) return res.status(404).json({ error: 'Dispute not found' });
   if (dispute.status !== 'open') return res.status(400).json({ error: 'Dispute already resolved' });
 
+  // Compare-and-set on the dispute's status, so two staff resolving at once
+  // can't both win.
   const { data, error } = await supabase
     .from('rental_disputes')
     .update({
@@ -378,23 +411,42 @@ router.post('/disputes/:id/resolve', async (req, res) => {
       resolved_at: new Date().toISOString(),
     })
     .eq('id', req.params.id)
+    .eq('status', 'open')
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) return res.status(500).json({ error: error.message });
+  if (!data) return res.status(409).json({ error: 'Dispute already resolved' });
 
   const { data: rental } = await supabase
     .from('rentals')
     .update({ status: outcome })
     .eq('id', dispute.rental_id)
-    .select('listing_id')
-    .single();
+    .eq('status', 'disputed')
+    .select('listing_id, renter_id, conversation_id, listing:listings(title, owner_id)')
+    .maybeSingle();
 
   // Same "free the listing back up" rule as the normal completion path in
   // rentals.js - a disputed rental staying stuck as 'rented' forever would
   // just reintroduce the original stuck-listing bug in a new shape.
   if (rental) {
-    await releaseListingIfIdle(rental.listing_id);
+    await syncListingStatus(rental.listing_id);
+
+    // Both people hear the outcome (not staff's notes, which stay internal).
+    const decided =
+      outcome === 'completed'
+        ? 'Rent It staff reviewed the reported problem and closed the rental as completed.'
+        : 'Rent It staff reviewed the reported problem and closed the rental as cancelled.';
+    await postMessage({ conversationId: rental.conversation_id, senderId: req.user.id, body: decided, kind: 'system' });
+    for (const userId of [rental.renter_id, rental.listing?.owner_id].filter(Boolean)) {
+      await notify({
+        userId,
+        type: 'dispute_resolved',
+        title: `Problem reviewed: "${rental.listing?.title || 'your rental'}"`,
+        body: decided,
+        link: rental.conversation_id ? `/messages?c=${rental.conversation_id}` : '/dashboard',
+      });
+    }
   }
 
   await logAdminAction(req.user.id, 'dispute.resolve', 'rental_dispute', req.params.id, `${outcome}: ${resolution}`);
@@ -410,7 +462,7 @@ router.post('/disputes/:id/resolve', async (req, res) => {
 router.get('/overview', async (req, res) => {
   const countOf = async (table, filters = {}) => {
     let query = supabase.from(table).select('*', { count: 'exact', head: true });
-    for (const [column, value] of Object.entries(filters)) query = query.eq(column, value);
+    for (const [column, value] of Object.entries(filters)) query = Array.isArray(value) ? query.in(column, value) : query.eq(column, value);
     const { count, error } = await query;
     if (error) throw error;
     return count;
@@ -429,7 +481,8 @@ router.get('/overview', async (req, res) => {
       countOf('profiles'),
       countOf('listings'),
       countOf('rentals', { status: 'approved' }),
-      countOf('kyc_submissions', { status: 'pending' }),
+      // Same as the queue: not looked at yet, or flagged for a person.
+      countOf('kyc_submissions', { status: ['pending', 'manual_review'] }),
       countOf('rental_disputes', { status: 'open' }),
       countOf('reviews', { flagged: true }),
       countOf('reviews'),
@@ -574,6 +627,7 @@ router.patch('/settings', async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
+  setMaintenanceCache(data.maintenance_mode);
   await logAdminAction(req.user.id, 'settings.maintenance_mode', 'platform_settings', 1, `maintenance_mode -> ${maintenance_mode}`);
   res.json(data);
 });
@@ -582,11 +636,10 @@ router.patch('/settings', async (req, res) => {
 // today/this week (calendar week starting Monday), and the user/admin role
 // split, for the Total Users widget.
 router.get('/stats/users', async (req, res) => {
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const startOfWeek = new Date(startOfToday);
-  const daysSinceMonday = (startOfWeek.getDay() + 6) % 7;
-  startOfWeek.setDate(startOfWeek.getDate() - daysSinceMonday);
+  // India days and weeks (the server runs on UTC).
+  const today = indiaToday();
+  const startOfToday = indiaMidnight(today);
+  const startOfWeek = indiaMidnight(addDays(today, -indiaWeekday(today)));
 
   try {
     const [{ count: total, error: totalError }, { count: newToday, error: todayError }, { count: newThisWeek, error: weekError }, { data: roleRows, error: roleError }] =
@@ -628,9 +681,8 @@ router.get('/stats/activity', async (req, res) => {
   const SLOTS_PER_DAY = 6;
   const HOURS_PER_SLOT = 24 / SLOTS_PER_DAY;
 
-  const dayStart = new Date();
-  dayStart.setHours(0, 0, 0, 0);
-  dayStart.setDate(dayStart.getDate() - (DAYS - 1));
+  // India days and hours (the server runs on UTC).
+  const dayStart = indiaMidnight(addDays(indiaToday(), -(DAYS - 1)));
 
   try {
     const [{ data: listingRows, error: listingsError }, { data: rentalRows, error: rentalsError }] =
@@ -646,7 +698,7 @@ router.get('/stats/activity', async (req, res) => {
       const t = new Date(createdAt);
       const dayIndex = Math.floor((t - dayStart) / (24 * 60 * 60 * 1000));
       if (dayIndex < 0 || dayIndex >= DAYS) return;
-      const slot = Math.min(SLOTS_PER_DAY - 1, Math.floor(t.getHours() / HOURS_PER_SLOT));
+      const slot = Math.min(SLOTS_PER_DAY - 1, Math.floor(indiaHour(t) / HOURS_PER_SLOT));
       buckets[dayIndex][slot] += 1;
     };
     listingRows.forEach((row) => addToBucket(row.created_at));

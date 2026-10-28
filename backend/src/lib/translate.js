@@ -221,7 +221,11 @@ function cleanString(value) {
 // `client` (tests) stands in for every model's own client. `redo` (the
 // warm-up script) skips the stored copy and overwrites it - used to redo
 // what a fallback model translated, once Gemini has capacity.
-export async function translateUiTexts(texts, lang, { client, db = supabase, models = defaultModels(), redo = false } = {}) {
+// maxNewPerDay: when set (visitor requests - routes/translate.js), stop
+// saving new translations once that many were saved in the last 24 hours.
+// They're still translated for the visitor; this just stops anyone filling
+// the table with made-up text. The pretranslate script has no cap.
+export async function translateUiTexts(texts, lang, { client, db = supabase, models = defaultModels(), redo = false, maxNewPerDay = null } = {}) {
   if (client) models = models.map((m) => ({ ...m, client }));
   const unique = [...new Set(texts)];
   const hashes = unique.map(hashText);
@@ -257,6 +261,14 @@ export async function translateUiTexts(texts, lang, { client, db = supabase, mod
       rows.push({ lang, source_hash: hashText(text), source: text, translated: value, model: translated[i].model });
     }
   });
+  if (rows.length && maxNewPerDay != null) {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { count, error: countError } = await db.from('ui_translations').select('source_hash', { count: 'exact', head: true }).gte('created_at', since);
+    if (countError || count >= maxNewPerDay) {
+      if (!countError) console.warn('[translate] daily cap reached - not saving new translations');
+      return result;
+    }
+  }
   if (rows.length) {
     const { error: writeError } = await db.from('ui_translations').upsert(rows, { ignoreDuplicates: !redo });
     if (writeError) console.error('[translate] ui cache write failed:', writeError.message);

@@ -31,7 +31,11 @@ function fakeDb(tables) {
         select: () => query,
         eq: (col, value) => (filters.push((r) => r[col] === value), query),
         in: (col, values) => (filters.push((r) => values.includes(r[col])), query),
-        then: (resolve) => resolve({ data: (tables[table] || []).filter((r) => filters.every((f) => f(r))), error: null }),
+        gte: (col, value) => (filters.push((r) => r[col] >= value), query),
+        then: (resolve) => {
+          const rows = (tables[table] || []).filter((r) => filters.every((f) => f(r)));
+          resolve({ data: rows, count: rows.length, error: null });
+        },
         upsert: async (rows) => {
           writes[table] = [...(writes[table] || []), ...rows];
           return { error: null };
@@ -88,6 +92,16 @@ describe('batchTexts', () => {
 });
 
 describe('translateUiTexts', () => {
+  it('stops saving new translations past the daily cap, but still translates', async () => {
+    const recent = new Date().toISOString();
+    const db = fakeDb({ ui_translations: [{ lang: 'ta', source_hash: 'a', created_at: recent }, { lang: 'ta', source_hash: 'b', created_at: recent }] });
+    const client = fakeClient((texts) => texts.map((t) => `hi:${t}`));
+    expect(await translateUiTexts(['Messages'], 'hi', { client, db, maxNewPerDay: 2 })).toEqual({ Messages: 'hi:Messages' });
+    expect(db.writes.ui_translations).toBeUndefined();
+    await translateUiTexts(['Help'], 'hi', { client, db, maxNewPerDay: 3 });
+    expect(db.writes.ui_translations).toHaveLength(1);
+  });
+
   it('serves cached text without calling the model, and translates + stores the rest', async () => {
     const db = fakeDb({
       ui_translations: [{ lang: 'hi', source_hash: hashText('Home'), translated: 'होम' }],

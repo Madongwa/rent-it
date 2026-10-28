@@ -59,7 +59,7 @@ export function renderNotificationEmail({ title, body, link }) {
       <h1 style="font-size:20px;font-weight:600;margin:0 0 12px;color:#09090b">${escapeHtml(title)}</h1>
       ${body ? `<p style="font-size:15px;line-height:1.5;color:#52525b;margin:0 0 24px">${escapeHtml(body)}</p>` : ''}
       <a href="${url}" style="display:inline-block;background:#09090b;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:10px">Open Rent It</a>
-      <p style="font-size:12px;color:#a1a1aa;margin:32px 0 0">You're receiving this because you have an account on Rent It.</p>
+      <p style="font-size:12px;color:#a1a1aa;margin:32px 0 0">You're receiving this because you have an account on Rent It. <a href="${escapeHtml(`${SITE_URL}/profile`)}" style="color:#a1a1aa">Turn off these emails</a> on your Profile page.</p>
     </div>
   `;
 }

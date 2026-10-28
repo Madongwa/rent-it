@@ -1,7 +1,7 @@
 import express, { Router } from 'express';
 import { supabase } from '../lib/supabaseClient.js';
 import { attachUserIfPresent, requireAuth } from '../middleware/auth.js';
-import rateLimit from 'express-rate-limit';
+import { sharedRateLimit } from '../lib/rateLimit.js';
 import { draftListing } from '../lib/listingDraft.js';
 import { interpretSearch } from '../lib/searchIntent.js';
 import { normalizePhotos } from '../lib/listingPhotos.js';
@@ -14,8 +14,10 @@ import { checkPhotos } from '../lib/photoCheck.js';
 import { reviewSummary } from '../lib/reviewSummary.js';
 import { listingInsights } from '../lib/listingInsights.js';
 import { MAX_AUDIO_BYTES } from '../lib/audio.js';
-import { ownerStatusDenied } from '../lib/listingStatus.js';
+import { BOOKABLE_STATUSES, ownerStatusDenied, syncListingStatus } from '../lib/listingStatus.js';
 import { canReviewListing } from './reviews.js';
+import { indiaToday } from '../lib/dates.js';
+import { validateListingFields } from '../lib/listingFields.js';
 
 // How long publishing waits for the Wanted-post matching (an AI call). On
 // Vercel nothing can run after the response, so it's done before, but
@@ -42,7 +44,8 @@ function publicOwner(listing) {
 // The detail page additionally wants the reviews and past-rental history for
 // the calendar/reviews sections - kept out of LISTING_SELECT above so the
 // Marketplace grid (30+ cards) doesn't pull every review row for every card.
-const LISTING_DETAIL_SELECT = `${LISTING_SELECT}, reviews(*), rental_history(*)`;
+// Reviews without staff-only flag details (who reported one, and why).
+const LISTING_DETAIL_SELECT = `${LISTING_SELECT}, reviews(id, listing_id, reviewer_id, reviewer_name, rating, comment, created_at), rental_history(*)`;
 
 // Page size cap - the previous version had no limit at all (fine at 30 seed
 // rows, not fine once real listings accumulate).
@@ -65,7 +68,8 @@ router.get('/', async (req, res) => {
   let query = supabase
     .from('listings')
     .select(verifiedOnly ? LISTING_SELECT.replace('owner:profiles(', 'owner:profiles!inner(') : LISTING_SELECT)
-    .eq('status', 'available');
+    // 'rented' = out today, but other dates can still be booked.
+    .in('status', BOOKABLE_STATUSES);
 
   // "Near me": with the renter's (rounded) location, distances are real and
   // worked out below; without it, the distance filter falls back to the
@@ -229,7 +233,7 @@ router.get('/:id', attachUserIfPresent, async (req, res) => {
 });
 
 // Mostly served from the saved summary; an AI call only when reviews change.
-const summaryRateLimiter = rateLimit({
+const summaryRateLimiter = sharedRateLimit('listings-summaryRateLimiter', {
   windowMs: 60 * 1000,
   max: 30,
   standardHeaders: true,
@@ -277,7 +281,7 @@ router.get('/:id/blocked-dates', requireAuth, async (req, res) => {
     .from('listing_blocked_dates')
     .select('id, start_date, end_date, note')
     .eq('listing_id', req.params.id)
-    .gte('end_date', new Date().toISOString().slice(0, 10))
+    .gte('end_date', indiaToday())
     .order('start_date', { ascending: true });
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
@@ -294,7 +298,7 @@ router.post('/:id/blocked-dates', requireAuth, async (req, res) => {
   if (!isDate(start_date) || !isDate(end_date) || end_date < start_date) {
     return res.status(400).json({ error: 'Choose a start date and an end date on or after it.' });
   }
-  if (end_date < new Date().toISOString().slice(0, 10)) return res.status(400).json({ error: 'Those dates are in the past.' });
+  if (end_date < indiaToday()) return res.status(400).json({ error: 'Those dates are in the past.' });
 
   const { data: booked, error: bookedError } = await supabase
     .from('rentals')
@@ -356,7 +360,7 @@ const WRITABLE_FIELDS = [
 ];
 
 // Each draft is an AI call - kept well below the free-tier limits.
-const draftRateLimiter = rateLimit({
+const draftRateLimiter = sharedRateLimit('listings-draftRateLimiter', {
   windowMs: 60 * 1000,
   max: 6,
   standardHeaders: true,
@@ -366,7 +370,7 @@ const draftRateLimiter = rateLimit({
 
 // Each interpretation may be an AI call - but repeats are cached, and the
 // Marketplace searches the plain words if this fails, so it degrades softly.
-const searchRateLimiter = rateLimit({
+const searchRateLimiter = sharedRateLimit('listings-searchRateLimiter', {
   windowMs: 60 * 1000,
   max: 12,
   standardHeaders: true,
@@ -481,6 +485,9 @@ router.post('/', requireAuth, async (req, res) => {
   for (const field of WRITABLE_FIELDS) {
     if (field in req.body) fields[field] = req.body[field];
   }
+  const checked = validateListingFields(req.body, { creating: true });
+  if (checked.error) return res.status(400).json({ error: checked.error });
+  Object.assign(fields, checked.fields);
   Object.assign(fields, normalizePhotos(req.body, { ownerId: req.user.id }));
   // The map pin is stored separately (backend-only table, lib/geo.js).
   const pin = pinChange(req.body);
@@ -529,6 +536,9 @@ router.patch('/:id', requireAuth, async (req, res) => {
   for (const field of allowedFields) {
     if (field in req.body) updates[field] = req.body[field];
   }
+  const checked = validateListingFields(req.body);
+  if (checked.error) return res.status(400).json({ error: checked.error });
+  Object.assign(updates, checked.fields);
   Object.assign(updates, normalizePhotos(req.body, { ownerId: req.user.id, existing: [existing.image_url, ...(existing.image_urls || [])] }));
   const pin = pinChange(req.body);
   if (pin?.error) return res.status(400).json({ error: pin.error });
@@ -547,6 +557,12 @@ router.patch('/:id', requireAuth, async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
+  // Reactivated while a booking has it out today - that's 'rented'.
+  if (updates.status === 'available' && existing.status === 'inactive') {
+    await syncListingStatus(req.params.id);
+    const { data: fresh } = await supabase.from('listings').select('status').eq('id', req.params.id).single();
+    if (fresh) data.status = fresh.status;
+  }
   res.json(withExactPin(data));
 });
 

@@ -1,3 +1,5 @@
+import { addDays, indiaToday } from './dates.js';
+
 // Pure helpers for rental price offers - no Supabase access here, so the
 // validation and wording can be unit-tested directly (offers.test.js).
 
@@ -5,6 +7,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // numeric(10, 2) tops out just under 10^8.
 const MAX_PRICE = 99999999.99;
+// How far ahead a rental can start, and how long it can run.
+export const MAX_DAYS_AHEAD = 365;
+export const MAX_RENTAL_DAYS = 365;
 
 function isValidDate(str) {
   if (typeof str !== 'string' || !DATE_RE.test(str)) return false;
@@ -14,10 +19,15 @@ function isValidDate(str) {
 
 // Validates the price/dates half of an offer (request body fields
 // price_per_day, start_date, end_date). Returns { terms } or { error }.
-export function parseOfferTerms({ price_per_day, start_date, end_date } = {}) {
+// Dates are India dates: no starting in the past, at most a year ahead, at
+// most a year long.
+export function parseOfferTerms({ price_per_day, start_date, end_date } = {}, { today = indiaToday() } = {}) {
   if (!start_date || !end_date) return { error: 'start_date and end_date are required' };
   if (!isValidDate(start_date) || !isValidDate(end_date)) return { error: 'Dates must be in YYYY-MM-DD format' };
   if (end_date < start_date) return { error: 'End date must be on or after the start date' };
+  if (start_date < today) return { error: 'The start date has already passed - pick today or later.' };
+  if (start_date > addDays(today, MAX_DAYS_AHEAD)) return { error: 'Rentals can start up to a year ahead.' };
+  if (rentalDays(start_date, end_date) > MAX_RENTAL_DAYS) return { error: 'A rental can be at most a year long.' };
 
   const price = Number(price_per_day);
   if (price_per_day === undefined || price_per_day === null || price_per_day === '' || !Number.isFinite(price)) {

@@ -3,6 +3,7 @@ import { GlowingEffect } from './ui/GlowingEffect';
 import './ListingCardGlass.css';
 import { BadgeCheck } from 'lucide-react';
 import { formatKm } from '../lib/myLocation';
+import { statusLabel } from '../lib/listingStatus';
 
 function PinIcon(props) {
   return (
@@ -72,9 +73,7 @@ export default function ListingCard({ listing, isFavorited, onToggleFavorite }) 
             {listing.condition && <span className="listing-card-tag listing-card-tag--condition">{listing.condition}</span>}
             {/* Paused/rented (Favorites, storefronts) sits with the tags, so it
                 never adds a line under the price. */}
-            {listing.status && listing.status !== 'available' && (
-              <span className="listing-card-tag capitalize">{listing.status}</span>
-            )}
+            {statusLabel(listing.status) && <span className="listing-card-tag">{statusLabel(listing.status)}</span>}
           </div>
 
           <h3 className="listing-card-title">{listing.title}</h3>

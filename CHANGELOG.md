@@ -6,6 +6,66 @@ commit. Dates are when the change was pushed to `main`, which deploys it.
 
 ## 2026-10-03
 
+- **Translation store guarded** - anyone could make the site translate and
+  permanently store any text they liked. Visitor requests now save at most
+  5,000 new translations a day (the shared rate limits also apply); past
+  that, text is still translated, just not saved.
+- **Fewer emails** - a busy chat used to send an email for every single
+  message. Now you get one email per chat until you've read it. There's also a
+  new "Email me notifications" switch on the Profile page (in-app
+  notifications always arrive), and every email links to it.
+- **Limits that actually hold** - limits like "5 sign-ups an hour" and the
+  caps on AI features were counted separately on each of Vercel's servers, so
+  they were much looser than intended. They're now counted in one place.
+- **Faster chat list** - the Messages list and its unread badge are now worked
+  out in the database instead of loading every message ever sent, so they stay
+  quick as chats grow.
+- **Review reports stay private** - listing pages no longer reveal who
+  reported a review, or why; only staff see that.
+- **Names you can trust** - names can no longer pose as Rent It ("Rent It
+  Support", "official"...), at sign-up or on the Profile page, and an
+  ID-verified account can't change its name any more (the "ID verified" badge
+  would otherwise stay on a name that was never checked). The Profile page no
+  longer claims your phone is shown to the other person - it never was; only
+  staff can see it.
+- **India time everywhere** - the booking calendar, "available today / this
+  week" filters and blocked dates used UTC, so between midnight and 5:30 am
+  "today" was still yesterday. Staff stats ("new today", "this week", the
+  activity heatmap) now count in India time too, and the staff overview's
+  "pending verification" count includes applications waiting for a person.
+- **Sensible rental dates** - requests and counter-offers can no longer be for
+  dates in the past, start more than a year ahead, or run longer than a year
+  (only the form checked before). An offer whose start date has passed can't
+  be accepted; counter with new dates instead.
+- **Maintenance mode actually works** - the switch on the staff Settings tab
+  used to do nothing. Now, while it's on, people can still browse and search,
+  but changes (requests, messages, listings, sign-ups) are paused with a clear
+  message and a banner on every page. Staff can keep working as normal.
+- **You hear back from staff** - when staff decide a reported problem, both
+  people now get a notification (and a line in their chat) saying how it was
+  closed. Sellers are notified when their verification is approved, or
+  rejected with the reason. Two staff can no longer resolve the same problem
+  at once.
+- **Problems can be reported after completion** - "Report a problem" now also
+  works for a week after a rental's end date even if it was marked complete, so
+  an owner can't mark it complete to stop a renter reporting (say, a deposit not
+  returned). A double click can no longer create two reports.
+- **Booked listings stay bookable** - agreeing a deal used to mark the listing
+  "rented" straight away, hiding it from the Marketplace and refusing every other
+  request even when the booking was months off. Now a booking only blocks its
+  own dates; the listing shows "Rented today" only while it's actually out, and
+  other dates can still be requested.
+- **Rentals finish on their own** - an agreed rental nobody marked complete is
+  completed automatically 7 days after its end date (unless a problem was
+  reported), so listings no longer get stuck as "rented" forever.
+- **Sturdier help assistant** - if the AI is slow it now gives up after 25
+  seconds with the usual "try again" message instead of hanging, and the
+  conversation history the page sends is checked (bad entries are dropped and
+  each message is capped), so the assistant can't be fed huge or broken input.
+- **Seller verification checks its documents** - an application must now use
+  ID photos the seller uploaded themselves (it could name someone else's
+  uploaded files before), the files must really exist, and the name, phone and
+  address are checked for sensible lengths and a valid phone number.
 - **Listing photos must be your own uploads** - new listing photos have to be
   uploaded from your device (resized in the browser so they load faster); links
   to images elsewhere on the web are no longer accepted, since they could track

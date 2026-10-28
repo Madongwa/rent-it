@@ -30,7 +30,7 @@ describe('ListingCard - same layout for every card', () => {
   it('keeps the location line without a location, and puts paused/rented with the tags', () => {
     const { container } = renderCard({ ...base, location: null, status: 'rented' });
     expect(container.querySelector('.listing-card-location')).toBeInTheDocument();
-    expect(container.querySelector('.listing-card-tags')).toHaveTextContent('rented');
+    expect(container.querySelector('.listing-card-tags')).toHaveTextContent('Rented today');
     // Nothing after the price row.
     expect(container.querySelector('.listing-card-price-row').nextElementSibling).toBeNull();
   });

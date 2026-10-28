@@ -7,7 +7,7 @@ import SavedSearches from '../components/SavedSearches';
 import ConditionCompare from '../components/ConditionCompare';
 import ListingInsights from '../components/ListingInsights';
 import IdVerifiedBadge from '../components/IdVerifiedBadge';
-import { findOpenOffer, formatInr, rentalDays, whoseTurn } from '../lib/offers';
+import { findOpenOffer, formatInr, rentalDays, todayStr, whoseTurn } from '../lib/offers';
 
 // Condition photos are only meaningful once a handoff has actually
 // happened (or is being disputed) - hidden for 'pending'/'rejected'/
@@ -49,6 +49,18 @@ function StatusBadge({ status }) {
 // Inline "report a problem" control - either party on an approved rental
 // can use this instead of confirming a clean return. Kept as its own small
 // component since both the renter and owner tabs below need it.
+// "Report a problem": while agreed, and for a week after the end date even
+// once marked complete - same rule as backend/src/lib/disputes.js.
+const DISPUTE_WINDOW_DAYS = 7;
+function canReportProblem(rental) {
+  if (rental.status === 'approved') return true;
+  if (rental.status !== 'completed') return false;
+  const last = new Date(`${rental.end_date}T00:00:00`);
+  last.setDate(last.getDate() + DISPUTE_WINDOW_DAYS);
+  const lastDay = `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}`;
+  return todayStr() <= lastDay;
+}
+
 function DisputeControl({ rentalId, onSubmit }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
@@ -67,6 +79,7 @@ function DisputeControl({ rentalId, onSubmit }) {
         autoFocus
         value={reason}
         onChange={(e) => setReason(e.target.value)}
+        maxLength={2000}
         placeholder="What went wrong?"
         className="w-48 rounded-btn border border-night-border/20 bg-black/20 px-2 py-1 text-sm text-night-text placeholder:text-night-muted/60"
       />
@@ -384,7 +397,7 @@ export default function Dashboard() {
                       {r.status === 'pending' ? 'Withdraw' : 'Cancel'}
                     </button>
                   )}
-                  {r.status === 'approved' && <DisputeControl rentalId={r.id} onSubmit={dispute} />}
+                  {canReportProblem(r) && <DisputeControl rentalId={r.id} onSubmit={dispute} />}
                   {PHOTOS_VISIBLE_STATUSES.includes(r.status) && (
                     <button
                       onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
@@ -458,6 +471,7 @@ export default function Dashboard() {
                   ) : (
                     <>
                       <AgreementLink rental={r} />
+                      {canReportProblem(r) && <DisputeControl rentalId={r.id} onSubmit={dispute} />}
                       <StatusBadge status={r.status} />
                     </>
                   )}

@@ -10,6 +10,7 @@ export default function Profile() {
   const [profile, setProfile] = useState(null);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [emails, setEmails] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -22,6 +23,7 @@ export default function Profile() {
         setProfile(p);
         setFullName(p.full_name || '');
         setPhone(p.phone || '');
+        setEmails(p.email_notifications !== false);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -33,7 +35,7 @@ export default function Profile() {
     setError('');
     setSaved(false);
     try {
-      const updated = await api.updateMyProfile({ full_name: fullName, phone });
+      const updated = await api.updateMyProfile({ full_name: fullName, phone, email_notifications: emails });
       setProfile((p) => ({ ...p, ...updated }));
       setSaved(true);
     } catch (err) {
@@ -60,7 +62,18 @@ export default function Profile() {
 
         <div>
           <label className="mb-1 block text-sm font-medium text-night-muted">Full name</label>
-          <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputClass} placeholder="Your name" />
+          <input
+            type="text"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            disabled={profile?.id_verified}
+            maxLength={100}
+            className={`${inputClass} ${profile?.id_verified ? 'text-night-muted' : ''}`}
+            placeholder="Your name"
+          />
+          {profile?.id_verified && (
+            <p className="mt-1 text-xs text-night-muted">Your name was checked against your ID, so it can't be changed here - contact Rent It support.</p>
+          )}
         </div>
 
         <div>
@@ -70,9 +83,20 @@ export default function Profile() {
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             className={inputClass}
-            placeholder="Shown to a renter/owner once a rental is approved"
+            placeholder="Optional"
           />
+          <p className="mt-1 text-xs text-night-muted">Only Rent It staff can see it - other people never do.</p>
         </div>
+
+        <label className="flex items-start gap-2 text-sm text-night-text">
+          <input type="checkbox" checked={emails} onChange={(e) => setEmails(e.target.checked)} className="mt-0.5" />
+          <span>
+            Email me notifications
+            <span className="block text-xs text-night-muted">
+              New offers, deals, reminders and messages (one email per chat until you read it). You always get them in the bell.
+            </span>
+          </span>
+        </label>
 
         {error && <p className="text-sm text-red-400">{error}</p>}
         {saved && <p className="text-sm font-medium text-emerald-400">Saved.</p>}

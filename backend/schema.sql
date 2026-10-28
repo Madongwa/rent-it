@@ -1381,3 +1381,100 @@ update storage.buckets
 set file_size_limit = 10485760,
     allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/pdf']
 where id = 'kyc-documents';
+
+-- ---------------------------------------------------------------------------
+-- Reviews: clients can read the review itself, not the staff-only flag
+-- details (who reported it, why, when). Safe to re-run.
+-- ---------------------------------------------------------------------------
+revoke select on public.reviews from anon, authenticated;
+grant select (id, listing_id, reviewer_id, reviewer_name, rating, comment, created_at) on public.reviews to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Chat list: each of a user's conversations with its newest message and how
+-- many messages they haven't read - worked out in the database, instead of
+-- the backend loading every message ever sent (routes/messages.js). Called
+-- with the service_role key only. Safe to re-run.
+-- ---------------------------------------------------------------------------
+create index if not exists messages_conversation_created_idx on public.messages (conversation_id, created_at desc);
+
+create or replace function public.conversation_summaries(p_user uuid)
+returns table (
+  conversation_id uuid,
+  last_id uuid,
+  last_body text,
+  last_kind text,
+  last_sender_id uuid,
+  last_created_at timestamptz,
+  unread_count int
+)
+language sql
+stable
+set search_path = public
+as $$
+  select
+    c.id,
+    m.id,
+    m.body,
+    m.kind,
+    m.sender_id,
+    m.created_at,
+    (
+      select count(*)::int
+      from public.messages u
+      where u.conversation_id = c.id
+        and u.sender_id <> p_user
+        and u.created_at > case when c.owner_id = p_user then c.owner_last_read_at else c.renter_last_read_at end
+    )
+  from public.conversations c
+  left join lateral (
+    select id, body, kind, sender_id, created_at
+    from public.messages
+    where conversation_id = c.id
+    order by created_at desc
+    limit 1
+  ) m on true
+  where c.owner_id = p_user or c.renter_id = p_user;
+$$;
+
+revoke execute on function public.conversation_summaries(uuid) from public, anon, authenticated;
+grant execute on function public.conversation_summaries(uuid) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Shared rate limits (lib/rateLimit.js). On Vercel every server instance
+-- used to keep its own count, so a limit like "5 sign-ups an hour" was
+-- really 5 per instance. The tight limits (sign-up, AI features, ID checks)
+-- count here instead, one row per limit + IP. Backend-only; expired rows
+-- are deleted by the daily job. Safe to re-run.
+-- ---------------------------------------------------------------------------
+create table if not exists public.rate_limits (
+  key text primary key,
+  hits int not null,
+  reset_at timestamptz not null
+);
+
+alter table public.rate_limits enable row level security;
+
+-- One hit: starts a new window if the last one ended. Returns the count so
+-- far and when the window ends.
+create or replace function public.rate_limit_hit(p_key text, p_window_ms int)
+returns table (hits int, reset_at timestamptz)
+language sql
+set search_path = public
+as $$
+  insert into public.rate_limits as r (key, hits, reset_at)
+  values (p_key, 1, now() + p_window_ms * interval '1 millisecond')
+  on conflict (key) do update set
+    hits = case when r.reset_at <= now() then 1 else r.hits + 1 end,
+    reset_at = case when r.reset_at <= now() then now() + p_window_ms * interval '1 millisecond' else r.reset_at end
+  returning r.hits, r.reset_at;
+$$;
+
+revoke execute on function public.rate_limit_hit(text, int) from public, anon, authenticated;
+grant execute on function public.rate_limit_hit(text, int) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Email copies of notifications can be turned off (Profile page). In-app
+-- notifications always arrive. Safe to re-run.
+-- ---------------------------------------------------------------------------
+alter table public.profiles
+  add column if not exists email_notifications boolean not null default true;

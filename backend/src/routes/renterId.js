@@ -1,12 +1,12 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import { sharedRateLimit } from '../lib/rateLimit.js';
 import { requireAuth } from '../middleware/auth.js';
 import { myRenterId, submitRenterId } from '../lib/renterId.js';
 
 // Renter ID verification (lib/renterId.js).
 const router = Router();
 
-const submitLimiter = rateLimit({
+const submitLimiter = sharedRateLimit('renterId-submitLimiter', {
   windowMs: 60 * 60 * 1000,
   max: 6,
   standardHeaders: true,

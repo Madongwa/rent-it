@@ -1,12 +1,12 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import { sharedRateLimit } from '../lib/rateLimit.js';
 import { requireAuth } from '../middleware/auth.js';
 import { listingPriceCheck, suggestPrice } from '../lib/pricing.js';
 
 const router = Router();
 
 // Each suggestion is an AI call - kept well below the free-tier limits.
-const suggestRateLimiter = rateLimit({
+const suggestRateLimiter = sharedRateLimit('pricing-suggestRateLimiter', {
   windowMs: 60 * 1000,
   max: 6,
   standardHeaders: true,
@@ -15,7 +15,7 @@ const suggestRateLimiter = rateLimit({
 });
 
 // Mostly served from price_insights, so more generous.
-const checkRateLimiter = rateLimit({
+const checkRateLimiter = sharedRateLimit('pricing-checkRateLimiter', {
   windowMs: 60 * 1000,
   max: 30,
   standardHeaders: true,

@@ -34,6 +34,7 @@ async function request(path, options = {}) {
 
 export const api = {
   getCategories: () => request('/categories'),
+  getStatus: () => request('/status'),
 
   getListings: (params = {}) => {
     const qs = new URLSearchParams(

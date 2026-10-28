@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { hasBlockedConflict, overlaps, unavailableRanges, unavailableSoon } from './availability.js';
+import { addDays, indiaToday } from './dates.js';
 
 vi.mock('./supabaseClient.js', () => ({ supabase: null }));
 
@@ -23,7 +24,8 @@ function fakeDb(tables) {
   };
 }
 
-const day = (offset) => new Date(Date.now() + offset * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+// India dates, like availability.js.
+const day = (offset) => addDays(indiaToday(), offset);
 
 const tables = {
   rentals: [

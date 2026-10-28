@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import { sharedRateLimit } from '../lib/rateLimit.js';
 import { supabase } from '../lib/supabaseClient.js';
+import { IMPERSONATION } from '../lib/profileUpdate.js';
 
 // POST /api/auth/signup - instant accounts. The account is created already
 // confirmed (Supabase admin API), so people can log in straight away
@@ -13,7 +14,7 @@ const router = Router();
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const MIN_PASSWORD_LENGTH = 6; // same as the sign-up form
 
-const signupLimiter = rateLimit({
+const signupLimiter = sharedRateLimit('auth-signupLimiter', {
   windowMs: 60 * 60 * 1000,
   max: 5,
   standardHeaders: true,
@@ -28,6 +29,7 @@ export function validateSignup(body) {
   const fullName = typeof body?.full_name === 'string' ? body.full_name.trim().replace(/\s+/g, ' ') : '';
   if (!fullName) return { error: 'Full name is required.' };
   if (fullName.length > 100) return { error: 'That name is too long.' };
+  if (IMPERSONATION.test(fullName)) return { error: `Names can't include "Rent It", "support" or "official".` };
   if (!EMAIL_RE.test(email) || email.length > 254) return { error: 'Enter a valid email address.' };
   if (password.length < MIN_PASSWORD_LENGTH) return { error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` };
   if (password.length > 72) return { error: 'Password must be at most 72 characters.' };

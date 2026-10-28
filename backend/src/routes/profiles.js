@@ -5,6 +5,7 @@ import { TERMS_VERSION } from '../lib/terms.js';
 import { isSupportedLanguage } from '../lib/languages.js';
 import { ownerTrust } from '../lib/trust.js';
 import { isIdVerified } from '../lib/renterId.js';
+import { validateProfileUpdate } from '../lib/profileUpdate.js';
 
 const router = Router();
 
@@ -12,7 +13,7 @@ const router = Router();
 router.get('/me', requireAuth, async (req, res) => {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, phone, avatar_url, created_at, role, seller_status, renter_id_status, terms_accepted_at, terms_version, preferred_language')
+    .select('id, full_name, phone, avatar_url, created_at, role, seller_status, renter_id_status, terms_accepted_at, terms_version, preferred_language, email_notifications')
     .eq('id', req.user.id)
     .single();
 
@@ -70,22 +71,29 @@ router.get('/:id', async (req, res) => {
 });
 
 // PATCH /api/profiles/me
+// Name (checked - lib/profileUpdate.js), phone and language. The photo
+// comes from sign-up (e.g. Google) and isn't set here.
 router.patch('/me', requireAuth, async (req, res) => {
-  const { full_name, phone, avatar_url, preferred_language } = req.body;
-  const updates = {};
+  const { preferred_language } = req.body || {};
+  const { data: current, error: currentError } = await supabase
+    .from('profiles')
+    .select('full_name, renter_id_status, seller_status')
+    .eq('id', req.user.id)
+    .single();
+  if (currentError) return res.status(500).json({ error: currentError.message });
+
+  const { updates, error: invalid, code } = validateProfileUpdate(req.body || {}, current, { idVerified: isIdVerified(current) });
+  if (invalid) return res.status(code).json({ error: invalid });
   if (preferred_language !== undefined) {
     if (!isSupportedLanguage(preferred_language)) return res.status(400).json({ error: 'Unsupported language' });
     updates.preferred_language = preferred_language;
   }
-  if (full_name !== undefined) updates.full_name = full_name;
-  if (phone !== undefined) updates.phone = phone;
-  if (avatar_url !== undefined) updates.avatar_url = avatar_url;
 
   const { data, error } = await supabase
     .from('profiles')
     .update(updates)
     .eq('id', req.user.id)
-    .select('id, full_name, phone, avatar_url, created_at, preferred_language')
+    .select('id, full_name, phone, avatar_url, created_at, preferred_language, email_notifications')
     .single();
 
   if (error) return res.status(500).json({ error: error.message });

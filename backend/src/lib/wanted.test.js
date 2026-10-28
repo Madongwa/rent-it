@@ -156,7 +156,7 @@ describe('searchAlternatives', () => {
   const titlesDb = (byTerm) => ({
     from: () => {
       let term;
-      const q = { select: () => q, eq: () => q, textSearch: (_c, t) => ((term = t), q), limit: async () => ({ data: (byTerm[term] || []).map((title) => ({ title })), error: null }) };
+      const q = { select: () => q, eq: () => q, in: () => q, textSearch: (_c, t) => ((term = t), q), limit: async () => ({ data: (byTerm[term] || []).map((title) => ({ title })), error: null }) };
       return q;
     },
   });

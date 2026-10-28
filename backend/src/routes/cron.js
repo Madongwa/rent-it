@@ -3,6 +3,9 @@ import { timingSafeEqual } from 'crypto';
 import { runSavedSearchAlerts } from '../lib/savedSearches.js';
 import { runRentalReminders } from '../lib/reminders.js';
 import { pruneSearchLog } from '../lib/listingInsights.js';
+import { runAutoComplete } from '../lib/autoComplete.js';
+import { runListingStatusSync } from '../lib/listingStatus.js';
+import { pruneRateLimits } from '../lib/rateLimit.js';
 
 // Scheduled jobs. Vercel Cron calls GET /api/cron/daily once a day (see
 // backend/vercel.json) with "Authorization: Bearer <CRON_SECRET>". Without
@@ -17,11 +20,15 @@ export function authorized(header, secret) {
   return got.length === expected.length && timingSafeEqual(got, expected);
 }
 
-// Each job runs on its own - one failing doesn't stop the others.
+// Each job runs on its own - one failing doesn't stop the others. Rentals
+// are auto-completed first, so the listing labels after them are current.
 export const DAILY_JOBS = {
+  autoComplete: () => runAutoComplete(),
+  listingStatus: () => runListingStatusSync(),
   savedSearches: () => runSavedSearchAlerts(),
   rentalReminders: () => runRentalReminders(),
   pruneSearchLog: () => pruneSearchLog(),
+  pruneRateLimits: () => pruneRateLimits(),
 };
 
 router.get('/daily', async (req, res) => {

@@ -51,3 +51,15 @@ export async function attachUserIfPresent(req, _res, next) {
 
   next();
 }
+
+// Is this request from a signed-in staff member? For checks outside the
+// admin routes (e.g. maintenance mode letting staff keep working).
+export async function isStaffRequest(req) {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return false;
+  const { data } = await supabase.auth.getUser(token);
+  if (!data?.user) return false;
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).maybeSingle();
+  return profile?.role === 'admin';
+}

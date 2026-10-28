@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient.js';
+import { addDays, indiaToday } from './dates.js';
 
 // When a listing can't be rented: dates booked by an agreed rental, and
 // dates the owner blocked themselves (repairs, their own use - the
@@ -8,7 +9,8 @@ import { supabase } from './supabaseClient.js';
 
 export const BOOKED_STATUSES = ['approved', 'disputed'];
 
-const today = () => new Date().toISOString().slice(0, 10);
+// India dates, like the rest of the booking rules (lib/dates.js).
+const today = () => indiaToday();
 
 // Two ranges [a,b] and [c,d] overlap iff a <= d and c <= b.
 export function overlaps(a, b) {
@@ -48,7 +50,7 @@ export async function hasBlockedConflict({ listingId, startDate, endDate }, db =
 // agreed rentals, owner-blocked dates and the listing's past-rental history.
 export async function unavailableSoon(listingIds, db = supabase) {
   const from = today();
-  const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const weekEnd = addDays(from, 7);
   const window = (q) => q.in('listing_id', listingIds).lte('start_date', weekEnd).gte('end_date', from);
   const results = await Promise.all([
     window(db.from('rental_history').select('listing_id, start_date, end_date')),

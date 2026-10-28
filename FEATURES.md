@@ -207,26 +207,36 @@ recorded as evidence in `terms_acceptances`).
 
 1. **Find it** in the Marketplace (filters or a plain-language search).
 2. **Send a request with your price** - dates plus the price per day you're
-   offering (the listed price, less, or more).
+   offering (the listed price, less, or more). Dates start today or later, up
+   to a year ahead, for at most a year; an offer whose start date passes while
+   it waits can't be accepted - counter with new dates.
 3. **Bargain in chat** - the request lands in Messages as an **offer card**.
    Whoever didn't make the open offer can **Accept**, **Decline** or
    **Counter** (different price and/or dates). The first acceptance confirms
-   the rental at those terms. Only one offer is open at a time.
+   the rental at those terms. Only one offer is open at a time. An agreed
+   booking only blocks its own dates: the listing stays on the Marketplace and
+   open to requests for other dates. While it's out with a renter it shows
+   **"Rented today"** (updated each morning and whenever a booking changes).
 4. **Price check while bargaining** - the offer form shows what items like this
    usually rent for (AI estimate, clearly labelled), any genuinely similar
    Rent It listings with their real prices, and whether the price being
    offered is below, within or above the usual range.
 5. **Pick up, check and pay** - meet the owner (or get it delivered, where
    offered), check the item, and pay the owner directly. Rent It never takes
-   payments and never asks for money in chat.
+   payments and never asks for money in chat. Once it's back, the owner marks
+   the rental complete; if nobody does and no problem is reported, it's
+   **marked complete automatically 7 days after the end date** (both people
+   are told, and a line is added to the chat).
 6. **Pickup and return photos** - either side can record the item's condition
    at pickup and at return (up to 12 each). They're evidence, so photos can
    only be added, never removed, and only while the rental is agreed - once
    it's completed, cancelled or a problem is reported they're locked. Pickup
    photos also lock once return photos are added.
-7. **Report a problem** - on an agreed rental, either side can raise a
-   dispute. The rental freezes (no status changes) for **15 days** while staff
-   review it.
+7. **Report a problem** - on an agreed rental, or a completed one up to 7
+   days after its end date (so marking it complete can't stop the other side
+   reporting), either side can raise a dispute (up to 2,000 characters).
+   The rental freezes (no status changes) for **15 days** while staff review
+   it.
 8. **Review** - rate the listing 1-5 with a comment (one review per listing;
    not your own). Only renters who actually rented it can review: a completed
    rental, or an agreed one whose last day has passed. The review form only
@@ -245,7 +255,7 @@ listing.
   on with API keys. Listing is blocked until approved. If verification is
   rejected, the seller's listings are paused (bookings already agreed still go
   ahead) and can only be reactivated once they are verified again.
-- **List an Item** form - title, description, category, condition, price per
+- **List an Item** form (title up to 120 characters, description up to 5,000) - title, description, category, condition, price per
   day, optional **price per week** (used for 7+ day rentals) and **per month**
   (30+ days), location, **up to 8 photos** (first is the cover; "Make cover", remove; uploaded from your device and resized in the browser - links to photos elsewhere on the web aren't accepted), power source, delivery option, deposit (and amount),
   cancellation policy, owner type, accessories (and what's included),
@@ -324,7 +334,10 @@ WhatsApp-style chat page at `/messages`, one thread per listing and renter.
 ## 6. Notifications
 
 - **Bell** in the navbar with unread count: new rental request, counter-offer,
-  deal agreed, declined / completed / cancelled, a problem reported, new
+  deal agreed, declined / completed / cancelled (including completed
+  automatically), a problem reported, staff's decision on a reported problem
+  (to both people - the outcome, not staff's notes - and also posted in the
+  chat), seller verification approved or rejected (with the reason), new
   message (shown in your language), an owner replied to your Wanted post, a new
   listing may match your Wanted post, new listings for a saved search.
 - **Reminders** (daily at 9:00 IST, once each): **pickup tomorrow** and **return
@@ -332,7 +345,10 @@ WhatsApp-style chat page at `/messages`, one thread per listing and renter.
   tip - pay in person, take photos), and **"How was it?"** to the renter the day
   after a rental ends, unless they've already reviewed - it opens the listing
   at the review form.
-- **Email** copies of every notification via Resend (when `RESEND_API_KEY` is set).
+- **Email** copies of notifications via Resend (when `RESEND_API_KEY` is set).
+  Chat messages are emailed once per chat until you read it (or 6 hours pass),
+  not once per message. "Email me notifications" on the Profile page turns
+  emails off (the bell still gets everything); every email links there.
 
 ---
 
@@ -371,7 +387,10 @@ never go to an AI. **Print / Save as PDF** uses the browser's print dialog
 ---
 
 ### Profile (`/profile`)
-Name and phone, plus **Your earnings** for anyone who has listed something:
+Name, phone (only for Rent It staff - never shown to other people) and
+"Email me notifications". Names can't include "Rent It", "support" or "official" (same at sign-up),
+and once an account is ID-verified its name is locked, since it was checked
+against the ID (to change it, contact support). Plus **Your earnings** for anyone who has listed something:
 earned so far (agreed rentals that are completed or over), agreed & coming up,
 most-rented item, a **bar chart of agreed rent by month** (last 12 months, with
 hover values and a "See as a table" view), busiest month, and a by-item list.
@@ -391,6 +410,9 @@ handles the money.
 - **How**: text on screen is sent to the backend, translated by AI once per
   language and stored in `ui_translations`; every later visitor gets it
   instantly from there (and from their browser's own copy).
+  Visitors' requests save at most 5,000 new translations a day (past that,
+  text is still translated, just not saved), so nobody can fill the table
+  with made-up text; the pre-translation script has no cap.
 - **Pre-translation**: `node backend/scripts/pretranslate.js` translates the
   site's text (and every listing) into all languages ahead of visitors, paced
   for free-tier limits, retrying when the AI is busy, and redoing anything a
@@ -504,7 +526,11 @@ Common rules for all of them:
 - **Safety** - listings flagged by the safety review, most serious first, with
   "Remove listing" / "Looks fine". Opening the tab reviews new or edited listings.
 - **Activity log** - every staff action.
-- **Settings** - maintenance mode.
+- **Settings** - maintenance mode: while it's on the site is read-only for
+  everyone but staff. Browsing, search, translation and the help assistant
+  keep working; sending requests, messages, listing changes, sign-ups and other
+  changes are refused with a "down for maintenance" message, and every page
+  shows a banner. It takes up to 30 seconds to reach every server.
 
 ---
 
@@ -555,11 +581,25 @@ Common rules for all of them:
 - **Deploy**: pushing to `main` redeploys both Vercel projects
   (frontend: renthere.in, backend: rent-it-api.vercel.app).
 - **Daily job**: Vercel Cron calls `GET /api/cron/daily` at 03:30 UTC (9:00 IST)
-  - `backend/vercel.json`. It runs saved-search alerts and rental reminders
+  - `backend/vercel.json`. It auto-completes agreed rentals that ended over 7
+  days ago, updates each listing's "Rented today" label from its bookings,
+  runs saved-search alerts and rental reminders
   (`rental_reminders` makes each reminder send once, even if the job reruns),
-  and deletes search-log entries older than 90 days. Protected by
+  deletes search-log entries older than 90 days, and clears old rate-limit
+  counts. Protected by
   `CRON_SECRET` (set it in the backend's Vercel environment variables; without
   it the endpoint refuses every call and nothing runs).
+- **Rate limits**: a coarse per-server limit on every API call, plus tighter
+  limits on sign-up, the AI features, translation and ID checks that are
+  counted in the database (`rate_limits`), so they hold across all of
+  Vercel's server instances. If the database is unreachable, requests are let
+  through rather than blocked.
+- **Error messages**: when something fails on the server, people see "Something
+  went wrong on our side - please try again." - never raw database text (it's
+  logged instead). Staff pages still show the real error.
+- **Security headers** (`frontend/vercel.json`): the site can't be embedded in
+  another site's frame (clickjacking), and camera, microphone and location are
+  only available to Rent It itself.
 - **Env vars**: see `backend/.env.example` and `frontend/.env.example`.
 
 ---

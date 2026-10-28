@@ -19,6 +19,7 @@ import { chatWarnings } from '../lib/chatSafety';
 import useMessageTranslations from '../hooks/useMessageTranslations';
 import { useLanguage } from '../context/LanguageContext';
 import { getLanguage } from '../lib/languages';
+import { isBookable } from '../lib/listingStatus';
 
 // Leaflet (the map) only downloads when someone opens the location picker.
 const LocationPicker = lazy(() => import('../components/chat/LocationPicker'));
@@ -490,7 +491,7 @@ export default function Messages() {
       firstOfferIds.add(m.offer.id);
     }
   });
-  const canMakeOffer = active && !isOwner && !negotiating && active.listing?.status === 'available';
+  const canMakeOffer = active && !isOwner && !negotiating && isBookable(active.listing);
 
   const q = query.trim().toLowerCase();
   const visibleConversations = q

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth } from '../middleware/auth.js';
 import { verifyIdentity } from '../services/idVerification.js';
+import { validateKycSubmission } from '../lib/kycSubmission.js';
 
 const router = Router();
 
@@ -22,12 +23,15 @@ router.get('/me', requireAuth, async (req, res) => {
 // kyc-documents bucket first (same pattern as listing image uploads), so
 // this only ever receives the resulting storage URLs, never a file.
 router.post('/submit', requireAuth, async (req, res) => {
-  const { full_name, phone, address, id_document_url, id_document_back_url, address_proof_url } = req.body;
+  const { value, error: invalid } = validateKycSubmission(req.user.id, req.body);
+  if (invalid) return res.status(400).json({ error: invalid });
+  const { full_name, phone, address, id_document_url, id_document_back_url, address_proof_url } = value;
 
-  if (!full_name || !phone || !address || !id_document_url || !id_document_back_url) {
-    return res.status(400).json({
-      error: 'full_name, phone, address, id_document_url and id_document_back_url are required',
-    });
+  // The uploads have to have actually happened (a signed URL can only be
+  // made for a real file).
+  for (const path of [id_document_url, id_document_back_url, address_proof_url].filter(Boolean)) {
+    const { error: fileError } = await supabase.storage.from('kyc-documents').createSignedUrl(path, 60);
+    if (fileError) return res.status(400).json({ error: 'A document upload was not found - please upload it again.' });
   }
 
   // A fresh submission always resets from scratch - re-review even if a
@@ -57,7 +61,7 @@ router.post('/submit', requireAuth, async (req, res) => {
         address,
         id_document_url,
         id_document_back_url,
-        address_proof_url: address_proof_url || null,
+        address_proof_url,
         status: verification.status,
         verification_method: verification.method,
         verification_provider_reference: verification.providerReference,

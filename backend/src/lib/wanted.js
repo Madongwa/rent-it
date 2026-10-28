@@ -3,6 +3,7 @@ import { chatJson } from './ai.js';
 import { ruleFlags } from './safety.js';
 import { notify } from './notify.js';
 import { addDays, indiaToday } from './dates.js';
+import { BOOKABLE_STATUSES } from './listingStatus.js';
 
 export { indiaToday };
 
@@ -250,7 +251,7 @@ export async function searchAlternatives(query, { db = supabase, models } = {}) 
       const { data, error } = await db
         .from('listings')
         .select('title')
-        .eq('status', 'available')
+        .in('status', BOOKABLE_STATUSES)
         .textSearch('search_vector', term, { type: 'websearch', config: 'english' })
         .limit(20);
       return error || !data?.length ? null : { term, count: data.length, titles: data.slice(0, 3).map((l) => l.title) };

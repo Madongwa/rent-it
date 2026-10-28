@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import { sharedRateLimit } from '../lib/rateLimit.js';
 import { requireAuth } from '../middleware/auth.js';
 import { isSupportedLanguage } from '../lib/languages.js';
 import { translateMessages, translateUiTexts } from '../lib/translate.js';
@@ -9,7 +9,7 @@ const router = Router();
 // UI translation is open to logged-out visitors too (they can switch
 // language), so it has its own, tighter limit than the app-wide one. Most
 // requests are answered from the cache without touching the model.
-const uiRateLimiter = rateLimit({
+const uiRateLimiter = sharedRateLimit('translate-uiRateLimiter', {
   windowMs: 60 * 1000,
   max: 30,
   standardHeaders: true,
@@ -20,6 +20,9 @@ const uiRateLimiter = rateLimit({
 const MAX_UI_TEXTS = 100;
 const MAX_UI_TEXT_LENGTH = 2000;
 const MAX_UI_TOTAL_CHARS = 12000;
+// New site-text translations saved per day from visitors' requests (the
+// busiest day so far, a full pretranslate run, saved about 4,000).
+const MAX_NEW_UI_TRANSLATIONS_PER_DAY = 5000;
 
 // POST /api/translate/ui - body: { lang, texts: [string] }. Returns
 // { translations: { [text]: string | null } }; null means "couldn't
@@ -38,14 +41,14 @@ router.post('/ui', uiRateLimiter, async (req, res) => {
   }
 
   try {
-    res.json({ translations: await translateUiTexts(texts, lang) });
+    res.json({ translations: await translateUiTexts(texts, lang, { maxNewPerDay: MAX_NEW_UI_TRANSLATIONS_PER_DAY }) });
   } catch (err) {
     console.error('[translate] ui failed:', err.message);
     res.status(502).json({ error: 'Translation is unavailable right now' });
   }
 });
 
-const messagesRateLimiter = rateLimit({
+const messagesRateLimiter = sharedRateLimit('translate-messagesRateLimiter', {
   windowMs: 60 * 1000,
   max: 60,
   standardHeaders: true,

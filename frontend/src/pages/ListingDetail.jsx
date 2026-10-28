@@ -13,6 +13,7 @@ import TrustBadges from '../components/TrustBadges';
 import ReviewSummary from '../components/ReviewSummary';
 import { formatInr } from '../lib/offers';
 import { formatKm, savedLocation } from '../lib/myLocation';
+import { isBookable, statusLabel } from '../lib/listingStatus';
 import {
   POWER_SOURCE_OPTIONS,
   DELIVERY_OPTIONS,
@@ -401,9 +402,9 @@ export default function ListingDetail() {
                 {listing.condition}
               </span>
             )}
-            {listing.status !== 'available' && (
-              <span className="rounded-badge border border-night-border/15 px-2.5 py-1 text-caption font-medium capitalize text-night-muted">
-                {listing.status}
+            {statusLabel(listing.status) && (
+              <span className="rounded-badge border border-night-border/15 px-2.5 py-1 text-caption font-medium text-night-muted">
+                {statusLabel(listing.status)}
               </span>
             )}
           </div>
@@ -512,11 +513,14 @@ export default function ListingDetail() {
           <div className="mt-8 rounded-card border border-night-border/15 bg-white/5 p-5">
             {isOwner ? (
               <p className="text-sm text-night-muted">This is your own listing.</p>
-            ) : listing.status !== 'available' ? (
+            ) : !isBookable(listing) ? (
               <p className="text-sm text-night-muted">This item isn't currently available.</p>
             ) : (
               <>
                 <h2 className="font-semibold text-night-text">Request to rent</h2>
+                {listing.status === 'rented' && (
+                  <p className="mt-2 text-xs text-night-muted">It's out with a renter today - you can still ask for dates when it's free (see the calendar).</p>
+                )}
                 {listing.require_renter_id && myIdVerified !== true && (
                   <p className="mt-2 rounded-btn border border-amber-400/30 bg-amber-500/10 p-2.5 text-xs text-amber-200">
                     🪪 The owner only rents this to ID-verified renters.{' '}

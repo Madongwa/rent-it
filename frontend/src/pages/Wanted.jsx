@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import useSeo from '../hooks/useSeo';
 import { DarkGradientBg } from '../components/ui/elegant-dark-pattern';
 import { postedAgo, wantedBudget, wantedDates } from '../lib/wanted';
+import { isBookable } from '../lib/listingStatus';
 
 // Wanted posts: what renters are looking for. Owners who have it tap
 // "I have one", pick a listing, and a chat opens with the renter.
@@ -65,7 +66,7 @@ function RespondDialog({ post, onClose }) {
   useEffect(() => {
     api
       .getMyListings()
-      .then((all) => setListings(all.filter((l) => l.status === 'available')))
+      .then((all) => setListings(all.filter(isBookable)))
       .catch((err) => setError(err.message));
   }, []);
 

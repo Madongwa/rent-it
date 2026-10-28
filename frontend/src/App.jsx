@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from './components/ProtectedRoute';
 import TermsGate from './components/TermsGate';
+import MaintenanceBanner from './components/MaintenanceBanner';
 import AdminRoute from './components/AdminRoute';
 import Home from './pages/Home';
 import { DarkGradientBg } from './components/ui/elegant-dark-pattern';
@@ -50,6 +51,7 @@ export default function App() {
     <div className={isChat ? 'flex h-[100dvh] flex-col overflow-hidden' : 'min-h-screen flex flex-col'}>
       <ScrollToTop />
       <TermsGate />
+      <MaintenanceBanner />
       <Navbar />
       <main className={`flex-1 ${isHome ? '' : 'rh-nav-offset'} ${isChat ? 'flex min-h-0 flex-col' : ''}`}>
         <Suspense fallback={<PageLoading />}>

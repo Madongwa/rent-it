@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import { sharedRateLimit } from '../lib/rateLimit.js';
 import { groq as groqClient } from '../lib/groq.js';
 import { attachUserIfPresent } from '../middleware/auth.js';
 import { accountSummary } from '../lib/accountContext.js';
@@ -7,7 +7,7 @@ import { LANGUAGE_NAMES, isSupportedLanguage } from '../lib/languages.js';
 
 const router = Router();
 
-const chatRateLimiter = rateLimit({
+const chatRateLimiter = sharedRateLimit('chat-chatRateLimiter', {
   windowMs: 60 * 1000, // 1 minute
   max: 8, // max 8 messages per minute per IP
   message: { reply: "You're sending messages too quickly — please wait a moment and try again." },
@@ -77,7 +77,7 @@ Owners: Dashboard -> My Listings -> "Tips" shows what to improve, how many recen
 Owners must pass seller verification before listing. Renters verify an ID only when it matters: once a deal is agreed they are asked to verify before pickup, and some owners tick "Only ID-verified renters can request this". It's on the Verify your ID page: one photo of Aadhaar (masked only - it shows just the last 4 digits; download it free at myaadhaar.uidai.gov.in), driving licence, voter ID, PAN or passport. A clear photo is usually verified within a minute; unclear ones are checked by staff. Owners only see an "ID verified" badge, never the document. A photo showing the full Aadhaar number is refused and deleted.
 
 --- During a rental ---
-Once a deal is agreed, "Agreement" on the Dashboard opens a printable rental agreement in English and both people's languages ("Print / Save as PDF"). Reminders arrive the day before pickup and before the return date, and a "How was it?" review reminder after. Both people can take pickup and return photos; "Compare pickup and return photos" asks the AI to point out visible new damage - only a suggestion to check together.
+Once a deal is agreed, "Agreement" on the Dashboard opens a printable rental agreement in English and both people's languages ("Print / Save as PDF"). Reminders arrive the day before pickup and before the return date, and a "How was it?" review reminder after. Both people can take pickup and return photos; "Compare pickup and return photos" asks the AI to point out visible new damage - only a suggestion to check together. The owner marks a rental complete once the item is back; if nobody does and no problem was reported, it is completed automatically 7 days after its end date. An agreed booking only blocks its own dates - the item can still be requested for other dates, and shows "Rented today" only while it is out.
 Voice messages: in a chat, when the message box is empty, a mic button shows where Send usually is. Tap it once to start recording (a red dot and timer show), then tap the send arrow to send it, or the bin icon to delete it. Recordings stop at 2 minutes. The other person gets the recording plus the words written out in their language. It needs the browser's microphone permission.
 Voice search: tap the mic next to the Marketplace search box, say what you need, then tap the square stop button (it stops by itself after 15 seconds); your words are searched like typed ones.
 
@@ -129,6 +129,24 @@ async function accountInstruction(user) {
   }
 }
 
+// The conversation so far, as sent by the browser: at most the last 8
+// turns, text only, each capped (the assistant's own replies run longer
+// than a question). Anything malformed is dropped rather than failing.
+const MAX_HISTORY_TURNS = 8;
+const MAX_TURN_CHARS = { user: 1000, assistant: 3000 };
+const AI_TIMEOUT_MS = 25 * 1000;
+
+export function cleanHistory(history) {
+  if (!Array.isArray(history)) return [];
+  return history
+    .filter((h) => h && typeof h === 'object' && typeof h.content === 'string' && h.content.trim())
+    .slice(-MAX_HISTORY_TURNS)
+    .map((h) => {
+      const role = h.role === 'user' ? 'user' : 'assistant';
+      return { role, content: h.content.slice(0, MAX_TURN_CHARS[role]) };
+    });
+}
+
 router.post('/', chatRateLimiter, attachUserIfPresent, async (req, res) => {
   try {
     const { message, history = [], lang } = req.body;
@@ -140,11 +158,7 @@ router.post('/', chatRateLimiter, attachUserIfPresent, async (req, res) => {
       return res.status(400).json({ reply: 'That message is a bit long — could you shorten it?' });
     }
 
-    // cap history to last 8 turns to control token usage
-    const trimmedHistory = history.slice(-8).map((h) => ({
-      role: h.role === 'user' ? 'user' : 'assistant',
-      content: h.content,
-    }));
+    const trimmedHistory = cleanHistory(history);
 
     // Model note: llama-3.3-70b-versatile (as originally specified) has
     // been removed from Groq's hosted lineup - confirmed by querying
@@ -164,7 +178,7 @@ router.post('/', chatRateLimiter, attachUserIfPresent, async (req, res) => {
       temperature: 0.4,
       max_tokens: 600,
       reasoning_effort: 'low',
-    });
+    }, { timeout: AI_TIMEOUT_MS, maxRetries: 0 });
 
     const rawReply = completion.choices[0]?.message?.content || "Sorry, I didn't catch that — could you rephrase?";
     const reply = stripMarkdown(rawReply);

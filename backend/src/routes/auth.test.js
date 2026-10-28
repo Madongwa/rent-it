@@ -49,3 +49,9 @@ describe('POST /api/auth/signup', () => {
     expect(createUser).not.toHaveBeenCalled();
   });
 });
+
+describe('validateSignup - names', () => {
+  it('refuses names that pose as Rent It staff', () => {
+    expect(validateSignup({ email: 'a@b.co', password: 'secret1', full_name: 'Rent It Support' }).error).toMatch(/can't include/);
+  });
+});

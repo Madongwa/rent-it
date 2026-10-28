@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import { sharedRateLimit } from '../lib/rateLimit.js';
 import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth } from '../middleware/auth.js';
 import { cleanFilters, cleanUrlQuery, MAX_SAVED } from '../lib/savedSearches.js';
@@ -7,7 +7,7 @@ import { cleanFilters, cleanUrlQuery, MAX_SAVED } from '../lib/savedSearches.js'
 // Saved searches + daily alerts (lib/savedSearches.js).
 const router = Router();
 
-const writeLimiter = rateLimit({
+const writeLimiter = sharedRateLimit('savedSearches-writeLimiter', {
   windowMs: 60 * 1000,
   max: 10,
   standardHeaders: true,

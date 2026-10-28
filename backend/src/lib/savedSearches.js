@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient.js';
 import { applyListingFilters, FILTER_KEYS } from './listingFilters.js';
 import { notify } from './notify.js';
+import { BOOKABLE_STATUSES } from './listingStatus.js';
 
 // Saved searches: "tell me when a tractor is listed near Mandya". Once a
 // day (routes/cron.js) each search is re-run against listings published
@@ -43,7 +44,7 @@ export async function newMatches(search, { db = supabase } = {}) {
   const base = db
     .from('listings')
     .select(select)
-    .eq('status', 'available')
+    .in('status', BOOKABLE_STATUSES)
     .neq('owner_id', search.user_id)
     .gt('created_at', search.last_checked_at)
     .order('created_at', { ascending: false });

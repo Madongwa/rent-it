@@ -6,7 +6,7 @@ import { getOrCreateConversation } from '../lib/conversations.js';
 import { ATTACHMENT_BUCKET, parseAttachmentMessage } from '../lib/attachments.js';
 import { translateForReader } from '../lib/translate.js';
 import { suggestReplies } from '../lib/replySuggestions.js';
-import rateLimit from 'express-rate-limit';
+import { sharedRateLimit } from '../lib/rateLimit.js';
 import { transcribeAudio } from '../lib/voice.js';
 import { isIdVerified } from '../lib/renterId.js';
 import { isSupportedLanguage } from '../lib/languages.js';
@@ -48,10 +48,6 @@ function readColumns(conversation, userId) {
   return { mine, theirs };
 }
 
-function isUnread(message, userId, lastReadAt) {
-  return message.sender_id !== userId && new Date(message.created_at) > new Date(lastReadAt);
-}
-
 // GET /api/messages/conversations - every thread I'm part of, plus the most
 // recent message in each (for a preview line), how many messages I haven't
 // read yet, and how far the other person has read (for ✓✓ ticks) - newest
@@ -63,22 +59,26 @@ router.get('/conversations', requireAuth, async (req, res) => {
     .or(`owner_id.eq.${req.user.id},renter_id.eq.${req.user.id}`);
   if (error) return res.status(500).json({ error: error.message });
 
-  const byId = Object.fromEntries(data.map((c) => [c.id, c]));
+  // Newest message and unread count per thread, worked out in the
+  // database (conversation_summaries in schema.sql) rather than by loading
+  // every message ever sent.
   const lastByConversation = {};
   const unreadByConversation = {};
   if (data.length > 0) {
-    const { data: recent, error: recentError } = await supabase
-      .from('messages')
-      .select('id, conversation_id, body, kind, sender_id, created_at')
-      .in('conversation_id', Object.keys(byId))
-      .order('created_at', { ascending: false });
-    if (recentError) return res.status(500).json({ error: recentError.message });
-    for (const m of recent) {
-      if (!lastByConversation[m.conversation_id]) lastByConversation[m.conversation_id] = m;
-      const c = byId[m.conversation_id];
-      if (isUnread(m, req.user.id, c[readColumns(c, req.user.id).mine])) {
-        unreadByConversation[m.conversation_id] = (unreadByConversation[m.conversation_id] || 0) + 1;
+    const { data: summaries, error: summaryError } = await supabase.rpc('conversation_summaries', { p_user: req.user.id });
+    if (summaryError) return res.status(500).json({ error: summaryError.message });
+    for (const s of summaries) {
+      if (s.last_id) {
+        lastByConversation[s.conversation_id] = {
+          id: s.last_id,
+          conversation_id: s.conversation_id,
+          body: s.last_body,
+          kind: s.last_kind,
+          sender_id: s.last_sender_id,
+          created_at: s.last_created_at,
+        };
       }
+      unreadByConversation[s.conversation_id] = s.unread_count;
     }
   }
 
@@ -97,33 +97,10 @@ router.get('/conversations', requireAuth, async (req, res) => {
 // GET /api/messages/unread-count - for the navbar badge: how many chats
 // have messages I haven't read, and how many messages that is in total.
 router.get('/unread-count', requireAuth, async (req, res) => {
-  const { data: conversations, error } = await supabase
-    .from('conversations')
-    .select('id, owner_id, renter_id, owner_last_read_at, renter_last_read_at')
-    .or(`owner_id.eq.${req.user.id},renter_id.eq.${req.user.id}`);
+  const { data, error } = await supabase.rpc('conversation_summaries', { p_user: req.user.id });
   if (error) return res.status(500).json({ error: error.message });
-  if (conversations.length === 0) return res.json({ count: 0, conversations: 0 });
-
-  const byId = Object.fromEntries(conversations.map((c) => [c.id, c]));
-  // Nothing older than the earliest read point can be unread, so there's
-  // no need to pull every message ever sent.
-  const oldestReadAt = conversations
-    .map((c) => c[readColumns(c, req.user.id).mine])
-    .reduce((min, t) => (new Date(t) < new Date(min) ? t : min));
-
-  const { data: incoming, error: messagesError } = await supabase
-    .from('messages')
-    .select('conversation_id, sender_id, created_at')
-    .in('conversation_id', Object.keys(byId))
-    .neq('sender_id', req.user.id)
-    .gt('created_at', oldestReadAt);
-  if (messagesError) return res.status(500).json({ error: messagesError.message });
-
-  const unread = incoming.filter((m) => {
-    const c = byId[m.conversation_id];
-    return isUnread(m, req.user.id, c[readColumns(c, req.user.id).mine]);
-  });
-  res.json({ count: unread.length, conversations: new Set(unread.map((m) => m.conversation_id)).size });
+  const unread = data.filter((s) => s.unread_count > 0);
+  res.json({ count: unread.reduce((n, s) => n + s.unread_count, 0), conversations: unread.length });
 });
 
 // POST /api/messages/conversations/:id/read - I've seen everything in this
@@ -201,7 +178,7 @@ router.get('/conversations/:id/messages', requireAuth, async (req, res) => {
 });
 
 // Each request is an AI call - kept well below the free-tier limits.
-const suggestRateLimiter = rateLimit({
+const suggestRateLimiter = sharedRateLimit('messages-suggestRateLimiter', {
   windowMs: 60 * 1000,
   max: 10,
   standardHeaders: true,

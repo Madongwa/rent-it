@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import { sharedRateLimit } from '../lib/rateLimit.js';
 import { supabase } from '../lib/supabaseClient.js';
 import { attachUserIfPresent, requireAuth } from '../middleware/auth.js';
+import { BOOKABLE_STATUSES } from '../lib/listingStatus.js';
 import { getOrCreateConversation, postMessage } from '../lib/conversations.js';
 import { notify } from '../lib/notify.js';
 import { draftWanted, publicWanted, validateWantedInput } from '../lib/wanted.js';
@@ -15,10 +16,10 @@ const WANTED_SELECT =
 const MAX_OPEN_POSTS = 5;
 const PAGE = 60;
 
-const limiter = (max, error) =>
-  rateLimit({ windowMs: 60 * 1000, max, standardHeaders: true, legacyHeaders: false, message: { error } });
-const draftLimiter = limiter(6, 'Too many requests - please wait a minute and try again.');
-const writeLimiter = limiter(10, 'Too many requests - please wait a minute and try again.');
+const limiter = (name, max, error) =>
+  sharedRateLimit(`wanted-${name}`, { windowMs: 60 * 1000, max, standardHeaders: true, legacyHeaders: false, message: { error } });
+const draftLimiter = limiter('draft', 6, 'Too many requests - please wait a minute and try again.');
+const writeLimiter = limiter('write', 10, 'Too many requests - please wait a minute and try again.');
 
 async function categories() {
   const { data, error } = await supabase.from('categories').select('id, name');
@@ -110,7 +111,7 @@ router.post('/', requireAuth, writeLimiter, async (req, res) => {
     const { data: listings } = await supabase
       .from('listings')
       .select('id, title, price_per_day, location, image_url')
-      .eq('status', 'available')
+      .in('status', BOOKABLE_STATUSES)
       .neq('owner_id', req.user.id)
       .textSearch('search_vector', words, { type: 'websearch', config: 'english' })
       .limit(4);
@@ -171,7 +172,7 @@ router.post('/:id/respond', requireAuth, writeLimiter, async (req, res) => {
     .eq('id', listing_id)
     .maybeSingle();
   if (!listing || listing.owner_id !== req.user.id) return res.status(403).json({ error: 'Pick one of your own listings.' });
-  if (listing.status !== 'available') return res.status(400).json({ error: 'That listing is paused - make it available first.' });
+  if (!BOOKABLE_STATUSES.includes(listing.status)) return res.status(400).json({ error: 'That listing is paused - make it available first.' });
 
   const { error: matchError } = await supabase
     .from('wanted_matches')

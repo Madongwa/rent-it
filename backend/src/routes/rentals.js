@@ -4,7 +4,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { notify } from '../lib/notify.js';
 import { getOrCreateConversation, postMessage } from '../lib/conversations.js';
 import { parseOfferTerms, describeTerms, formatInr, whoseTurn } from '../lib/offers.js';
-import { releaseListingIfIdle } from '../lib/listingStatus.js';
+import { BOOKABLE_STATUSES, syncListingStatus } from '../lib/listingStatus.js';
 import { effectiveDailyRate, rentalDays } from '../lib/rates.js';
 import { hasBlockedConflict } from '../lib/availability.js';
 import { buildAgreement } from '../lib/agreement.js';
@@ -12,6 +12,8 @@ import { compareConditionPhotos } from '../lib/conditionCompare.js';
 import { ownerEarnings } from '../lib/earnings.js';
 import { isIdVerified } from '../lib/renterId.js';
 import { checkPhotoUpdate } from '../lib/rentalPhotos.js';
+import { disputeError, MAX_DISPUTE_REASON } from '../lib/disputes.js';
+import { indiaToday } from '../lib/dates.js';
 
 // Owners see only whether a renter's ID is verified - never the status
 // details or the document.
@@ -20,10 +22,10 @@ const withIdBadge = (person) => {
   const { renter_id_status, seller_status, ...rest } = person;
   return { ...rest, id_verified: isIdVerified({ renter_id_status, seller_status }) };
 };
-import rateLimit from 'express-rate-limit';
+import { sharedRateLimit } from '../lib/rateLimit.js';
 
 // Each comparison may be an AI call on several photos.
-const compareLimiter = rateLimit({
+const compareLimiter = sharedRateLimit('rentals-compareLimiter', {
   windowMs: 60 * 1000,
   max: 4,
   standardHeaders: true,
@@ -130,7 +132,9 @@ router.post('/', requireAuth, async (req, res) => {
   if (listing.owner_id === req.user.id) {
     return res.status(400).json({ error: 'You cannot rent your own listing' });
   }
-  if (listing.status !== 'available') {
+  // 'rented' only means it's out today - other dates can still be asked
+  // for (the overlap check below refuses booked ones).
+  if (!BOOKABLE_STATUSES.includes(listing.status)) {
     return res.status(400).json({ error: 'This item is not currently available' });
   }
 
@@ -367,6 +371,10 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
         start_date: rental.start_date,
         end_date: rental.end_date,
       };
+  // The offer waited past its start date - agree new dates instead.
+  if (terms.start_date < indiaToday()) {
+    return res.status(400).json({ error: 'The start date of this offer has passed - send a counter-offer with new dates.' });
+  }
 
   const { conflict, message: conflictMessage, error: conflictError } = await hasBookingConflict({
     listingId: rental.listing_id,
@@ -414,14 +422,10 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
     }
   }
 
-  // Only from 'available' - a listing its owner paused stays paused.
-  await supabase.from('listings').update({ status: 'rented' }).eq('id', rental.listing_id).eq('status', 'available');
-
   const { data, error } = await supabase.from('rentals').select(RENTAL_SELECT).eq('id', rental.id).single();
   if (error) return res.status(500).json({ error: error.message });
-  // Cancelled in the instant after it was approved - don't leave the
-  // listing marked rented for a booking that no longer exists.
-  if (data.status !== 'approved') await releaseListingIfIdle(rental.listing_id);
+  // 'rented' if this booking starts today (a paused listing stays paused).
+  await syncListingStatus(rental.listing_id);
 
   // Deal agreed: if the renter hasn't verified their ID yet, now's the time.
   const { data: renterProfile } = await supabase.from('profiles').select('renter_id_status, seller_status').eq('id', rental.renter_id).single();
@@ -547,10 +551,9 @@ router.patch('/:id', requireAuth, async (req, res) => {
     }
   }
 
-  // Only an approved rental ever marked the listing as rented, and the
-  // listing stays rented while any other approved rental still holds it.
+  // An agreed booking ending may free the listing up today.
   if (rental.status === 'approved') {
-    await releaseListingIfIdle(rental.listing_id);
+    await syncListingStatus(rental.listing_id);
   }
 
   const actorName = await profileName(req.user.id);
@@ -621,40 +624,52 @@ router.post('/:id/photos', requireAuth, async (req, res) => {
 const DISPUTE_FREEZE_DAYS = 15;
 
 router.post('/:id/dispute', requireAuth, async (req, res) => {
-  const { reason } = req.body;
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
   if (!reason) return res.status(400).json({ error: 'reason is required' });
+  if (reason.length > MAX_DISPUTE_REASON) {
+    return res.status(400).json({ error: `Please keep it under ${MAX_DISPUTE_REASON.toLocaleString('en-IN')} characters.` });
+  }
 
   const { data: rental, error: findError } = await supabase
     .from('rentals')
-    .select('id, renter_id, status, conversation_id, listing:listings(owner_id)')
+    .select('id, renter_id, status, end_date, conversation_id, listing:listings(owner_id)')
     .eq('id', req.params.id)
     .single();
 
   if (findError || !rental) return res.status(404).json({ error: 'Rental request not found' });
   const isParticipant = rental.renter_id === req.user.id || rental.listing?.owner_id === req.user.id;
   if (!isParticipant) return res.status(403).json({ error: 'Forbidden' });
-  if (rental.status !== 'approved') {
-    return res.status(400).json({ error: `Cannot dispute a "${rental.status}" rental` });
-  }
+  // While agreed, or up to a week after it ended even if marked complete
+  // (lib/disputes.js).
+  const notAllowed = disputeError(rental, indiaToday());
+  if (notAllowed) return res.status(400).json({ error: notAllowed });
+
+  // Claim the rental first (compare-and-set on its status), so a double
+  // click or a completion racing this can't give two disputes.
+  const { data, error } = await supabase
+    .from('rentals')
+    .update({ status: 'disputed' })
+    .eq('id', req.params.id)
+    .eq('status', rental.status)
+    .select(RENTAL_SELECT)
+    .maybeSingle();
+  if (error) return res.status(500).json({ error: error.message });
+  if (!data) return res.status(409).json({ error: 'This rental just changed - refresh to see the latest.' });
 
   const freezeUntil = new Date(Date.now() + DISPUTE_FREEZE_DAYS * 24 * 60 * 60 * 1000).toISOString();
-
-  const { error: disputeError } = await supabase.from('rental_disputes').insert({
+  const { error: insertError } = await supabase.from('rental_disputes').insert({
     rental_id: req.params.id,
     raised_by: req.user.id,
     reason,
     freeze_until: freezeUntil,
   });
-  if (disputeError) return res.status(500).json({ error: disputeError.message });
+  if (insertError) {
+    await supabase.from('rentals').update({ status: rental.status }).eq('id', req.params.id).eq('status', 'disputed');
+    return res.status(500).json({ error: insertError.message });
+  }
 
-  const { data, error } = await supabase
-    .from('rentals')
-    .update({ status: 'disputed' })
-    .eq('id', req.params.id)
-    .select(RENTAL_SELECT)
-    .single();
-
-  if (error) return res.status(500).json({ error: error.message });
+  // Frozen in a dispute, the item counts as still out.
+  await syncListingStatus(data.listing_id);
 
   await postMessage({
     conversationId: rental.conversation_id,

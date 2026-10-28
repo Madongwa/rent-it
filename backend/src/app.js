@@ -23,6 +23,9 @@ import savedSearchesRouter from './routes/savedSearches.js';
 import cronRouter from './routes/cron.js';
 import authRouter from './routes/auth.js';
 import renterIdRouter from './routes/renterId.js';
+import { isMaintenanceMode, maintenanceGuard } from './lib/maintenance.js';
+import { isStaffRequest } from './middleware/auth.js';
+import { GENERIC_ERROR, hideServerErrors } from './middleware/hideServerErrors.js';
 
 // The Express app itself, with no app.listen() call. Shared between the
 // local dev server (server.js) and the Vercel serverless entry (api/index.js).
@@ -78,6 +81,7 @@ app.use(
 );
 
 app.use(express.json());
+app.use('/api', hideServerErrors);
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'rent-it-backend' }));
 
@@ -86,6 +90,11 @@ app.use('/api/cron', cronRouter);
 
 // Applied after /api/health, so uptime pings are never at risk of tripping it.
 app.use('/api', globalRateLimiter);
+
+// Maintenance mode (Staff -> Settings): read-only for everyone but staff.
+// GET /api/status lets the site show a banner while it's on.
+app.get('/api/status', async (_req, res) => res.json({ maintenance_mode: await isMaintenanceMode() }));
+app.use('/api', maintenanceGuard({ isStaff: isStaffRequest }));
 
 app.use('/api/categories', categoriesRouter);
 app.use('/api/listings', listingsRouter);
@@ -113,7 +122,7 @@ if (process.env.SENTRY_DSN) Sentry.setupExpressErrorHandler(app);
 // Fallback error handler
 app.use((err, _req, res, _next) => {
   console.error(err);
-  res.status(500).json({ error: 'Internal server error' });
+  res.status(500).json({ error: GENERIC_ERROR });
 });
 
 export default app;

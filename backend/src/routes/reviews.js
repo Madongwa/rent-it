@@ -108,7 +108,7 @@ router.post('/', requireAuth, async (req, res) => {
 // staff attention (e.g. abusive language, spam) - body: { reason }. Shows
 // up in the admin Reviews Moderation tab, and feeds the Dispute Center.
 router.post('/:id/flag', requireAuth, async (req, res) => {
-  const { reason } = req.body;
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim().slice(0, 500) : '';
   if (!reason) return res.status(400).json({ error: 'reason is required' });
 
   const { data, error } = await supabase
